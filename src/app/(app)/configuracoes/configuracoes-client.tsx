@@ -3,8 +3,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabelaCatalogo, type ColunaCatalogo } from "./tabela-catalogo";
 import { PgrTab } from "./pgr-tab";
+import { UsuariosTab } from "./usuarios-tab";
 import type { PgrItem } from "@/lib/data/catalogos";
 import type { getTodosCatalogos } from "@/lib/data/catalogos";
+import type { UsuarioArea } from "./usuarios-actions";
 
 const COL_NOME: ColunaCatalogo[] = [
   { chave: "nome", rotulo: "Nome", tipo: "text", obrigatorio: true },
@@ -54,9 +56,13 @@ type Catalogos = Awaited<ReturnType<typeof getTodosCatalogos>>;
 export function ConfiguracoesClient({
   catalogos,
   pgrItens,
+  usuarios,
+  souAdmin,
 }: {
   catalogos: Catalogos;
   pgrItens: PgrItem[];
+  usuarios: UsuarioArea[];
+  souAdmin: boolean;
 }) {
   const cargosOpcoes = catalogos.cargos.map((c) => ({
     id: String(c.id),
@@ -74,6 +80,7 @@ export function ConfiguracoesClient({
         <TabsTrigger value="geral">Geral</TabsTrigger>
         <TabsTrigger value="treinamentos">Treinamentos</TabsTrigger>
         <TabsTrigger value="aso">ASO e PGR</TabsTrigger>
+        {souAdmin && <TabsTrigger value="usuarios">Usuários</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="geral" className="space-y-8 pt-4">
@@ -154,6 +161,12 @@ export function ConfiguracoesClient({
           />
         </div>
       </TabsContent>
+
+      {souAdmin && (
+        <TabsContent value="usuarios" className="pt-4">
+          <UsuariosTab usuarios={usuarios} />
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

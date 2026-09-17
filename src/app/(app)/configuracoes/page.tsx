@@ -1,10 +1,16 @@
 import { getTodosCatalogos, getPgrCompleto } from "@/lib/data/catalogos";
+import { getUsuarioAtual } from "@/lib/auth";
+import { listarUsuarios } from "./usuarios-actions";
 import { ConfiguracoesClient } from "./configuracoes-client";
 
 export default async function ConfiguracoesPage() {
-  const [catalogos, pgrItens] = await Promise.all([
+  const usuarioAtual = await getUsuarioAtual();
+  const souAdmin = usuarioAtual?.papel === "admin";
+
+  const [catalogos, pgrItens, usuarios] = await Promise.all([
     getTodosCatalogos(),
     getPgrCompleto(),
+    souAdmin ? listarUsuarios() : Promise.resolve([]),
   ]);
 
   return (
@@ -20,7 +26,12 @@ export default async function ConfiguracoesPage() {
         </p>
       </div>
 
-      <ConfiguracoesClient catalogos={catalogos} pgrItens={pgrItens} />
+      <ConfiguracoesClient
+        catalogos={catalogos}
+        pgrItens={pgrItens}
+        usuarios={usuarios}
+        souAdmin={souAdmin}
+      />
     </div>
   );
 }
