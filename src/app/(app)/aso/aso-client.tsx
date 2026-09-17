@@ -14,8 +14,10 @@ import { situacaoVencimento, type SituacaoVencimento } from "@/lib/vencimento";
 import type { AsoColaboradorItem, PgrColaboradorItem } from "@/lib/data/aso";
 import {
   adicionarAso,
+  atualizarAso,
   removerAso,
   adicionarExameComplementar,
+  atualizarExameComplementar,
   removerExameComplementar,
 } from "./actions";
 import type { AsoFormState } from "./actions";
@@ -289,29 +291,9 @@ function LinhaColaborador({
             </h4>
             <table className="w-full text-left text-sm">
               <tbody>
-                {grupo.asoItens.map((a) => {
-                  const s = situacaoVencimento(a.data_vencimento);
-                  return (
-                    <tr key={a.registro_id} className="border-b border-border last:border-0">
-                      <td className="py-2">{TIPO_EXAME_LABEL[a.tipo_exame] ?? a.tipo_exame}</td>
-                      <td className="py-2 text-muted-foreground">{formatarData(a.data)}</td>
-                      <td className="py-2">
-                        <StatusBadge tone={a.resultado === "apto" ? "success" : "danger"}>
-                          {a.resultado === "apto" ? "Apto" : "Inapto"}
-                        </StatusBadge>
-                      </td>
-                      <td className="py-2 text-muted-foreground">
-                        {formatarData(a.data_vencimento)}
-                      </td>
-                      <td className="py-2">
-                        {s && <StatusBadge tone={s.tone}>{s.texto}</StatusBadge>}
-                      </td>
-                      <td className="py-2 text-right">
-                        <BotaoRemover action={() => removerAso(a.registro_id)} />
-                      </td>
-                    </tr>
-                  );
-                })}
+                {grupo.asoItens.map((a) => (
+                  <LinhaAsoRegistro key={a.registro_id} item={a} />
+                ))}
                 {grupo.asoItens.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-2 text-muted-foreground">
@@ -378,6 +360,118 @@ function LinhaColaborador({
   );
 }
 
+function LinhaAsoRegistro({ item }: { item: AsoColaboradorItem }) {
+  const [editando, setEditando] = useState(false);
+  const s = situacaoVencimento(item.data_vencimento);
+
+  if (editando) {
+    return (
+      <tr className="border-b border-border last:border-0">
+        <td colSpan={6} className="py-2">
+          <FormularioEditarAso item={item} aoSalvar={() => setEditando(false)} />
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr className="border-b border-border last:border-0">
+      <td className="py-2">{TIPO_EXAME_LABEL[item.tipo_exame] ?? item.tipo_exame}</td>
+      <td className="py-2 text-muted-foreground">{formatarData(item.data)}</td>
+      <td className="py-2">
+        <StatusBadge tone={item.resultado === "apto" ? "success" : "danger"}>
+          {item.resultado === "apto" ? "Apto" : "Inapto"}
+        </StatusBadge>
+      </td>
+      <td className="py-2 text-muted-foreground">{formatarData(item.data_vencimento)}</td>
+      <td className="py-2">{s && <StatusBadge tone={s.tone}>{s.texto}</StatusBadge>}</td>
+      <td className="py-2 text-right">
+        <div className="flex justify-end gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setEditando(true)}>
+            Editar
+          </Button>
+          <BotaoRemover action={() => removerAso(item.registro_id)} />
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function FormularioEditarAso({
+  item,
+  aoSalvar,
+}: {
+  item: AsoColaboradorItem;
+  aoSalvar: () => void;
+}) {
+  const [state, formAction, pending] = useActionState<AsoFormState, FormData>(
+    atualizarAso.bind(null, item.registro_id),
+    undefined,
+  );
+
+  useEffect(() => {
+    if (state && "ok" in state) aoSalvar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  return (
+    <form
+      action={formAction}
+      className="grid max-w-xl grid-cols-2 gap-3 rounded-md border border-border bg-muted/30 p-3"
+    >
+      {state && "error" in state && (
+        <p className="col-span-2 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+          {state.error}
+        </p>
+      )}
+      <div className="space-y-1">
+        <Label htmlFor="ea_tipo">Tipo de exame</Label>
+        <NativeSelect id="ea_tipo" name="tipo_exame" required defaultValue={item.tipo_exame}>
+          <option value="" disabled>
+            Selecione...
+          </option>
+          {Object.entries(TIPO_EXAME_LABEL).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="ea_resultado">Resultado</Label>
+        <NativeSelect id="ea_resultado" name="resultado" required defaultValue={item.resultado}>
+          <option value="" disabled>
+            Selecione...
+          </option>
+          <option value="apto">Apto</option>
+          <option value="inapto">Inapto</option>
+        </NativeSelect>
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="ea_data">Data</Label>
+        <Input id="ea_data" name="data" type="date" required defaultValue={item.data} />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="ea_vencimento">Vencimento</Label>
+        <Input
+          id="ea_vencimento"
+          name="data_vencimento"
+          type="date"
+          defaultValue={item.data_vencimento ?? ""}
+        />
+      </div>
+      <div className="col-span-2 flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={aoSalvar}>
+          Cancelar
+        </Button>
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function LinhaPgr({
   item,
   situacao,
@@ -387,7 +481,7 @@ function LinhaPgr({
   situacao: SituacaoVencimento;
   colaboradorId: string;
 }) {
-  const [registrando, setRegistrando] = useState(false);
+  const [modo, setModo] = useState<"nenhum" | "editando" | "registrando">("nenhum");
 
   return (
     <>
@@ -404,7 +498,20 @@ function LinhaPgr({
         </td>
         <td className="py-2 text-right">
           <div className="flex items-center justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setRegistrando(!registrando)}>
+            {item.registro_id && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setModo(modo === "editando" ? "nenhum" : "editando")}
+              >
+                Editar
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModo(modo === "registrando" ? "nenhum" : "registrando")}
+            >
               Registrar
             </Button>
             {item.registro_id && (
@@ -413,19 +520,84 @@ function LinhaPgr({
           </div>
         </td>
       </tr>
-      {registrando && (
+      {modo === "editando" && item.registro_id && (
+        <tr>
+          <td colSpan={5} className="pb-3">
+            <FormularioEditarExameComplementar
+              registroId={item.registro_id}
+              data={item.data!}
+              periodicidadeMeses={item.periodicidade_meses}
+              aoSalvar={() => setModo("nenhum")}
+            />
+          </td>
+        </tr>
+      )}
+      {modo === "registrando" && (
         <tr>
           <td colSpan={5} className="pb-3">
             <FormularioExameComplementarRapido
               colaboradorId={colaboradorId}
               exameId={item.exame_id}
               periodicidadeMeses={item.periodicidade_meses}
-              aoSalvar={() => setRegistrando(false)}
+              aoSalvar={() => setModo("nenhum")}
             />
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+function FormularioEditarExameComplementar({
+  registroId,
+  data,
+  periodicidadeMeses,
+  aoSalvar,
+}: {
+  registroId: string;
+  data: string;
+  periodicidadeMeses: number | null;
+  aoSalvar: () => void;
+}) {
+  const [state, formAction, pending] = useActionState<AsoFormState, FormData>(
+    atualizarExameComplementar.bind(null, registroId),
+    undefined,
+  );
+
+  useEffect(() => {
+    if (state && "ok" in state) aoSalvar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  return (
+    <form
+      action={formAction}
+      className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/30 p-3"
+    >
+      {state && "error" in state && (
+        <p className="w-full rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+          {state.error}
+        </p>
+      )}
+      <input type="hidden" name="periodicidade_meses" value={periodicidadeMeses ?? ""} />
+      <div className="space-y-1">
+        <Label htmlFor="edc_data">Data</Label>
+        <Input id="edc_data" name="data" type="date" required defaultValue={data} />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {periodicidadeMeses
+          ? "O vencimento é recalculado automaticamente a partir desta data."
+          : "Este exame é somente na admissão (sem vencimento)."}
+      </p>
+      <div className="flex gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={aoSalvar}>
+          Cancelar
+        </Button>
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
+    </form>
   );
 }
 

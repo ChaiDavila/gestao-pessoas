@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { formatarData, hojeISO } from "@/lib/date";
 import { situacaoVencimento } from "@/lib/vencimento";
 import type { NrColaboradorItem } from "@/lib/data/treinamentos";
-import { registrarNrLote, renovarNr } from "./actions";
+import { registrarNrLote, renovarNr, atualizarRegistroNr } from "./actions";
 import type { TreinamentoFormState } from "./actions";
 import { SelecaoParticipantes } from "./selecao-participantes";
 
@@ -237,7 +237,7 @@ function LinhaNr({
   item: NrColaboradorItem;
   colaboradorId: string;
 }) {
-  const [renovando, setRenovando] = useState(false);
+  const [modo, setModo] = useState<"nenhum" | "editando" | "renovando">("nenhum");
   const situacao = situacaoVencimento(item.data_vencimento);
 
   return (
@@ -254,18 +254,38 @@ function LinhaNr({
           {situacao && <StatusBadge tone={situacao.tone}>{situacao.texto}</StatusBadge>}
         </td>
         <td className="py-2 text-right">
-          <Button variant="outline" size="sm" onClick={() => setRenovando(!renovando)}>
-            Renovar
-          </Button>
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setModo(modo === "editando" ? "nenhum" : "editando")}
+            >
+              Editar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModo(modo === "renovando" ? "nenhum" : "renovando")}
+            >
+              Renovar
+            </Button>
+          </div>
         </td>
       </tr>
-      {renovando && (
+      {modo === "editando" && (
+        <tr>
+          <td colSpan={5} className="pb-3">
+            <FormularioEditarNr item={item} aoSalvar={() => setModo("nenhum")} />
+          </td>
+        </tr>
+      )}
+      {modo === "renovando" && (
         <tr>
           <td colSpan={5} className="pb-3">
             <FormularioRenovar
               colaboradorId={colaboradorId}
               nrCatalogoId={item.nr_numero}
-              aoSalvar={() => setRenovando(false)}
+              aoSalvar={() => setModo("nenhum")}
             />
           </td>
         </tr>
@@ -275,7 +295,7 @@ function LinhaNr({
 }
 
 function LinhaTimeline({ item }: { item: NrColaboradorItem }) {
-  const [renovando, setRenovando] = useState(false);
+  const [modo, setModo] = useState<"nenhum" | "editando" | "renovando">("nenhum");
   const situacao = situacaoVencimento(item.data_vencimento);
 
   return (
@@ -294,17 +314,33 @@ function LinhaTimeline({ item }: { item: NrColaboradorItem }) {
         </div>
         <div className="flex items-center gap-2">
           {situacao && <StatusBadge tone={situacao.tone}>{situacao.texto}</StatusBadge>}
-          <Button variant="outline" size="sm" onClick={() => setRenovando(!renovando)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setModo(modo === "editando" ? "nenhum" : "editando")}
+          >
+            Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setModo(modo === "renovando" ? "nenhum" : "renovando")}
+          >
             Renovar
           </Button>
         </div>
       </div>
-      {renovando && (
+      {modo === "editando" && (
+        <div className="mt-3">
+          <FormularioEditarNr item={item} aoSalvar={() => setModo("nenhum")} />
+        </div>
+      )}
+      {modo === "renovando" && (
         <div className="mt-3">
           <FormularioRenovar
             colaboradorId={item.colaborador_id}
             nrCatalogoId={item.nr_numero}
-            aoSalvar={() => setRenovando(false)}
+            aoSalvar={() => setModo("nenhum")}
           />
         </div>
       )}
@@ -361,6 +397,80 @@ function FormularioRenovar({
       <div className="col-span-4 flex justify-end">
         <Button type="submit" size="sm" disabled={pending}>
           {pending ? "Salvando..." : "Confirmar renovação"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function FormularioEditarNr({
+  item,
+  aoSalvar,
+}: {
+  item: NrColaboradorItem;
+  aoSalvar: () => void;
+}) {
+  const [state, formAction, pending] = useActionState<TreinamentoFormState, FormData>(
+    atualizarRegistroNr.bind(null, item.treinamento_id),
+    undefined,
+  );
+
+  useEffect(() => {
+    if (state && "ok" in state) aoSalvar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  return (
+    <form
+      action={formAction}
+      className="grid grid-cols-2 gap-3 rounded-md border border-border bg-muted/30 p-3 sm:grid-cols-4"
+    >
+      {state && "error" in state && (
+        <p className="col-span-4 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+          {state.error}
+        </p>
+      )}
+      <div className="space-y-1">
+        <Label htmlFor="ed_data">Data de realização</Label>
+        <Input id="ed_data" name="data" type="date" required defaultValue={item.data} />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="ed_carga">Carga horária</Label>
+        <Input
+          id="ed_carga"
+          name="carga_horaria"
+          type="number"
+          step="0.5"
+          required
+          defaultValue={item.carga_horaria}
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="ed_custo">Custo</Label>
+        <Input
+          id="ed_custo"
+          name="custo_total"
+          type="number"
+          step="0.01"
+          defaultValue={item.custo_total ?? ""}
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="ed_instrutor">Instrutor</Label>
+        <Input id="ed_instrutor" name="instrutor" defaultValue={item.instrutor ?? ""} />
+      </div>
+      <div className="space-y-1 sm:col-span-2">
+        <Label htmlFor="ed_vencimento">Vencimento</Label>
+        <Input
+          id="ed_vencimento"
+          name="data_vencimento"
+          type="date"
+          defaultValue={item.data_vencimento ?? ""}
+        />
+      </div>
+      <div className="col-span-2 flex items-end justify-end gap-2 sm:col-span-4">
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Salvando..." : "Salvar"}
         </Button>
       </div>
     </form>

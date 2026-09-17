@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,19 +17,24 @@ type Dependente = {
   data_nascimento: string | null;
   sexo: string | null;
 };
+type Acao = (prevState: SubRecursoState, formData: FormData) => Promise<SubRecursoState>;
+type AcaoComId = (
+  dependenteId: string,
+  prevState: SubRecursoState,
+  formData: FormData,
+) => Promise<SubRecursoState>;
 
 const LABEL_SEXO: Record<string, string> = { M: "Masculino", F: "Feminino" };
 
 export function DependentesTab({
   dependentes,
   adicionarAction,
+  atualizarAction,
   removerAction,
 }: {
   dependentes: Dependente[];
-  adicionarAction: (
-    prevState: SubRecursoState,
-    formData: FormData,
-  ) => Promise<SubRecursoState>;
+  adicionarAction: Acao;
+  atualizarAction: AcaoComId;
   removerAction: (dependenteId: string) => Promise<void>;
 }) {
   return (
@@ -48,24 +53,12 @@ export function DependentesTab({
           </thead>
           <tbody>
             {dependentes.map((d) => (
-              <tr key={d.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-2">{d.nome}</td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {d.parentesco}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {formatarData(d.data_nascimento)}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {calcularIdade(d.data_nascimento) ?? "—"}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {d.sexo ? LABEL_SEXO[d.sexo] : "—"}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <BotaoRemover action={() => removerAction(d.id)} />
-                </td>
-              </tr>
+              <LinhaDependente
+                key={d.id}
+                dependente={d}
+                atualizarAction={atualizarAction.bind(null, d.id)}
+                removerAction={() => removerAction(d.id)}
+              />
             ))}
             {dependentes.length === 0 && (
               <tr>
@@ -80,25 +73,75 @@ export function DependentesTab({
 
       <PainelAdicionar rotulo="+ Adicionar dependente">
         {(fechar) => (
-          <FormularioDependente
-            action={adicionarAction}
-            aoSalvar={fechar}
-          />
+          <FormularioDependente action={adicionarAction} textoBotao="Adicionar" aoSalvar={fechar} />
         )}
       </PainelAdicionar>
     </div>
   );
 }
 
+function LinhaDependente({
+  dependente,
+  atualizarAction,
+  removerAction,
+}: {
+  dependente: Dependente;
+  atualizarAction: Acao;
+  removerAction: () => Promise<void>;
+}) {
+  const [editando, setEditando] = useState(false);
+
+  if (editando) {
+    return (
+      <tr className="border-b border-border last:border-0">
+        <td colSpan={6} className="px-4 py-3">
+          <FormularioDependente
+            action={atualizarAction}
+            valoresIniciais={dependente}
+            textoBotao="Salvar"
+            aoSalvar={() => setEditando(false)}
+            aoCancelar={() => setEditando(false)}
+          />
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr className="border-b border-border last:border-0">
+      <td className="px-4 py-2">{dependente.nome}</td>
+      <td className="px-4 py-2 text-muted-foreground">{dependente.parentesco}</td>
+      <td className="px-4 py-2 text-muted-foreground">{formatarData(dependente.data_nascimento)}</td>
+      <td className="px-4 py-2 text-muted-foreground">
+        {calcularIdade(dependente.data_nascimento) ?? "—"}
+      </td>
+      <td className="px-4 py-2 text-muted-foreground">
+        {dependente.sexo ? LABEL_SEXO[dependente.sexo] : "—"}
+      </td>
+      <td className="px-4 py-2 text-right">
+        <div className="flex justify-end gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setEditando(true)}>
+            Editar
+          </Button>
+          <BotaoRemover action={removerAction} />
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 function FormularioDependente({
   action,
+  valoresIniciais,
+  textoBotao,
   aoSalvar,
+  aoCancelar,
 }: {
-  action: (
-    prevState: SubRecursoState,
-    formData: FormData,
-  ) => Promise<SubRecursoState>;
+  action: Acao;
+  valoresIniciais?: Dependente;
+  textoBotao: string;
   aoSalvar: () => void;
+  aoCancelar?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
 
@@ -120,11 +163,16 @@ function FormularioDependente({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="dep_nome">Nome</Label>
-          <Input id="dep_nome" name="nome" required />
+          <Input id="dep_nome" name="nome" required defaultValue={valoresIniciais?.nome ?? ""} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="dep_parentesco">Parentesco</Label>
-          <NativeSelect id="dep_parentesco" name="parentesco" required defaultValue="">
+          <NativeSelect
+            id="dep_parentesco"
+            name="parentesco"
+            required
+            defaultValue={valoresIniciais?.parentesco ?? ""}
+          >
             <option value="" disabled>
               Selecione...
             </option>
@@ -137,11 +185,16 @@ function FormularioDependente({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="dep_nascimento">Data de nascimento</Label>
-          <Input id="dep_nascimento" name="data_nascimento" type="date" />
+          <Input
+            id="dep_nascimento"
+            name="data_nascimento"
+            type="date"
+            defaultValue={valoresIniciais?.data_nascimento ?? ""}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="dep_sexo">Sexo</Label>
-          <NativeSelect id="dep_sexo" name="sexo" defaultValue="">
+          <NativeSelect id="dep_sexo" name="sexo" defaultValue={valoresIniciais?.sexo ?? ""}>
             <option value="">Inferir do parentesco</option>
             <option value="M">Masculino</option>
             <option value="F">Feminino</option>
@@ -149,8 +202,13 @@ function FormularioDependente({
         </div>
       </div>
       <div className="flex justify-end gap-2">
+        {aoCancelar && (
+          <Button type="button" variant="ghost" onClick={aoCancelar}>
+            Cancelar
+          </Button>
+        )}
         <Button type="submit" disabled={pending}>
-          {pending ? "Salvando..." : "Adicionar"}
+          {pending ? "Salvando..." : textoBotao}
         </Button>
       </div>
     </form>

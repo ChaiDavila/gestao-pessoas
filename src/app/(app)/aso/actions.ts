@@ -42,6 +42,32 @@ export async function adicionarAso(
   return { ok: true };
 }
 
+export async function atualizarAso(
+  asoId: string,
+  _prevState: AsoFormState,
+  formData: FormData,
+): Promise<AsoFormState> {
+  const tipoExame = formData.get("tipo_exame") as string;
+  const data = formData.get("data") as string;
+  const resultado = formData.get("resultado") as string;
+  const dataVencimento = (formData.get("data_vencimento") as string) || null;
+
+  if (!tipoExame || !data || !resultado) {
+    return { error: "Informe tipo de exame, data e resultado." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("aso_registros")
+    .update({ tipo_exame: tipoExame, data, resultado, data_vencimento: dataVencimento })
+    .eq("id", asoId);
+
+  if (error) return { error: error.message };
+  revalidar();
+  return { ok: true };
+}
+
 export async function removerAso(asoId: string) {
   const supabase = await createClient();
   const { error } = await supabase.schema("rh").from("aso_registros").delete().eq("id", asoId);
@@ -73,6 +99,31 @@ export async function adicionarExameComplementar(
     data,
     data_vencimento: dataVencimento,
   });
+
+  if (error) return { error: error.message };
+  revalidar();
+  return { ok: true };
+}
+
+export async function atualizarExameComplementar(
+  registroId: string,
+  _prevState: AsoFormState,
+  formData: FormData,
+): Promise<AsoFormState> {
+  const data = formData.get("data") as string;
+  const periodicidadeRaw = formData.get("periodicidade_meses") as string;
+
+  if (!data) return { error: "Informe a data." };
+
+  const periodicidadeMeses = periodicidadeRaw ? Number(periodicidadeRaw) : null;
+  const dataVencimento = periodicidadeMeses ? somarMeses(data, periodicidadeMeses) : null;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("exames_complementares_registros")
+    .update({ data, data_vencimento: dataVencimento })
+    .eq("id", registroId);
 
   if (error) return { error: error.message };
   revalidar();

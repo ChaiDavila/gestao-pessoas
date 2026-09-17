@@ -21,6 +21,11 @@ type AcaoComEstado = (
   prevState: SubRecursoState,
   formData: FormData,
 ) => Promise<SubRecursoState>;
+type AcaoComId = (
+  subRecursoId: string,
+  prevState: SubRecursoState,
+  formData: FormData,
+) => Promise<SubRecursoState>;
 
 export function FichaColaboradorClient({
   colaborador,
@@ -33,10 +38,12 @@ export function FichaColaboradorClient({
   motivosDesligamento,
   dependentes,
   adicionarDependenteAction,
+  atualizarDependenteAction,
   removerDependenteAction,
   formacoes,
   opcoesNivelFormacao,
   adicionarFormacaoAction,
+  atualizarFormacaoAction,
   removerFormacaoAction,
   historico,
   opcoesMotivoEvolucao,
@@ -46,8 +53,10 @@ export function FichaColaboradorClient({
   examesComplementares,
   opcoesExame,
   adicionarAsoAction,
+  atualizarAsoAction,
   removerAsoAction,
   adicionarExameAction,
+  atualizarExameAction,
   removerExameAction,
 }: {
   colaborador: Valores;
@@ -66,10 +75,12 @@ export function FichaColaboradorClient({
   motivosDesligamento: { id: string; motivo: string; tipo_padrao: string }[];
   dependentes: Parameters<typeof DependentesTab>[0]["dependentes"];
   adicionarDependenteAction: AcaoComEstado;
+  atualizarDependenteAction: AcaoComId;
   removerDependenteAction: (dependenteId: string) => Promise<void>;
   formacoes: Parameters<typeof FormacaoTab>[0]["formacoes"];
   opcoesNivelFormacao: { id: string; nome: string }[];
   adicionarFormacaoAction: AcaoComEstado;
+  atualizarFormacaoAction: AcaoComId;
   removerFormacaoAction: (formacaoId: string) => Promise<void>;
   historico: Parameters<typeof HistoricoTab>[0]["historico"];
   opcoesMotivoEvolucao: { id: string; motivo: string }[];
@@ -79,8 +90,10 @@ export function FichaColaboradorClient({
   examesComplementares: Parameters<typeof ExamesTab>[0]["examesComplementares"];
   opcoesExame: Parameters<typeof ExamesTab>[0]["opcoesExame"];
   adicionarAsoAction: AcaoComEstado;
+  atualizarAsoAction: AcaoComId;
   removerAsoAction: (asoId: string) => Promise<void>;
   adicionarExameAction: AcaoComEstado;
+  atualizarExameAction: AcaoComId;
   removerExameAction: (exameRegistroId: string) => Promise<void>;
 }) {
   const [modo, setModo] = useState<"ver" | "editar">(modoInicial);
@@ -141,10 +154,12 @@ export function FichaColaboradorClient({
         aoSalvarEdicao={() => setModo("ver")}
         dependentes={dependentes}
         adicionarDependenteAction={adicionarDependenteAction}
+        atualizarDependenteAction={atualizarDependenteAction}
         removerDependenteAction={removerDependenteAction}
         formacoes={formacoes}
         opcoesNivelFormacao={opcoesNivelFormacao}
         adicionarFormacaoAction={adicionarFormacaoAction}
+        atualizarFormacaoAction={atualizarFormacaoAction}
         removerFormacaoAction={removerFormacaoAction}
         historico={historico}
         opcoesMotivoEvolucao={opcoesMotivoEvolucao}
@@ -154,8 +169,10 @@ export function FichaColaboradorClient({
         examesComplementares={examesComplementares}
         opcoesExame={opcoesExame}
         adicionarAsoAction={adicionarAsoAction}
+        atualizarAsoAction={atualizarAsoAction}
         removerAsoAction={removerAsoAction}
         adicionarExameAction={adicionarExameAction}
+        atualizarExameAction={atualizarExameAction}
         removerExameAction={removerExameAction}
       />
     </div>

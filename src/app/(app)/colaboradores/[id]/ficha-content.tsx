@@ -19,14 +19,18 @@ import {
 } from "../actions";
 import {
   adicionarDependente,
+  atualizarDependente,
   removerDependente,
   adicionarFormacao,
+  atualizarFormacao,
   removerFormacao,
   adicionarHistoricoSalarial,
   removerHistoricoSalarial,
   adicionarAso,
+  atualizarAso,
   removerAso,
   adicionarExameComplementar,
+  atualizarExameComplementar,
   removerExameComplementar,
 } from "./sub-recursos-actions";
 import { FichaColaboradorClient } from "./ficha-colaborador-client";
@@ -77,10 +81,12 @@ export async function FichaColaboradorContent({
       motivosDesligamento={motivosDesligamento}
       dependentes={dependentes}
       adicionarDependenteAction={adicionarDependente.bind(null, id)}
+      atualizarDependenteAction={atualizarDependente.bind(null, id)}
       removerDependenteAction={removerDependente.bind(null, id)}
       formacoes={formacoes}
       opcoesNivelFormacao={opcoesNivelFormacao}
       adicionarFormacaoAction={adicionarFormacao.bind(null, id)}
+      atualizarFormacaoAction={atualizarFormacao.bind(null, id)}
       removerFormacaoAction={removerFormacao.bind(null, id)}
       historico={historico}
       opcoesMotivoEvolucao={opcoesMotivoEvolucao}
@@ -90,8 +96,10 @@ export async function FichaColaboradorContent({
       examesComplementares={examesComplementares}
       opcoesExame={opcoesExame}
       adicionarAsoAction={adicionarAso.bind(null, id)}
+      atualizarAsoAction={atualizarAso.bind(null, id)}
       removerAsoAction={removerAso.bind(null, id)}
       adicionarExameAction={adicionarExameComplementar.bind(null, id)}
+      atualizarExameAction={atualizarExameComplementar.bind(null, id)}
       removerExameAction={removerExameComplementar.bind(null, id)}
     />
   );

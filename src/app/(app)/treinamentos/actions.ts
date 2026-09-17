@@ -215,6 +215,78 @@ export async function renovarNr(
   return { ok: true };
 }
 
+export async function atualizarTreinamentoGeral(
+  treinamentoId: string,
+  _prevState: TreinamentoFormState,
+  formData: FormData,
+): Promise<TreinamentoFormState> {
+  const nome = formData.get("nome") as string;
+  const categoriaId = formData.get("categoria_id") as string;
+  const data = formData.get("data") as string;
+  const cargaHoraria = formData.get("carga_horaria") as string;
+  const custoTotal = formData.get("custo_total") as string;
+  const instrutor = (formData.get("instrutor") as string) || null;
+  const dataVencimento = (formData.get("data_vencimento") as string) || null;
+
+  if (!nome || !categoriaId || !data || !cargaHoraria) {
+    return { error: "Informe nome, categoria, data e carga horária." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("treinamentos")
+    .update({
+      nome,
+      categoria_id: categoriaId,
+      data,
+      carga_horaria: Number(cargaHoraria),
+      custo_total: custoTotal ? Number(custoTotal) : null,
+      instrutor,
+      data_vencimento: dataVencimento,
+    })
+    .eq("id", treinamentoId);
+
+  if (error) return { error: error.message };
+  revalidar();
+  return { ok: true };
+}
+
+// Corrige um registro de NR já existente (data, carga horária, custo, instrutor, vencimento) —
+// diferente de "Renovar", que sempre cria um registro novo de propósito (histórico preservado).
+export async function atualizarRegistroNr(
+  treinamentoId: string,
+  _prevState: TreinamentoFormState,
+  formData: FormData,
+): Promise<TreinamentoFormState> {
+  const data = formData.get("data") as string;
+  const cargaHoraria = formData.get("carga_horaria") as string;
+  const custoTotal = formData.get("custo_total") as string;
+  const instrutor = (formData.get("instrutor") as string) || null;
+  const dataVencimento = (formData.get("data_vencimento") as string) || null;
+
+  if (!data || !cargaHoraria) {
+    return { error: "Informe a data e a carga horária." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("treinamentos")
+    .update({
+      data,
+      carga_horaria: Number(cargaHoraria),
+      custo_total: custoTotal ? Number(custoTotal) : null,
+      instrutor,
+      data_vencimento: dataVencimento,
+    })
+    .eq("id", treinamentoId);
+
+  if (error) return { error: error.message };
+  revalidar();
+  return { ok: true };
+}
+
 export async function removerTreinamento(treinamentoId: string) {
   const supabase = await createClient();
   const { error } = await supabase.schema("rh").from("treinamentos").delete().eq("id", treinamentoId);

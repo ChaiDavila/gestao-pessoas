@@ -17,6 +17,11 @@ type AcaoComEstado = (
   prevState: SubRecursoState,
   formData: FormData,
 ) => Promise<SubRecursoState>;
+type AcaoComId = (
+  subRecursoId: string,
+  prevState: SubRecursoState,
+  formData: FormData,
+) => Promise<SubRecursoState>;
 
 export function TabsFicha({
   opcoes,
@@ -27,10 +32,12 @@ export function TabsFicha({
   aoSalvarEdicao,
   dependentes,
   adicionarDependenteAction,
+  atualizarDependenteAction,
   removerDependenteAction,
   formacoes,
   opcoesNivelFormacao,
   adicionarFormacaoAction,
+  atualizarFormacaoAction,
   removerFormacaoAction,
   historico,
   opcoesMotivoEvolucao,
@@ -40,8 +47,10 @@ export function TabsFicha({
   examesComplementares,
   opcoesExame,
   adicionarAsoAction,
+  atualizarAsoAction,
   removerAsoAction,
   adicionarExameAction,
+  atualizarExameAction,
   removerExameAction,
 }: {
   opcoes: OpcoesFormulario;
@@ -55,10 +64,12 @@ export function TabsFicha({
   aoSalvarEdicao: () => void;
   dependentes: Parameters<typeof DependentesTab>[0]["dependentes"];
   adicionarDependenteAction: AcaoComEstado;
+  atualizarDependenteAction: AcaoComId;
   removerDependenteAction: (dependenteId: string) => Promise<void>;
   formacoes: Parameters<typeof FormacaoTab>[0]["formacoes"];
   opcoesNivelFormacao: { id: string; nome: string }[];
   adicionarFormacaoAction: AcaoComEstado;
+  atualizarFormacaoAction: AcaoComId;
   removerFormacaoAction: (formacaoId: string) => Promise<void>;
   historico: Parameters<typeof HistoricoTab>[0]["historico"];
   opcoesMotivoEvolucao: { id: string; motivo: string }[];
@@ -68,8 +79,10 @@ export function TabsFicha({
   examesComplementares: Parameters<typeof ExamesTab>[0]["examesComplementares"];
   opcoesExame: Parameters<typeof ExamesTab>[0]["opcoesExame"];
   adicionarAsoAction: AcaoComEstado;
+  atualizarAsoAction: AcaoComId;
   removerAsoAction: (asoId: string) => Promise<void>;
   adicionarExameAction: AcaoComEstado;
+  atualizarExameAction: AcaoComId;
   removerExameAction: (exameRegistroId: string) => Promise<void>;
 }) {
   if (modo === "editar") {
@@ -110,6 +123,7 @@ export function TabsFicha({
         <DependentesTab
           dependentes={dependentes}
           adicionarAction={adicionarDependenteAction}
+          atualizarAction={atualizarDependenteAction}
           removerAction={removerDependenteAction}
         />
       </TabsContent>
@@ -134,6 +148,7 @@ export function TabsFicha({
           formacoes={formacoes}
           opcoesNivel={opcoesNivelFormacao}
           adicionarAction={adicionarFormacaoAction}
+          atualizarAction={atualizarFormacaoAction}
           removerAction={removerFormacaoAction}
         />
       </TabsContent>
@@ -144,8 +159,10 @@ export function TabsFicha({
           examesComplementares={examesComplementares}
           opcoesExame={opcoesExame}
           adicionarAsoAction={adicionarAsoAction}
+          atualizarAsoAction={atualizarAsoAction}
           removerAsoAction={removerAsoAction}
           adicionarExameAction={adicionarExameAction}
+          atualizarExameAction={atualizarExameAction}
           removerExameAction={removerExameAction}
         />
       </TabsContent>

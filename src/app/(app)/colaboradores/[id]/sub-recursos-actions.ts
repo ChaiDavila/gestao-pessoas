@@ -51,6 +51,38 @@ export async function adicionarDependente(
   return { ok: true };
 }
 
+export async function atualizarDependente(
+  colaboradorId: string,
+  dependenteId: string,
+  _prevState: SubRecursoState,
+  formData: FormData,
+): Promise<SubRecursoState> {
+  const nome = formData.get("nome") as string;
+  const parentesco = formData.get("parentesco") as string;
+  const dataNascimento = (formData.get("data_nascimento") as string) || null;
+  let sexo = (formData.get("sexo") as string) || null;
+
+  if (!nome || !parentesco) {
+    return { error: "Informe nome e parentesco." };
+  }
+
+  if (!sexo) {
+    if (parentesco === "Filho" || parentesco === "Enteado") sexo = "M";
+    else if (parentesco === "Filha" || parentesco === "Enteada") sexo = "F";
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("dependentes")
+    .update({ nome, parentesco, data_nascimento: dataNascimento, sexo })
+    .eq("id", dependenteId);
+
+  if (error) return { error: error.message };
+  revalidarFicha(colaboradorId);
+  return { ok: true };
+}
+
 export async function removerDependente(
   colaboradorId: string,
   dependenteId: string,
@@ -96,6 +128,40 @@ export async function adicionarFormacao(
     ano_conclusao: anoConclusaoRaw ? Number(anoConclusaoRaw) : null,
     status,
   });
+
+  if (error) return { error: error.message };
+  revalidarFicha(colaboradorId);
+  return { ok: true };
+}
+
+export async function atualizarFormacao(
+  colaboradorId: string,
+  formacaoId: string,
+  _prevState: SubRecursoState,
+  formData: FormData,
+): Promise<SubRecursoState> {
+  const nivelId = formData.get("nivel_id") as string;
+  const curso = (formData.get("curso") as string) || null;
+  const instituicao = (formData.get("instituicao") as string) || null;
+  const anoConclusaoRaw = formData.get("ano_conclusao") as string;
+  const status = (formData.get("status") as string) || "Concluído";
+
+  if (!nivelId) {
+    return { error: "Selecione o nível de formação." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("formacoes")
+    .update({
+      nivel_id: nivelId,
+      curso,
+      instituicao,
+      ano_conclusao: anoConclusaoRaw ? Number(anoConclusaoRaw) : null,
+      status,
+    })
+    .eq("id", formacaoId);
 
   if (error) return { error: error.message };
   revalidarFicha(colaboradorId);
@@ -228,6 +294,33 @@ export async function adicionarAso(
   return { ok: true };
 }
 
+export async function atualizarAso(
+  colaboradorId: string,
+  asoId: string,
+  _prevState: SubRecursoState,
+  formData: FormData,
+): Promise<SubRecursoState> {
+  const tipoExame = formData.get("tipo_exame") as string;
+  const data = formData.get("data") as string;
+  const resultado = formData.get("resultado") as string;
+  const dataVencimento = (formData.get("data_vencimento") as string) || null;
+
+  if (!tipoExame || !data || !resultado) {
+    return { error: "Informe tipo de exame, data e resultado." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("aso_registros")
+    .update({ tipo_exame: tipoExame, data, resultado, data_vencimento: dataVencimento })
+    .eq("id", asoId);
+
+  if (error) return { error: error.message };
+  revalidarFicha(colaboradorId);
+  return { ok: true };
+}
+
 export async function removerAso(colaboradorId: string, asoId: string) {
   const supabase = await createClient();
   const { error } = await supabase
@@ -274,6 +367,35 @@ export async function adicionarExameComplementar(
       data,
       data_vencimento: dataVencimento,
     });
+
+  if (error) return { error: error.message };
+  revalidarFicha(colaboradorId);
+  return { ok: true };
+}
+
+export async function atualizarExameComplementar(
+  colaboradorId: string,
+  exameRegistroId: string,
+  _prevState: SubRecursoState,
+  formData: FormData,
+): Promise<SubRecursoState> {
+  const exameId = formData.get("exame_id") as string;
+  const data = formData.get("data") as string;
+  const periodicidadeRaw = formData.get("periodicidade_meses") as string;
+
+  if (!exameId || !data) {
+    return { error: "Selecione o exame e a data." };
+  }
+
+  const periodicidadeMeses = periodicidadeRaw ? Number(periodicidadeRaw) : null;
+  const dataVencimento = periodicidadeMeses ? somarMeses(data, periodicidadeMeses) : null;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("exames_complementares_registros")
+    .update({ exame_id: exameId, data, data_vencimento: dataVencimento })
+    .eq("id", exameRegistroId);
 
   if (error) return { error: error.message };
   revalidarFicha(colaboradorId);

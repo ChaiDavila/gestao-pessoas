@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,19 +12,24 @@ import type { SubRecursoState } from "./sub-recursos-actions";
 import type { FormacaoRow } from "@/lib/data/colaborador-detalhe";
 
 type Formacao = FormacaoRow;
+type Acao = (prevState: SubRecursoState, formData: FormData) => Promise<SubRecursoState>;
+type AcaoComId = (
+  formacaoId: string,
+  prevState: SubRecursoState,
+  formData: FormData,
+) => Promise<SubRecursoState>;
 
 export function FormacaoTab({
   formacoes,
   opcoesNivel,
   adicionarAction,
+  atualizarAction,
   removerAction,
 }: {
   formacoes: Formacao[];
   opcoesNivel: { id: string; nome: string }[];
-  adicionarAction: (
-    prevState: SubRecursoState,
-    formData: FormData,
-  ) => Promise<SubRecursoState>;
+  adicionarAction: Acao;
+  atualizarAction: AcaoComId;
   removerAction: (formacaoId: string) => Promise<void>;
 }) {
   return (
@@ -43,29 +48,14 @@ export function FormacaoTab({
           </thead>
           <tbody>
             {formacoes.map((f, i) => (
-              <tr key={f.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    {f.config_formacoes?.nome ?? "—"}
-                    {i === 0 && <StatusBadge tone="success">Atual</StatusBadge>}
-                  </div>
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {f.curso ?? "—"}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {f.instituicao ?? "—"}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {f.ano_conclusao ?? "—"}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {f.status}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <BotaoRemover action={() => removerAction(f.id)} />
-                </td>
-              </tr>
+              <LinhaFormacao
+                key={f.id}
+                formacao={f}
+                atual={i === 0}
+                opcoesNivel={opcoesNivel}
+                atualizarAction={atualizarAction.bind(null, f.id)}
+                removerAction={() => removerAction(f.id)}
+              />
             ))}
             {formacoes.length === 0 && (
               <tr>
@@ -83,6 +73,7 @@ export function FormacaoTab({
           <FormularioFormacao
             action={adicionarAction}
             opcoesNivel={opcoesNivel}
+            textoBotao="Adicionar"
             aoSalvar={fechar}
           />
         )}
@@ -91,17 +82,76 @@ export function FormacaoTab({
   );
 }
 
+function LinhaFormacao({
+  formacao,
+  atual,
+  opcoesNivel,
+  atualizarAction,
+  removerAction,
+}: {
+  formacao: Formacao;
+  atual: boolean;
+  opcoesNivel: { id: string; nome: string }[];
+  atualizarAction: Acao;
+  removerAction: () => Promise<void>;
+}) {
+  const [editando, setEditando] = useState(false);
+
+  if (editando) {
+    return (
+      <tr className="border-b border-border last:border-0">
+        <td colSpan={6} className="px-4 py-3">
+          <FormularioFormacao
+            action={atualizarAction}
+            opcoesNivel={opcoesNivel}
+            valoresIniciais={formacao}
+            textoBotao="Salvar"
+            aoSalvar={() => setEditando(false)}
+            aoCancelar={() => setEditando(false)}
+          />
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr className="border-b border-border last:border-0">
+      <td className="px-4 py-2">
+        <div className="flex items-center gap-2">
+          {formacao.config_formacoes?.nome ?? "—"}
+          {atual && <StatusBadge tone="success">Atual</StatusBadge>}
+        </div>
+      </td>
+      <td className="px-4 py-2 text-muted-foreground">{formacao.curso ?? "—"}</td>
+      <td className="px-4 py-2 text-muted-foreground">{formacao.instituicao ?? "—"}</td>
+      <td className="px-4 py-2 text-muted-foreground">{formacao.ano_conclusao ?? "—"}</td>
+      <td className="px-4 py-2 text-muted-foreground">{formacao.status}</td>
+      <td className="px-4 py-2 text-right">
+        <div className="flex justify-end gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setEditando(true)}>
+            Editar
+          </Button>
+          <BotaoRemover action={removerAction} />
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 function FormularioFormacao({
   action,
   opcoesNivel,
+  valoresIniciais,
+  textoBotao,
   aoSalvar,
+  aoCancelar,
 }: {
-  action: (
-    prevState: SubRecursoState,
-    formData: FormData,
-  ) => Promise<SubRecursoState>;
+  action: Acao;
   opcoesNivel: { id: string; nome: string }[];
+  valoresIniciais?: Formacao;
+  textoBotao: string;
   aoSalvar: () => void;
+  aoCancelar?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
 
@@ -123,7 +173,12 @@ function FormularioFormacao({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="form_nivel">Nível</Label>
-          <NativeSelect id="form_nivel" name="nivel_id" required defaultValue="">
+          <NativeSelect
+            id="form_nivel"
+            name="nivel_id"
+            required
+            defaultValue={valoresIniciais?.nivel_id ?? ""}
+          >
             <option value="" disabled>
               Selecione...
             </option>
@@ -136,7 +191,7 @@ function FormularioFormacao({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="form_status">Status</Label>
-          <NativeSelect id="form_status" name="status" defaultValue="Concluído">
+          <NativeSelect id="form_status" name="status" defaultValue={valoresIniciais?.status ?? "Concluído"}>
             <option value="Concluído">Concluído</option>
             <option value="Em andamento">Em andamento</option>
             <option value="Trancado">Trancado</option>
@@ -144,20 +199,34 @@ function FormularioFormacao({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="form_curso">Curso</Label>
-          <Input id="form_curso" name="curso" />
+          <Input id="form_curso" name="curso" defaultValue={valoresIniciais?.curso ?? ""} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="form_instituicao">Instituição</Label>
-          <Input id="form_instituicao" name="instituicao" />
+          <Input
+            id="form_instituicao"
+            name="instituicao"
+            defaultValue={valoresIniciais?.instituicao ?? ""}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="form_ano">Ano de conclusão</Label>
-          <Input id="form_ano" name="ano_conclusao" type="number" />
+          <Input
+            id="form_ano"
+            name="ano_conclusao"
+            type="number"
+            defaultValue={valoresIniciais?.ano_conclusao ?? ""}
+          />
         </div>
       </div>
       <div className="flex justify-end gap-2">
+        {aoCancelar && (
+          <Button type="button" variant="ghost" onClick={aoCancelar}>
+            Cancelar
+          </Button>
+        )}
         <Button type="submit" disabled={pending}>
-          {pending ? "Salvando..." : "Adicionar"}
+          {pending ? "Salvando..." : textoBotao}
         </Button>
       </div>
     </form>
