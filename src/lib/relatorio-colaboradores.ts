@@ -1,3 +1,5 @@
+import { montarCsv } from "@/lib/csv";
+
 export type CampoRelatorio = {
   chave: string;
   rotulo: string;
@@ -47,21 +49,13 @@ export const CAMPOS_RELATORIO: CampoRelatorio[] = [
   { chave: "status_rh", rotulo: "Status", grupo: "Outros", valor: (c) => (c.status_rh === "ativo" ? "Ativo" : "Desligado") },
 ];
 
-function escaparCampoCsv(valor: string) {
-  if (/[;"\n]/.test(valor)) {
-    return `"${valor.replace(/"/g, '""')}"`;
-  }
-  return valor;
-}
-
 export function gerarCsv(
   linhas: Record<string, unknown>[],
   chavesSelecionadas: string[],
 ) {
   const campos = CAMPOS_RELATORIO.filter((c) => chavesSelecionadas.includes(c.chave));
-  const cabecalho = campos.map((c) => escaparCampoCsv(c.rotulo)).join(";");
-  const corpo = linhas
-    .map((linha) => campos.map((c) => escaparCampoCsv(c.valor(linha))).join(";"))
-    .join("\n");
-  return "﻿" + cabecalho + "\n" + corpo;
+  return montarCsv(
+    campos.map((c) => ({ rotulo: c.rotulo, valor: c.valor })),
+    linhas,
+  );
 }

@@ -2,6 +2,7 @@
 
 import "./chart-setup";
 import { Bar } from "react-chartjs-2";
+import type { ChartEvent, ActiveElement } from "chart.js";
 import { COR_DADO, COR_GRID, COR_TEXTO, OPCOES_BASE } from "./chart-setup";
 
 export function BarChart({
@@ -9,11 +10,13 @@ export function BarChart({
   valores,
   horizontal = false,
   formatarValor,
+  aoClicarBarra,
 }: {
   labels: string[];
   valores: number[];
   horizontal?: boolean;
   formatarValor?: (v: number) => string;
+  aoClicarBarra?: (index: number) => void;
 }) {
   const data = {
     labels,
@@ -30,6 +33,17 @@ export function BarChart({
   const options = {
     ...OPCOES_BASE,
     indexAxis: horizontal ? ("y" as const) : ("x" as const),
+    onClick: aoClicarBarra
+      ? (_event: ChartEvent, elements: ActiveElement[]) => {
+          if (elements.length > 0) aoClicarBarra(elements[0].index);
+        }
+      : undefined,
+    onHover: aoClicarBarra
+      ? (event: ChartEvent, elements: ActiveElement[]) => {
+          const target = event.native?.target as HTMLElement | null;
+          if (target) target.style.cursor = elements.length > 0 ? "pointer" : "default";
+        }
+      : undefined,
     plugins: {
       ...OPCOES_BASE.plugins,
       tooltip: {
