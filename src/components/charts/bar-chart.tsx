@@ -3,9 +3,10 @@
 import "./chart-setup";
 import { Bar } from "react-chartjs-2";
 import type { ChartEvent, ActiveElement } from "chart.js";
-import { COR_DADO, COR_GRID, COR_TEXTO, OPCOES_BASE } from "./chart-setup";
+import { COR_DADO, COR_DADO_HOVER, COR_GRID, COR_TEXTO, OPCOES_BASE } from "./chart-setup";
 
 const COR_SERIE_2 = "#434342";
+const COR_SERIE_2_HOVER = "#2A2A29";
 
 type Serie = { rotulo: string; valores: number[]; cor?: string };
 
@@ -24,20 +25,34 @@ export function BarChart({
   formatarValor?: (v: number) => string;
   aoClicarBarra?: (index: number) => void;
 }) {
+  // Arredonda só a ponta "solta" da barra (topo, nas verticais; direita, nas horizontais),
+  // deixando a ponta encostada na linha de base reta — ver skill de dataviz, marks-and-anatomy.
+  const borderRadius = horizontal
+    ? { topLeft: 0, bottomLeft: 0, topRight: 4, bottomRight: 4 }
+    : { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 };
+
   const datasets = series
     ? series.map((s, i) => ({
         label: s.rotulo,
         data: s.valores,
         backgroundColor: s.cor ?? (i === 0 ? COR_DADO : COR_SERIE_2),
-        borderRadius: 4,
-        maxBarThickness: 24,
+        hoverBackgroundColor: s.cor ?? (i === 0 ? COR_DADO_HOVER : COR_SERIE_2_HOVER),
+        borderRadius,
+        borderSkipped: false,
+        maxBarThickness: 28,
+        categoryPercentage: series.length > 1 ? 0.6 : 0.55,
+        barPercentage: 0.9,
       }))
     : [
         {
           data: valores ?? [],
           backgroundColor: COR_DADO,
-          borderRadius: 4,
-          maxBarThickness: 24,
+          hoverBackgroundColor: COR_DADO_HOVER,
+          borderRadius,
+          borderSkipped: false,
+          maxBarThickness: 28,
+          categoryPercentage: 0.55,
+          barPercentage: 0.9,
         },
       ];
 
@@ -77,12 +92,16 @@ export function BarChart({
       x: {
         grid: { color: COR_GRID, display: !horizontal },
         border: { display: false },
-        ticks: { color: COR_TEXTO, font: { size: 11 } },
+        ticks: horizontal
+          ? { color: COR_TEXTO, font: { size: 11 }, maxTicksLimit: 6, precision: 0 }
+          : { color: COR_TEXTO, font: { size: 11 } },
       },
       y: {
         grid: { color: COR_GRID, display: horizontal },
         border: { display: false },
-        ticks: { color: COR_TEXTO, font: { size: 11 } },
+        ticks: horizontal
+          ? { color: COR_TEXTO, font: { size: 11 } }
+          : { color: COR_TEXTO, font: { size: 11 }, maxTicksLimit: 6, precision: 0 },
       },
     },
   };

@@ -29,20 +29,43 @@ export function DoughnutChart({
       {
         data: valores,
         backgroundColor: CORES.slice(0, labels.length),
+        hoverBackgroundColor: CORES.slice(0, labels.length),
         borderColor: "#FFFFFF",
-        borderWidth: 2,
+        borderWidth: 3,
+        hoverOffset: 6,
+        hoverBorderWidth: 3,
       },
     ],
   };
 
+  const total = valores.reduce((s, v) => s + v, 0);
+
   const options = {
     ...OPCOES_BASE,
+    cutout: "68%",
     plugins: {
       ...OPCOES_BASE.plugins,
       legend: {
         display: true,
         position: "bottom" as const,
-        labels: { color: COR_TEXTO, font: { size: 12 }, boxWidth: 12 },
+        labels: {
+          color: COR_TEXTO,
+          font: { size: 12 },
+          boxWidth: 8,
+          boxHeight: 8,
+          usePointStyle: true,
+          pointStyle: "circle" as const,
+          padding: 16,
+        },
+      },
+      tooltip: {
+        ...OPCOES_BASE.plugins.tooltip,
+        callbacks: {
+          label: (ctx: { label: string; parsed: number }) => {
+            const pct = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
+            return `${ctx.label}: ${ctx.parsed} (${pct}%)`;
+          },
+        },
       },
     },
     onClick: aoClicarFatia

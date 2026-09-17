@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { StatTile } from "@/components/stat-tile";
+import { StatusBadge } from "@/components/status-badge";
 import { ChartCard } from "@/components/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
 import { LineChart } from "@/components/charts/line-chart";
@@ -46,12 +47,19 @@ export function DashboardClient({
   const [dialogColaboradorIds, setDialogColaboradorIds] = useState<string[] | null>(null);
   const [dialogDesligamentoIds, setDialogDesligamentoIds] = useState<string[] | null>(null);
   const [dialogDetalhe, setDialogDetalhe] = useState<Map<string, string> | null>(null);
+  const [dialogDetalheLabel, setDialogDetalheLabel] = useState<string | null>(null);
 
-  function abrirColaboradores(titulo: string, ids: string[], detalhe?: Map<string, string>) {
+  function abrirColaboradores(
+    titulo: string,
+    ids: string[],
+    detalhe?: Map<string, string>,
+    detalheLabel?: string,
+  ) {
     setDialogTitulo(titulo);
     setDialogColaboradorIds(ids);
     setDialogDesligamentoIds(null);
     setDialogDetalhe(detalhe ?? null);
+    setDialogDetalheLabel(detalhe ? (detalheLabel ?? "Detalhe") : null);
   }
 
   function abrirDesligamentos(titulo: string, ids: string[]) {
@@ -88,6 +96,7 @@ export function DashboardClient({
               "Folha salarial atual",
               dados.ativosIds,
               new Map(dados.ativos.map((c) => [c.id, formatarMoeda(c.salario_atual) ?? "—"])),
+              "Salário atual",
             )
           }
         />
@@ -113,6 +122,7 @@ export function DashboardClient({
                   return [c.id, `${anos} ${anos === 1 ? "ano" : "anos"} de empresa`];
                 }),
               ),
+              "Tempo de casa",
             )
           }
         />
@@ -235,57 +245,137 @@ export function DashboardClient({
             setDialogColaboradorIds(null);
             setDialogDesligamentoIds(null);
             setDialogDetalhe(null);
+            setDialogDetalheLabel(null);
           }
         }}
       >
-        <DialogContent className="max-w-md sm:max-w-md">
+        <DialogContent className="max-w-2xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{dialogTitulo}</DialogTitle>
           </DialogHeader>
-          <div className="max-h-96 space-y-1 overflow-y-auto">
-            {dialogColaboradorIds?.map((id) => {
-              const c = colaboradoresMap.get(id);
-              if (!c) return null;
-              const detalhe = dialogDetalhe?.get(id);
-              return (
-                <Link
-                  key={id}
-                  href={`/colaboradores/${id}`}
-                  className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"
-                >
-                  <span className="flex items-center gap-3">
-                    <ColaboradorAvatar nome={c.nome} size="sm" />
-                    {c.nome}
-                  </span>
-                  {detalhe && (
-                    <span className="text-xs text-muted-foreground">{detalhe}</span>
-                  )}
-                </Link>
-              );
-            })}
-            {dialogDesligamentoIds?.map((id) => {
-              const d = desligamentosMap.get(id);
-              if (!d) return null;
-              return (
-                <Link
-                  key={id}
-                  href={`/colaboradores/${d.colaborador_id}`}
-                  className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"
-                >
-                  <ColaboradorAvatar nome={d.colaborador_nome} size="sm" />
-                  <span>
-                    {d.colaborador_nome}{" "}
-                    <span className="text-muted-foreground">
-                      ({new Date(d.data + "T00:00:00").toLocaleDateString("pt-BR")})
-                    </span>
-                  </span>
-                </Link>
-              );
-            })}
-            {(dialogColaboradorIds?.length === 0 || dialogDesligamentoIds?.length === 0) && (
-              <p className="px-2 py-2 text-sm text-muted-foreground">Nenhum registro.</p>
-            )}
-          </div>
+
+          {dialogColaboradorIds && (
+            <>
+              <p className="rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                {dialogColaboradorIds.length} colaborador(es). Clique num nome para abrir a
+                ficha completa.
+              </p>
+              {dialogColaboradorIds.length === 0 ? (
+                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  Nenhum colaborador encontrado neste grupo.
+                </p>
+              ) : (
+                <div className="max-h-96 overflow-y-auto rounded-lg border border-border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 border-b border-border bg-card text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Colaborador</th>
+                        <th className="px-3 py-2 font-medium">Setor</th>
+                        <th className="px-3 py-2 font-medium">
+                          {dialogDetalhe ? dialogDetalheLabel : "Status"}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dialogColaboradorIds.map((id) => {
+                        const c = colaboradoresMap.get(id);
+                        if (!c) return null;
+                        const detalhe = dialogDetalhe?.get(id);
+                        return (
+                          <tr key={id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                            <td className="px-3 py-2">
+                              <Link href={`/colaboradores/${id}`} className="flex items-center gap-3">
+                                <ColaboradorAvatar nome={c.nome} size="sm" />
+                                <div>
+                                  <p className="font-medium text-foreground hover:text-primary">
+                                    {c.nome}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {c.cargo_nome ?? "—"}
+                                  </p>
+                                </div>
+                              </Link>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {c.setor_nome ?? "—"}
+                            </td>
+                            <td className="px-3 py-2">
+                              {detalhe ? (
+                                <span className="text-sm text-foreground">{detalhe}</span>
+                              ) : (
+                                <StatusBadge tone={c.status_rh === "ativo" ? "success" : "neutral"}>
+                                  {c.status_rh === "ativo" ? "Ativo" : "Desligado"}
+                                </StatusBadge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {dialogDesligamentoIds && (
+            <>
+              <p className="rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                {dialogDesligamentoIds.length} desligamento(s). Clique num nome para abrir a
+                ficha completa.
+              </p>
+              {dialogDesligamentoIds.length === 0 ? (
+                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  Nenhum desligamento encontrado neste grupo.
+                </p>
+              ) : (
+                <div className="max-h-96 overflow-y-auto rounded-lg border border-border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 border-b border-border bg-card text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Colaborador</th>
+                        <th className="px-3 py-2 font-medium">Data</th>
+                        <th className="px-3 py-2 font-medium">Tipo</th>
+                        <th className="px-3 py-2 font-medium">Motivo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dialogDesligamentoIds.map((id) => {
+                        const d = desligamentosMap.get(id);
+                        if (!d) return null;
+                        return (
+                          <tr key={id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                            <td className="px-3 py-2">
+                              <Link
+                                href={`/colaboradores/${d.colaborador_id}`}
+                                className="flex items-center gap-3"
+                              >
+                                <ColaboradorAvatar nome={d.colaborador_nome} size="sm" />
+                                <p className="font-medium text-foreground hover:text-primary">
+                                  {d.colaborador_nome}
+                                </p>
+                              </Link>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {new Date(d.data + "T00:00:00").toLocaleDateString("pt-BR")}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">
+                                {d.tipo === "voluntario" ? "Voluntário" : "Involuntário"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {d.motivo_nome ?? "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

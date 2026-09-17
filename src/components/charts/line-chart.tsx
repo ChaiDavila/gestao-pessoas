@@ -2,8 +2,17 @@
 
 import "./chart-setup";
 import { Line } from "react-chartjs-2";
-import type { ChartEvent, ActiveElement } from "chart.js";
-import { COR_DADO, COR_GRID, COR_TEXTO, OPCOES_BASE } from "./chart-setup";
+import type { ChartEvent, ActiveElement, ScriptableContext } from "chart.js";
+import { COR_DADO, COR_DADO_HOVER, COR_GRID, COR_TEXTO, OPCOES_BASE } from "./chart-setup";
+
+function preencherComGradiente(context: ScriptableContext<"line">) {
+  const { ctx, chartArea } = context.chart;
+  if (!chartArea) return `${COR_DADO}00`;
+  const gradiente = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  gradiente.addColorStop(0, `${COR_DADO}33`);
+  gradiente.addColorStop(1, `${COR_DADO}00`);
+  return gradiente;
+}
 
 export function LineChart({
   labels,
@@ -22,14 +31,16 @@ export function LineChart({
       {
         data: valores,
         borderColor: COR_DADO,
-        backgroundColor: `${COR_DADO}1A`,
-        borderWidth: 2,
-        pointRadius: 4,
+        backgroundColor: preencherComGradiente,
+        borderWidth: 2.5,
+        pointRadius: 3,
+        pointHoverRadius: 5,
         pointBackgroundColor: COR_DADO,
+        pointHoverBackgroundColor: COR_DADO_HOVER,
         pointBorderColor: "#FFFFFF",
         pointBorderWidth: 2,
         fill: true,
-        tension: 0.2,
+        tension: 0.35,
       },
     ],
   };

@@ -4,6 +4,7 @@ export type ColaboradorDashboardItem = {
   id: string;
   nome: string;
   cargo_id: string | null;
+  cargo_nome: string | null;
   setor_id: string | null;
   setor_nome: string | null;
   nivel_id: string | null;
@@ -37,7 +38,7 @@ export async function getColaboradoresDashboard() {
     .schema("rh")
     .from("vw_colaboradores")
     .select(
-      "id, nome, cargo_id, setor_id, setor_nome, nivel_id, eixo_id, gestor_colaborador_id, status_rh, sexo, data_nascimento, data_admissao, salario_atual",
+      "id, nome, cargo_id, cargo_nome, setor_id, setor_nome, nivel_id, eixo_id, gestor_colaborador_id, status_rh, sexo, data_nascimento, data_admissao, salario_atual",
     );
 
   if (error) throw new Error(error.message);
