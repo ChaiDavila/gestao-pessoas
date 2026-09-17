@@ -39,9 +39,12 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          Dashboard de indicadores
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Visão geral de headcount, folha salarial e turnover.
+          Visão geral de colaboradores, movimentação e folha, calculada a
+          partir da base cadastrada.
         </p>
       </div>
 

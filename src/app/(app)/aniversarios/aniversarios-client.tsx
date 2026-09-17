@@ -52,54 +52,77 @@ export function AniversariosClient({
   }, [colaboradores, mes, hoje]);
 
   // "Hoje" sempre olha a data real de hoje, independente do mês selecionado no filtro.
-  const hojeCount = useMemo(() => {
-    let total = 0;
+  const hojeNomes = useMemo(() => {
+    const nomes: string[] = [];
     for (const c of colaboradores) {
-      if (c.data_nascimento && ehHoje(c.data_nascimento, hoje)) total += 1;
-      if (ehHoje(c.data_admissao, hoje)) total += 1;
+      if (c.data_nascimento && ehHoje(c.data_nascimento, hoje)) nomes.push(c.nome);
+      else if (ehHoje(c.data_admissao, hoje)) nomes.push(c.nome);
     }
-    return total;
+    return nomes;
   }, [colaboradores, hoje]);
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="w-48 space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Mês</label>
-          <NativeSelect value={String(mes)} onChange={(e) => setMes(Number(e.target.value))}>
-            {MESES.map((nome, i) => (
-              <option key={nome} value={i + 1}>
-                {nome}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-        <StatTile label="Hoje" valor={String(hojeCount)} />
+      <div className="w-48 space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Mês</label>
+        <NativeSelect value={String(mes)} onChange={(e) => setMes(Number(e.target.value))}>
+          {MESES.map((nome, i) => (
+            <option key={nome} value={i + 1}>
+              {nome}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatTile
+          label={`Aniversariantes em ${MESES[mes - 1]}`}
+          valor={String(aniversariantesNatal.length)}
+          subtitulo="colaboradores ativos"
+        />
+        <StatTile
+          label="Aniversários de empresa no mês"
+          valor={String(aniversariosEmpresa.length)}
+          subtitulo="qualquer quantidade de anos"
+        />
+        <StatTile
+          label="Hoje"
+          valor={hojeNomes.length > 0 ? String(hojeNomes.length) : "—"}
+          subtitulo={hojeNomes.length > 0 ? hojeNomes.join(", ") : "Nenhum hoje"}
+        />
       </div>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-foreground">
-          Aniversariantes do mês
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+          🎂 Aniversariantes do mês
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {aniversariantesNatal.map(({ colaborador, dia, idade, hoje: eHoje }) => (
             <div
               key={colaborador.id}
               className={cn(
-                "flex items-center gap-3 rounded-lg border bg-card p-4",
+                "relative rounded-lg border bg-card p-4",
                 eHoje ? "border-primary ring-2 ring-primary/30" : "border-border",
               )}
             >
-              <ColaboradorAvatar nome={colaborador.nome} size="md" />
-              <div className="min-w-0">
-                <p className="truncate font-medium text-foreground">{colaborador.nome}</p>
-                <p className="text-xs text-muted-foreground">
-                  Dia {dia} · completa {idade} anos
-                </p>
-                {eHoje && (
-                  <p className="text-xs font-semibold text-primary">🎉 Hoje!</p>
-                )}
+              <span className="absolute right-3 top-3 rounded-full bg-sidebar px-2 py-0.5 text-xs font-medium text-sidebar-foreground">
+                Dia {String(dia).padStart(2, "0")}
+              </span>
+              <div className="flex items-center gap-3 pr-14">
+                <ColaboradorAvatar nome={colaborador.nome} size="md" />
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{colaborador.nome}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {colaborador.cargo_nome ?? "—"}
+                  </p>
+                </div>
               </div>
+              <p className="mt-2 text-xs font-semibold text-primary">
+                🎂 Completa {idade} anos
+              </p>
+              {eHoje && (
+                <p className="mt-0.5 text-xs font-semibold text-success">🎉 Hoje!</p>
+              )}
             </div>
           ))}
           {aniversariantesNatal.length === 0 && (
@@ -111,33 +134,41 @@ export function AniversariosClient({
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-foreground">
-          Aniversários de empresa
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+          🎉 Aniversários de empresa (tempo de casa)
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {aniversariosEmpresa.map(({ colaborador, dia, anos, hoje: eHoje }) => (
             <div
               key={colaborador.id}
               className={cn(
-                "flex items-center gap-3 rounded-lg border bg-card p-4",
+                "relative rounded-lg border bg-card p-4",
                 eHoje ? "border-primary ring-2 ring-primary/30" : "border-border",
               )}
             >
-              <ColaboradorAvatar nome={colaborador.nome} size="md" />
-              <div className="min-w-0">
-                <p className="truncate font-medium text-foreground">{colaborador.nome}</p>
-                <p className="text-xs text-muted-foreground">
-                  Dia {dia} · {anos} {anos === 1 ? "ano" : "anos"} de empresa
-                </p>
-                {ehMarcoRedondo(anos) && (
-                  <p className="text-xs font-semibold text-primary">
-                    🏆 Marco de {anos} anos
+              <span className="absolute right-3 top-3 rounded-full bg-sidebar px-2 py-0.5 text-xs font-medium text-sidebar-foreground">
+                Dia {String(dia).padStart(2, "0")}
+              </span>
+              <div className="flex items-center gap-3 pr-14">
+                <ColaboradorAvatar nome={colaborador.nome} size="md" />
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{colaborador.nome}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {colaborador.cargo_nome ?? "—"}
                   </p>
-                )}
-                {eHoje && (
-                  <p className="text-xs font-semibold text-primary">🎉 Hoje!</p>
-                )}
+                </div>
               </div>
+              <p className="mt-2 text-xs font-semibold text-primary">
+                🎉 Completa {anos} {anos === 1 ? "ano" : "anos"} de empresa
+              </p>
+              {ehMarcoRedondo(anos) && (
+                <p className="mt-0.5 text-xs font-semibold text-warning">
+                  🏆 Marco de {anos} anos
+                </p>
+              )}
+              {eHoje && (
+                <p className="mt-0.5 text-xs font-semibold text-success">🎉 Hoje!</p>
+              )}
             </div>
           ))}
           {aniversariosEmpresa.length === 0 && (

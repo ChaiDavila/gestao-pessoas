@@ -1,21 +1,18 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { OpcoesFormulario } from "@/lib/data/colaboradores";
 import { STATUS_RH, STATUS_RH_LABEL, ESTADOS_CIVIS } from "@/lib/constants/rh";
 
-export function PerfilFamiliarFilters({
-  setores,
-  gestores,
-}: {
-  setores: { id: string; nome: string }[];
-  gestores: { id: string; nome: string }[];
-}) {
+export function PerfilFamiliarFilters({ opcoes }: { opcoes: OpcoesFormulario }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [busca, setBusca] = useState(searchParams.get("busca") ?? "");
   const [, startTransition] = useTransition();
 
   function atualizarFiltro(chave: string, valor: string) {
@@ -29,20 +26,25 @@ export function PerfilFamiliarFilters({
 
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <Selecao
-        label="Setor"
-        paramKey="setor"
-        searchParams={searchParams}
-        onChange={atualizarFiltro}
-        options={setores}
-      />
-      <Selecao
-        label="Gestor"
-        paramKey="gestor"
-        searchParams={searchParams}
-        onChange={atualizarFiltro}
-        options={gestores}
-      />
+      <div className="w-56 space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">
+          Buscar por nome
+        </label>
+        <Input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") atualizarFiltro("busca", busca);
+          }}
+          onBlur={() => atualizarFiltro("busca", busca)}
+          placeholder="Ex.: Maria..."
+        />
+      </div>
+      <Selecao label="Função" paramKey="cargo" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.cargos} />
+      <Selecao label="Nível" paramKey="nivel" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.niveis} />
+      <Selecao label="Eixo" paramKey="eixo" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.eixos} />
+      <Selecao label="Setor" paramKey="setor" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.setores} />
+      <Selecao label="Gestor" paramKey="gestor" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.gestores} />
       <div className="w-44 space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Status</label>
         <NativeSelect
@@ -98,7 +100,7 @@ function Selecao({
   options: { id: string; nome: string }[];
 }) {
   return (
-    <div className="w-48 space-y-1">
+    <div className="w-44 space-y-1">
       <label className="text-xs font-medium text-muted-foreground">{label}</label>
       <NativeSelect
         value={searchParams.get(paramKey) ?? ""}

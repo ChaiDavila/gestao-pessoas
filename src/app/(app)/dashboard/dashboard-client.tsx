@@ -17,6 +17,7 @@ import {
 import { formatarMoeda } from "@/lib/formatacao";
 import {
   calcularDashboard,
+  anosDeCasaDe,
   type DashboardFiltros,
 } from "@/lib/dashboard-indicadores";
 import type {
@@ -44,11 +45,13 @@ export function DashboardClient({
   const [dialogTitulo, setDialogTitulo] = useState<string | null>(null);
   const [dialogColaboradorIds, setDialogColaboradorIds] = useState<string[] | null>(null);
   const [dialogDesligamentoIds, setDialogDesligamentoIds] = useState<string[] | null>(null);
+  const [dialogDetalhe, setDialogDetalhe] = useState<Map<string, string> | null>(null);
 
-  function abrirColaboradores(titulo: string, ids: string[]) {
+  function abrirColaboradores(titulo: string, ids: string[], detalhe?: Map<string, string>) {
     setDialogTitulo(titulo);
     setDialogColaboradorIds(ids);
     setDialogDesligamentoIds(null);
+    setDialogDetalhe(detalhe ?? null);
   }
 
   function abrirDesligamentos(titulo: string, ids: string[]) {
@@ -69,18 +72,48 @@ export function DashboardClient({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <StatTile label="Colaboradores ativos" valor={String(dados.colaboradoresAtivos)} />
+        <StatTile
+          label="Colaboradores ativos"
+          valor={String(dados.colaboradoresAtivos)}
+          subtitulo={`${dados.totalColaboradoresBase} colaboradores na base total`}
+          onClick={() => abrirColaboradores("Colaboradores ativos", dados.ativosIds)}
+        />
         <StatTile
           label="Folha salarial atual"
           valor={formatarMoeda(dados.folhaSalarial) ?? "R$ 0,00"}
+          subtitulo={`Salário médio: ${formatarMoeda(dados.salarioMedio) ?? "—"}`}
+          onClick={() =>
+            abrirColaboradores(
+              "Folha salarial atual",
+              dados.ativosIds,
+              new Map(dados.ativos.map((c) => [c.id, formatarMoeda(c.salario_atual) ?? "—"])),
+            )
+          }
         />
         <StatTile
           label="Turnover do ano corrente"
           valor={`${dados.turnoverAnoAtual.toFixed(1)}%`}
+          subtitulo={`${dados.desligamentosAnoAtual} desligamento(s) no ano`}
+          onClick={() =>
+            abrirDesligamentos("Desligamentos no ano corrente", dados.desligamentosAnoAtualIds)
+          }
         />
         <StatTile
           label="Tempo médio de casa"
           valor={`${dados.tempoMedioDeCasa.toFixed(1)} anos`}
+          subtitulo="Colaboradores ativos"
+          onClick={() =>
+            abrirColaboradores(
+              "Tempo médio de casa",
+              dados.ativosIds,
+              new Map(
+                dados.ativos.map((c) => {
+                  const anos = anosDeCasaDe(c.data_admissao);
+                  return [c.id, `${anos} ${anos === 1 ? "ano" : "anos"} de empresa`];
+                }),
+              ),
+            )
+          }
         />
       </div>
 
@@ -200,6 +233,7 @@ export function DashboardClient({
             setDialogTitulo(null);
             setDialogColaboradorIds(null);
             setDialogDesligamentoIds(null);
+            setDialogDetalhe(null);
           }
         }}
       >
@@ -211,14 +245,20 @@ export function DashboardClient({
             {dialogColaboradorIds?.map((id) => {
               const c = colaboradoresMap.get(id);
               if (!c) return null;
+              const detalhe = dialogDetalhe?.get(id);
               return (
                 <Link
                   key={id}
                   href={`/colaboradores/${id}`}
-                  className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"
+                  className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"
                 >
-                  <ColaboradorAvatar nome={c.nome} size="sm" />
-                  {c.nome}
+                  <span className="flex items-center gap-3">
+                    <ColaboradorAvatar nome={c.nome} size="sm" />
+                    {c.nome}
+                  </span>
+                  {detalhe && (
+                    <span className="text-xs text-muted-foreground">{detalhe}</span>
+                  )}
                 </Link>
               );
             })}

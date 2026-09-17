@@ -2,17 +2,55 @@ import Link from "next/link";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { BotaoRemover } from "@/components/botao-remover";
+import { InfoBanner } from "@/components/info-banner";
 import { getDesligamentos } from "@/lib/data/desligamentos";
+import { getMotivosDesligamento } from "@/lib/data/catalogos";
+import { getOpcoesFormulario } from "@/lib/data/colaboradores";
 import { formatarData } from "@/lib/date";
 import { removerDesligamento } from "./actions";
+import { DesligamentosFilters } from "./filters";
 
 const TIPO_LABEL: Record<string, string> = {
   voluntario: "Voluntário",
   involuntario: "Involuntário",
 };
 
-export default async function DesligamentosPage() {
-  const desligamentos = await getDesligamentos();
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function primeiro(valor: string | string[] | undefined) {
+  return Array.isArray(valor) ? valor[0] : valor;
+}
+
+export default async function DesligamentosPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+
+  const filtros = {
+    cargoId: primeiro(params.cargo),
+    nivelId: primeiro(params.nivel),
+    eixoId: primeiro(params.eixo),
+    setorId: primeiro(params.setor),
+    gestorId: primeiro(params.gestor),
+    status: primeiro(params.status),
+    tipo: primeiro(params.tipo),
+    motivoId: primeiro(params.motivo),
+  };
+
+  const [desligamentos, motivosDesligamento, opcoes] = await Promise.all([
+    getDesligamentos(filtros),
+    getMotivosDesligamento(),
+    getOpcoesFormulario(),
+  ]);
+
+  const resumoPorMotivo = motivosDesligamento
+    .map((m) => ({
+      motivo: m.motivo,
+      tipo: m.tipo_padrao,
+      ocorrencias: desligamentos.filter((d) => d.motivo_id === m.id).length,
+    }))
+    .filter((r) => r.ocorrencias > 0)
+    .sort((a, b) => b.ocorrencias - a.ocorrencias);
 
   return (
     <div className="space-y-6">
@@ -21,9 +59,49 @@ export default async function DesligamentosPage() {
           Desligamentos
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Histórico completo de desligamentos, incluindo os já revertidos por
-          reativação.
+          Registros criados automaticamente ao desativar um colaborador na
+          respectiva ficha.
         </p>
+      </div>
+
+      <InfoBanner>
+        Estes registros vêm da ação <strong>Desativar</strong>, disponível na
+        tela Colaboradores (ação rápida na linha) e na ficha individual. Ao
+        desativar, o RH escolhe um motivo padronizado, que alimenta o resumo
+        abaixo e os indicadores de turnover do Dashboard, e pode escrever uma
+        descrição livre com o contexto da saída (não entra nos cálculos, é só
+        para consulta).
+      </InfoBanner>
+
+      {resumoPorMotivo.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-border text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">Motivo padronizado</th>
+                <th className="px-4 py-3 font-medium">Tipo</th>
+                <th className="px-4 py-3 font-medium">Ocorrências</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resumoPorMotivo.map((r) => (
+                <tr key={r.motivo} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 font-medium text-foreground">{r.motivo}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge tone={r.tipo === "voluntario" ? "neutral" : "warning"}>
+                      {TIPO_LABEL[r.tipo] ?? r.tipo}
+                    </StatusBadge>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{r.ocorrencias}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-border bg-card p-4">
+        <DesligamentosFilters opcoes={opcoes} motivos={motivosDesligamento} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
@@ -70,7 +148,7 @@ export default async function DesligamentosPage() {
                   {d.motivo_nome ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {d.descricao ?? "—"}
+                  {d.descricao ?? "Sem descrição registrada"}
                 </td>
                 <td className="px-4 py-3">
                   {d.data_reativacao ? (
@@ -99,7 +177,7 @@ export default async function DesligamentosPage() {
                   colSpan={8}
                   className="px-4 py-10 text-center text-muted-foreground"
                 >
-                  Nenhum desligamento registrado ainda.
+                  Nenhum desligamento encontrado para os filtros selecionados.
                 </td>
               </tr>
             )}

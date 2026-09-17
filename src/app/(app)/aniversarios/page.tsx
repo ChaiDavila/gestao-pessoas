@@ -11,7 +11,10 @@ export default async function AniversariosPage() {
           Aniversários
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Aniversariantes do mês e aniversários de empresa (tempo de casa).
+          Aniversariantes do mês e aniversários de empresa (tempo de casa) —
+          para apoiar ações de endomarketing. Considera todos os
+          colaboradores ativos, com qualquer quantidade de anos completados
+          (não só marcos redondos).
         </p>
       </div>
 

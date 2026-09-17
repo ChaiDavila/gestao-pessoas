@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 export type ColaboradorFamiliarItem = {
   id: string;
   nome: string;
+  cargo_id: string | null;
+  cargo_nome: string | null;
+  nivel_id: string | null;
+  eixo_id: string | null;
   setor_id: string | null;
   setor_nome: string | null;
   gestor_colaborador_id: string | null;
@@ -27,6 +31,10 @@ export type DependenteFamiliarItem = {
 };
 
 export type PerfilFamiliarFiltros = {
+  busca?: string;
+  cargoId?: string;
+  nivelId?: string;
+  eixoId?: string;
   setorId?: string;
   gestorId?: string;
   status?: string;
@@ -40,10 +48,14 @@ export async function getColaboradoresFamiliar(filtros: PerfilFamiliarFiltros) {
     .schema("rh")
     .from("vw_colaboradores")
     .select(
-      "id, nome, setor_id, setor_nome, gestor_colaborador_id, status_rh, estado_civil, conjuge_nome, conjuge_sexo",
+      "id, nome, cargo_id, cargo_nome, nivel_id, eixo_id, setor_id, setor_nome, gestor_colaborador_id, status_rh, estado_civil, conjuge_nome, conjuge_sexo",
     )
     .order("nome");
 
+  if (filtros.busca) query = query.ilike("nome", `%${filtros.busca}%`);
+  if (filtros.cargoId) query = query.eq("cargo_id", filtros.cargoId);
+  if (filtros.nivelId) query = query.eq("nivel_id", filtros.nivelId);
+  if (filtros.eixoId) query = query.eq("eixo_id", filtros.eixoId);
   if (filtros.setorId) query = query.eq("setor_id", filtros.setorId);
   if (filtros.gestorId) query = query.eq("gestor_colaborador_id", filtros.gestorId);
   if (filtros.status) query = query.eq("status_rh", filtros.status);

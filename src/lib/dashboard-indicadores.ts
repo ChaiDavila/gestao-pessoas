@@ -102,9 +102,10 @@ export function calcularDashboard(
   const colaboradoresAtivos = ativos.length;
   const folhaSalarial = ativos.reduce((s, c) => s + Number(c.salario_atual || 0), 0);
   const anoAtual = hoje.getFullYear();
-  const desligamentosAnoAtual = desligamentosTodos.filter(
+  const desligamentosAnoAtualLista = desligamentosTodos.filter(
     (d) => idsPermitidos.has(d.colaborador_id) && d.data.startsWith(String(anoAtual)),
-  ).length;
+  );
+  const desligamentosAnoAtual = desligamentosAnoAtualLista.length;
   // Aproximação: turnover = desligamentos do ano / colaboradores ativos atuais.
   const turnoverAnoAtual =
     colaboradoresAtivos > 0 ? (desligamentosAnoAtual / colaboradoresAtivos) * 100 : 0;
@@ -203,9 +204,15 @@ export function calcularDashboard(
 
   return {
     colaboradoresAtivos,
+    totalColaboradoresBase: colaboradoresTodos.length,
     folhaSalarial,
+    salarioMedio: colaboradoresAtivos > 0 ? folhaSalarial / colaboradoresAtivos : 0,
     turnoverAnoAtual,
+    desligamentosAnoAtual,
+    desligamentosAnoAtualIds: desligamentosAnoAtualLista.map((d) => d.id),
     tempoMedioDeCasa,
+    ativosIds: ativos.map((c) => c.id),
+    ativos,
     anosOrdenados,
     admissoesPorAno,
     desligamentosPorAno,
@@ -221,4 +228,8 @@ export function calcularDashboard(
     colaboradoresFiltrados: colaboradores,
     desligamentosFiltrados: desligamentos,
   };
+}
+
+export function anosDeCasaDe(dataAdmissao: string) {
+  return anosDeCasa(dataAdmissao, new Date());
 }

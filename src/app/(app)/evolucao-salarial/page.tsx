@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
+import { InfoBanner } from "@/components/info-banner";
+import { StatTile } from "@/components/stat-tile";
+import { ChartCard } from "@/components/chart-card";
+import { BarChart } from "@/components/charts/bar-chart";
 import {
   getOpcoesFormulario,
   getTodosColaboradoresOpcoes,
@@ -8,6 +12,7 @@ import { getEvolucaoSalarial } from "@/lib/data/evolucao-salarial";
 import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
 import { EvolucaoSalarialFilters } from "./filters";
+import { CrescimentoFolhaChart } from "./crescimento-chart";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -15,6 +20,14 @@ type PageProps = {
 
 function primeiro(valor: string | string[] | undefined) {
   return Array.isArray(valor) ? valor[0] : valor;
+}
+
+function agruparContagem(chaves: string[]) {
+  const mapa = new Map<string, number>();
+  for (const c of chaves) mapa.set(c, (mapa.get(c) ?? 0) + 1);
+  return Array.from(mapa.entries())
+    .map(([chave, valor]) => ({ chave, valor }))
+    .sort((a, b) => b.valor - a.valor);
 }
 
 export default async function EvolucaoSalarialPage({
@@ -41,6 +54,54 @@ export default async function EvolucaoSalarialPage({
     getTodosColaboradoresOpcoes(),
   ]);
 
+  // "Crescimento da folha por ano" ignora o período (De/Até), igual ao padrão já usado em
+  // outros gráficos de tendência por ano — mas respeita os demais filtros.
+  const lancamentosSemPeriodo = await getEvolucaoSalarial({
+    ...filtros,
+    de: undefined,
+    ate: undefined,
+  });
+
+  const colaboradoresUnicos = new Set(lancamentos.map((l) => l.colaborador_id)).size;
+  const promocoes = lancamentos.filter((l) => l.motivo_nome === "Promoção").length;
+  const reajustesGerais = lancamentos.filter((l) => l.motivo_nome === "Reajuste geral").length;
+  const comAumentoPercentual = lancamentos.filter(
+    (l) => l.salario_anterior && Number(l.salario_anterior) > 0 && l.salario_novo != null,
+  );
+  const aumentoMedio =
+    comAumentoPercentual.length > 0
+      ? comAumentoPercentual.reduce(
+          (s, l) =>
+            s +
+            ((Number(l.salario_novo) - Number(l.salario_anterior)) /
+              Number(l.salario_anterior)) *
+              100,
+          0,
+        ) / comAumentoPercentual.length
+      : 0;
+
+  const alteracoesPorMotivo = agruparContagem(
+    lancamentos.map((l) => l.motivo_nome ?? "Sem motivo"),
+  );
+  const alteracoesPorAno = agruparContagem(
+    lancamentos.map((l) => l.data.slice(0, 4)),
+  ).sort((a, b) => a.chave.localeCompare(b.chave));
+
+  const crescimentoPorAno = new Map<string, { soma: number; qtd: number }>();
+  for (const l of lancamentosSemPeriodo) {
+    if (!l.salario_anterior || Number(l.salario_anterior) <= 0 || l.salario_novo == null) continue;
+    const ano = l.data.slice(0, 4);
+    const pct =
+      ((Number(l.salario_novo) - Number(l.salario_anterior)) / Number(l.salario_anterior)) * 100;
+    const atual = crescimentoPorAno.get(ano) ?? { soma: 0, qtd: 0 };
+    crescimentoPorAno.set(ano, { soma: atual.soma + pct, qtd: atual.qtd + 1 });
+  }
+  const anosCrescimento = Array.from(crescimentoPorAno.keys()).sort();
+  const crescimentoValores = anosCrescimento.map((ano) => {
+    const { soma, qtd } = crescimentoPorAno.get(ano)!;
+    return Math.round((soma / qtd) * 10) / 10;
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -48,13 +109,61 @@ export default async function EvolucaoSalarialPage({
           Evolução Salarial
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Uma linha por alteração de cargo/salário de todos os colaboradores.
+          Todas as alterações de função e salário registradas na base, mais
+          recentes primeiro.
         </p>
       </div>
+
+      <InfoBanner>
+        O período (De/Até) filtra pela <strong>data da alteração</strong> de
+        cargo/salário — os demais filtros continuam se referindo aos dados
+        atuais do colaborador.
+      </InfoBanner>
 
       <div className="rounded-lg border border-border bg-card p-4">
         <EvolucaoSalarialFilters opcoes={opcoes} colaboradores={colaboradores} />
       </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <StatTile
+          label="Alterações registradas"
+          valor={String(lancamentos.length)}
+          subtitulo={`${colaboradoresUnicos} colaborador(es) no filtro atual`}
+        />
+        <StatTile
+          label="Promoções"
+          valor={String(promocoes)}
+          subtitulo="no recorte filtrado"
+        />
+        <StatTile
+          label="Reajustes gerais"
+          valor={String(reajustesGerais)}
+          subtitulo="no recorte filtrado"
+        />
+        <StatTile
+          label="Aumento médio por alteração"
+          valor={`${aumentoMedio.toFixed(1)}%`}
+          subtitulo="variação média de salário por registro"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartCard titulo="Alterações por motivo">
+          <BarChart
+            horizontal
+            labels={alteracoesPorMotivo.map((g) => g.chave)}
+            valores={alteracoesPorMotivo.map((g) => g.valor)}
+          />
+        </ChartCard>
+        <ChartCard titulo="Alterações por ano">
+          <BarChart
+            labels={alteracoesPorAno.map((g) => g.chave)}
+            valores={alteracoesPorAno.map((g) => g.valor)}
+          />
+        </ChartCard>
+      </div>
+
+      <CrescimentoFolhaChart labels={anosCrescimento} valores={crescimentoValores} />
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-left text-sm">

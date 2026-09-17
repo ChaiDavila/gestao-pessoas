@@ -11,6 +11,7 @@ import {
 import { StatTile } from "@/components/stat-tile";
 import { ChartCard } from "@/components/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
+import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { calcularIdade } from "@/lib/date";
 import type {
   ColaboradorFamiliarItem,
@@ -26,11 +27,11 @@ import {
 const LABEL_SEXO: Record<string, string> = { M: "Masculino", F: "Feminino" };
 
 const FAIXAS_ETARIAS: { rotulo: string; min: number; max: number }[] = [
-  { rotulo: "0-3", min: 0, max: 3 },
-  { rotulo: "4-6", min: 4, max: 6 },
-  { rotulo: "7-12", min: 7, max: 12 },
-  { rotulo: "13-17", min: 13, max: 17 },
-  { rotulo: "18+", min: 18, max: 999 },
+  { rotulo: "Até 2 anos", min: 0, max: 2 },
+  { rotulo: "2 a 5", min: 3, max: 5 },
+  { rotulo: "6 a 10", min: 6, max: 10 },
+  { rotulo: "11 a 18", min: 11, max: 18 },
+  { rotulo: "Acima de 18", min: 19, max: 999 },
 ];
 
 function baixarCsv(conteudo: string, nomeArquivo: string) {
@@ -56,6 +57,9 @@ export function PerfilFamiliarClient({
   const [dialogLinhas, setDialogLinhas] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
 
+  const casadosOuUniaoEstavel = colaboradores.filter(
+    (c) => c.estado_civil === "Casado(a)" || c.estado_civil === "União estável",
+  );
   const comConjugeMulher = colaboradores.filter((c) => c.conjuge_sexo === "F");
   const comConjugeHomem = colaboradores.filter((c) => c.conjuge_sexo === "M");
   const comFilhosCount = new Set(dependentes.map((d) => d.colaborador_id)).size;
@@ -64,8 +68,8 @@ export function PerfilFamiliarClient({
     const m = dependentes.filter((d) => d.sexo === "M").length;
     const f = dependentes.filter((d) => d.sexo === "F").length;
     return [
-      { rotulo: "Masculino", valor: m },
-      { rotulo: "Feminino", valor: f },
+      { rotulo: "Meninas", valor: f },
+      { rotulo: "Meninos", valor: m },
     ];
   }, [dependentes]);
 
@@ -101,7 +105,7 @@ export function PerfilFamiliarClient({
       const idade = calcularIdade(d.data_nascimento);
       return idade != null && idade >= faixa.min && idade <= faixa.max;
     });
-    setDialogTitulo(`Filhos — ${faixa.rotulo} anos`);
+    setDialogTitulo(`Filhos — ${faixa.rotulo}`);
     setDialogLinhas(
       lista.map(
         (d) =>
@@ -119,45 +123,58 @@ export function PerfilFamiliarClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          disabled={pending}
-          onClick={() => exportar(gerarRelatorioFilhos, "filhos.csv")}
-        >
-          Exportar Filhos (CSV)
-        </Button>
-        <Button
-          variant="outline"
-          disabled={pending}
-          onClick={() => exportar(gerarRelatorioConjuges, "conjuges.csv")}
-        >
-          Exportar Cônjuges (CSV)
-        </Button>
-        <Button
-          variant="outline"
-          disabled={pending}
-          onClick={() => exportar(gerarRelatorioCompleto, "relacao-completa.csv")}
-        >
-          Exportar Relação completa (CSV)
-        </Button>
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+          Exportar relatório (respeita os filtros acima)
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() => exportar(gerarRelatorioFilhos, "filhos.csv")}
+          >
+            ↓ Filhos (CSV)
+          </Button>
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() => exportar(gerarRelatorioConjuges, "conjuges.csv")}
+          >
+            ↓ Cônjuges (CSV)
+          </Button>
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() => exportar(gerarRelatorioCompleto, "relacao-completa.csv")}
+          >
+            ↓ Relação completa (CSV)
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <StatTile label="Colaboradores" valor={String(colaboradores.length)} />
-        <button
-          className="text-left"
-          onClick={() => abrirListaConjuges("Com cônjuge mulher", comConjugeMulher)}
-        >
-          <StatTile label="Com cônjuge mulher" valor={String(comConjugeMulher.length)} />
-        </button>
-        <button
-          className="text-left"
-          onClick={() => abrirListaConjuges("Com cônjuge homem", comConjugeHomem)}
-        >
-          <StatTile label="Com cônjuge homem" valor={String(comConjugeHomem.length)} />
-        </button>
-        <StatTile label="Com filhos" valor={String(comFilhosCount)} />
+        <StatTile
+          label="Casados / União estável"
+          valor={String(casadosOuUniaoEstavel.length)}
+          subtitulo={`de ${colaboradores.length} colaborador(es) no filtro atual`}
+        />
+        <StatTile
+          label="Com cônjuge mulher (esposa)"
+          valor={String(comConjugeMulher.length)}
+          subtitulo="clique para ver os nomes"
+          onClick={() => abrirListaConjuges("Com cônjuge mulher (esposa)", comConjugeMulher)}
+        />
+        <StatTile
+          label="Com cônjuge homem (marido)"
+          valor={String(comConjugeHomem.length)}
+          subtitulo="clique para ver os nomes"
+          onClick={() => abrirListaConjuges("Com cônjuge homem (marido)", comConjugeHomem)}
+        />
+        <StatTile
+          label="Filhos cadastrados"
+          valor={String(dependentes.length)}
+          subtitulo="no recorte filtrado"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -165,7 +182,7 @@ export function PerfilFamiliarClient({
           <BarChart
             labels={filhosPorSexo.map((f) => f.rotulo)}
             valores={filhosPorSexo.map((f) => f.valor)}
-            aoClicarBarra={(i) => abrirListaSexo(i === 0 ? "M" : "F")}
+            aoClicarBarra={(i) => abrirListaSexo(i === 0 ? "F" : "M")}
           />
         </ChartCard>
         <ChartCard titulo="Filhos por faixa etária">
@@ -182,8 +199,9 @@ export function PerfilFamiliarClient({
           <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Colaborador</th>
+              <th className="px-4 py-3 font-medium">Setor</th>
               <th className="px-4 py-3 font-medium">Estado civil</th>
-              <th className="px-4 py-3 font-medium">Cônjuge</th>
+              <th className="px-4 py-3 font-medium">Cônjuge / Companheiro(a)</th>
               <th className="px-4 py-3 font-medium">Filhos</th>
             </tr>
           </thead>
@@ -192,7 +210,20 @@ export function PerfilFamiliarClient({
               const filhos = dependentes.filter((d) => d.colaborador_id === c.id);
               return (
                 <tr key={c.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium text-foreground">{c.nome}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <ColaboradorAvatar nome={c.nome} size="sm" />
+                      <div>
+                        <p className="font-medium text-foreground">{c.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {c.cargo_nome ?? "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {c.setor_nome ?? "—"}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{c.estado_civil}</td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {c.conjuge_nome
@@ -211,7 +242,7 @@ export function PerfilFamiliarClient({
             })}
             {colaboradores.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
                   Nenhum colaborador encontrado para os filtros selecionados.
                 </td>
               </tr>

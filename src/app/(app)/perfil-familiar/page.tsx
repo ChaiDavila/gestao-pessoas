@@ -3,6 +3,7 @@ import {
   getColaboradoresFamiliar,
   getDependentesFamiliar,
 } from "@/lib/data/perfil-familiar";
+import { InfoBanner } from "@/components/info-banner";
 import { PerfilFamiliarFilters } from "./filters";
 import { PerfilFamiliarClient } from "./perfil-familiar-client";
 
@@ -18,6 +19,10 @@ export default async function PerfilFamiliarPage({ searchParams }: PageProps) {
   const params = await searchParams;
 
   const filtros = {
+    busca: primeiro(params.busca),
+    cargoId: primeiro(params.cargo),
+    nivelId: primeiro(params.nivel),
+    eixoId: primeiro(params.eixo),
     setorId: primeiro(params.setor),
     gestorId: primeiro(params.gestor),
     status: primeiro(params.status),
@@ -53,8 +58,15 @@ export default async function PerfilFamiliarPage({ searchParams }: PageProps) {
         </p>
       </div>
 
+      <InfoBanner>
+        Esta tela reúne informações já cadastradas na ficha de cada
+        colaborador (abas &quot;Dados cadastrais&quot; e &quot;Dependentes&quot;) — nada aqui é
+        preenchido separadamente. Os indicadores e a tabela abaixo respeitam
+        os filtros escolhidos.
+      </InfoBanner>
+
       <div className="rounded-lg border border-border bg-card p-4">
-        <PerfilFamiliarFilters setores={opcoes.setores} gestores={opcoes.gestores} />
+        <PerfilFamiliarFilters opcoes={opcoes} />
       </div>
 
       <PerfilFamiliarClient
