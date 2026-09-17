@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
 import { getColaboradores, getOpcoesFormulario } from "@/lib/data/colaboradores";
+import { formatarData } from "@/lib/date";
 import { ColaboradoresFilters } from "./filters";
 
 type ColaboradoresPageProps = {
@@ -93,9 +94,7 @@ export default async function ColaboradoresPage({
                   {c.gestor_nome ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {new Date(c.data_admissao + "T00:00:00").toLocaleDateString(
-                    "pt-BR",
-                  )}
+                  {formatarData(c.data_admissao)}
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge
