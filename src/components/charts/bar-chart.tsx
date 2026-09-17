@@ -5,30 +5,44 @@ import { Bar } from "react-chartjs-2";
 import type { ChartEvent, ActiveElement } from "chart.js";
 import { COR_DADO, COR_GRID, COR_TEXTO, OPCOES_BASE } from "./chart-setup";
 
+const COR_SERIE_2 = "#434342";
+
+type Serie = { rotulo: string; valores: number[]; cor?: string };
+
 export function BarChart({
   labels,
   valores,
+  series,
   horizontal = false,
   formatarValor,
   aoClicarBarra,
 }: {
   labels: string[];
-  valores: number[];
+  valores?: number[];
+  series?: Serie[];
   horizontal?: boolean;
   formatarValor?: (v: number) => string;
   aoClicarBarra?: (index: number) => void;
 }) {
-  const data = {
-    labels,
-    datasets: [
-      {
-        data: valores,
-        backgroundColor: COR_DADO,
+  const datasets = series
+    ? series.map((s, i) => ({
+        label: s.rotulo,
+        data: s.valores,
+        backgroundColor: s.cor ?? (i === 0 ? COR_DADO : COR_SERIE_2),
         borderRadius: 4,
         maxBarThickness: 24,
-      },
-    ],
-  };
+      }))
+    : [
+        {
+          data: valores ?? [],
+          backgroundColor: COR_DADO,
+          borderRadius: 4,
+          maxBarThickness: 24,
+        },
+      ];
+
+  const data = { labels, datasets };
+  const multiSerie = Boolean(series && series.length > 1);
 
   const options = {
     ...OPCOES_BASE,
@@ -46,6 +60,9 @@ export function BarChart({
       : undefined,
     plugins: {
       ...OPCOES_BASE.plugins,
+      legend: multiSerie
+        ? { display: true, position: "bottom" as const, labels: { color: COR_TEXTO, font: { size: 12 }, boxWidth: 12 } }
+        : OPCOES_BASE.plugins.legend,
       tooltip: {
         ...OPCOES_BASE.plugins.tooltip,
         callbacks: formatarValor
