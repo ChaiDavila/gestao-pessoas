@@ -9,6 +9,7 @@ import { PainelAdicionar } from "@/components/painel-adicionar";
 import { BotaoRemover } from "@/components/botao-remover";
 import { StatusBadge } from "@/components/status-badge";
 import { formatarData, hojeISO, somarMeses } from "@/lib/date";
+import { situacaoVencimento } from "@/lib/vencimento";
 import type { SubRecursoState } from "./sub-recursos-actions";
 import type { ExameComplementarRow } from "@/lib/data/colaborador-detalhe";
 
@@ -29,15 +30,6 @@ const TIPO_EXAME_LABEL: Record<string, string> = {
   mudanca_funcao: "Mudança de função",
   retorno_trabalho: "Retorno ao trabalho",
 };
-
-function situacaoVencimento(dataVencimento: string | null) {
-  if (!dataVencimento) return null;
-  const hoje = hojeISO();
-  if (dataVencimento < hoje) return { tone: "danger" as const, texto: "Vencido" };
-  const em30dias = somarMeses(hoje, 1);
-  if (dataVencimento <= em30dias) return { tone: "warning" as const, texto: "A vencer" };
-  return { tone: "success" as const, texto: "Em dia" };
-}
 
 export function ExamesTab({
   asoRegistros,

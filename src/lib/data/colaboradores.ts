@@ -90,6 +90,19 @@ export async function getColaboradoresRelatorio(filtros: ColaboradoresFiltros) {
   return (data ?? []) as unknown as Record<string, unknown>[];
 }
 
+export async function getColaboradoresAtivos() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("rh")
+    .from("vw_colaboradores")
+    .select("id, nome, setor_nome")
+    .eq("status_rh", "ativo")
+    .order("nome");
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as { id: string; nome: string; setor_nome: string | null }[];
+}
+
 export async function getTodosColaboradoresOpcoes() {
   const supabase = await createClient();
   const { data, error } = await supabase
