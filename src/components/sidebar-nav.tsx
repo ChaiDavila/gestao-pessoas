@@ -3,10 +3,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/nav";
+import { logout } from "@/app/login/actions";
 
-export function SidebarNav() {
+type SidebarNavProps = {
+  userEmail: string | null;
+  papelLabel: string | null;
+};
+
+export function SidebarNav({ userEmail, papelLabel }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
@@ -50,6 +57,26 @@ export function SidebarNav() {
           );
         })}
       </nav>
+
+      {userEmail && (
+        <div className="border-t border-sidebar-border px-3 py-4">
+          <div className="px-2 text-xs">
+            <p className="truncate text-sidebar-foreground/90">{userEmail}</p>
+            {papelLabel && (
+              <p className="text-sidebar-foreground/60">{papelLabel}</p>
+            )}
+          </div>
+          <form action={logout} className="mt-2">
+            <button
+              type="submit"
+              className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              Sair
+            </button>
+          </form>
+        </div>
+      )}
     </aside>
   );
 }
