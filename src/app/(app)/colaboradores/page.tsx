@@ -54,6 +54,9 @@ export default async function ColaboradoresPage({
         </div>
         <div className="flex items-center gap-2">
           <RelatorioDialog filtros={filtros} />
+          <Button variant="outline" render={<Link href="/colaboradores/importar" />}>
+            Importar colaboradores
+          </Button>
           <Button render={<Link href="/colaboradores/novo" />}>
             + Novo colaborador
           </Button>
