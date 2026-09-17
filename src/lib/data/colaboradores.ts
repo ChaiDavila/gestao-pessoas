@@ -16,6 +16,7 @@ export type ColaboradorListItem = {
   status_rh: string;
   data_admissao: string;
   regime_trabalho: string;
+  salario_atual: number | null;
 };
 
 export type ColaboradoresFiltros = {
@@ -35,7 +36,7 @@ export async function getColaboradores(filtros: ColaboradoresFiltros) {
     .schema("rh")
     .from("vw_colaboradores")
     .select(
-      "id, nome, matricula, cargo_nome, setor_id, setor_nome, nivel_id, nivel_nome, eixo_id, eixo_nome, gestor_colaborador_id, gestor_nome, status_rh, data_admissao, regime_trabalho",
+      "id, nome, matricula, cargo_nome, setor_id, setor_nome, nivel_id, nivel_nome, eixo_id, eixo_nome, gestor_colaborador_id, gestor_nome, status_rh, data_admissao, regime_trabalho, salario_atual",
     )
     .order("nome", { ascending: true });
 

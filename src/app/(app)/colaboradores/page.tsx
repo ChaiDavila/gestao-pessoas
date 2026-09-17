@@ -5,6 +5,7 @@ import { StatusDot } from "@/components/status-dot";
 import { getColaboradores, getOpcoesFormulario } from "@/lib/data/colaboradores";
 import { getMotivosDesligamento } from "@/lib/data/catalogos";
 import { formatarData } from "@/lib/date";
+import { formatarMoeda } from "@/lib/formatacao";
 import { ColaboradoresFilters } from "./filters";
 import { RelatorioDialog } from "./relatorio-dialog";
 import { AcoesLinha } from "./acoes-linha";
@@ -68,10 +69,9 @@ export default async function ColaboradoresPage({
           <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Colaborador</th>
-              <th className="px-4 py-3 font-medium">Matrícula</th>
-              <th className="px-4 py-3 font-medium">Setor</th>
+              <th className="px-4 py-3 font-medium">Cargo</th>
+              <th className="px-4 py-3 font-medium">Salário</th>
               <th className="px-4 py-3 font-medium">Admissão</th>
-              <th className="px-4 py-3 font-medium">Regime</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium text-right">Ações</th>
             </tr>
@@ -88,27 +88,19 @@ export default async function ColaboradoresPage({
                     className="flex items-center gap-3"
                   >
                     <ColaboradorAvatar nome={c.nome} size="sm" />
-                    <div>
-                      <p className="font-medium text-foreground hover:text-primary">
-                        {c.nome}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {c.cargo_nome ?? "—"}
-                      </p>
-                    </div>
+                    <p className="font-medium text-foreground hover:text-primary">
+                      {c.nome}
+                    </p>
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {c.matricula}
+                  {c.cargo_nome ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {c.setor_nome ?? "—"}
+                  {formatarMoeda(c.salario_atual) ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {formatarData(c.data_admissao)}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.regime_trabalho}
                 </td>
                 <td className="px-4 py-3">
                   <StatusDot tone={c.status_rh === "ativo" ? "success" : "neutral"}>
@@ -127,7 +119,7 @@ export default async function ColaboradoresPage({
             {colaboradores.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={6}
                   className="px-4 py-10 text-center text-muted-foreground"
                 >
                   Nenhum colaborador cadastrado ainda. Clique em “+ Novo

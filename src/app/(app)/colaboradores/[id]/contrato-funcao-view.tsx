@@ -1,15 +1,8 @@
 import { formatarData } from "@/lib/date";
+import { formatarMoeda } from "@/lib/formatacao";
 import { CampoView, GradeView } from "./campo-visualizacao";
 
 type Dados = Record<string, unknown>;
-
-function formatarMoeda(valor: unknown) {
-  if (valor == null || valor === "") return null;
-  return Number(valor).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
 
 export function ContratoFuncaoView({ colaborador }: { colaborador: Dados }) {
   return (
