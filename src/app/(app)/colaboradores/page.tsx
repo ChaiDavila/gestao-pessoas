@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/status-badge";
+import { ColaboradorAvatar } from "@/components/colaborador-avatar";
+import { StatusDot } from "@/components/status-dot";
 import { getColaboradores, getOpcoesFormulario } from "@/lib/data/colaboradores";
+import { getMotivosDesligamento } from "@/lib/data/catalogos";
 import { formatarData } from "@/lib/date";
 import { ColaboradoresFilters } from "./filters";
+import { RelatorioDialog } from "./relatorio-dialog";
+import { AcoesLinha } from "./acoes-linha";
 
 type ColaboradoresPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -18,36 +22,41 @@ export default async function ColaboradoresPage({
 }: ColaboradoresPageProps) {
   const params = await searchParams;
 
-  const [colaboradores, opcoes] = await Promise.all([
-    getColaboradores({
-      busca: primeiro(params.busca),
-      cargoId: primeiro(params.cargo),
-      nivelId: primeiro(params.nivel),
-      eixoId: primeiro(params.eixo),
-      setorId: primeiro(params.setor),
-      gestorId: primeiro(params.gestor),
-      status: primeiro(params.status),
-    }),
+  const filtros = {
+    busca: primeiro(params.busca),
+    cargoId: primeiro(params.cargo),
+    nivelId: primeiro(params.nivel),
+    eixoId: primeiro(params.eixo),
+    setorId: primeiro(params.setor),
+    gestorId: primeiro(params.gestor),
+    status: primeiro(params.status),
+  };
+
+  const [colaboradores, opcoes, motivosDesligamento] = await Promise.all([
+    getColaboradores(filtros),
     getOpcoesFormulario(),
+    getMotivosDesligamento(),
   ]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">
             Colaboradores
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {colaboradores.length}{" "}
-            {colaboradores.length === 1
-              ? "colaborador encontrado"
-              : "colaboradores encontrados"}
+            Lista completa da base, com busca e filtros. Clique em um
+            colaborador para abrir a ficha completa, ou use as ações rápidas
+            para editar, desativar ou reativar.
           </p>
         </div>
-        <Button render={<Link href="/colaboradores/novo" />}>
-          + Novo colaborador
-        </Button>
+        <div className="flex items-center gap-2">
+          <RelatorioDialog filtros={filtros} />
+          <Button render={<Link href="/colaboradores/novo" />}>
+            + Novo colaborador
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4">
@@ -58,13 +67,13 @@ export default async function ColaboradoresPage({
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 font-medium">Nome</th>
+              <th className="px-4 py-3 font-medium">Colaborador</th>
               <th className="px-4 py-3 font-medium">Matrícula</th>
-              <th className="px-4 py-3 font-medium">Função</th>
               <th className="px-4 py-3 font-medium">Setor</th>
-              <th className="px-4 py-3 font-medium">Gestor</th>
               <th className="px-4 py-3 font-medium">Admissão</th>
+              <th className="px-4 py-3 font-medium">Regime</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -76,32 +85,42 @@ export default async function ColaboradoresPage({
                 <td className="px-4 py-3">
                   <Link
                     href={`/colaboradores/${c.id}`}
-                    className="font-medium text-foreground hover:text-primary"
+                    className="flex items-center gap-3"
                   >
-                    {c.nome}
+                    <ColaboradorAvatar nome={c.nome} size="sm" />
+                    <div>
+                      <p className="font-medium text-foreground hover:text-primary">
+                        {c.nome}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {c.cargo_nome ?? "—"}
+                      </p>
+                    </div>
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {c.matricula}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {c.cargo_nome ?? "—"}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
                   {c.setor_nome ?? "—"}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.gestor_nome ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {formatarData(c.data_admissao)}
                 </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {c.regime_trabalho}
+                </td>
                 <td className="px-4 py-3">
-                  <StatusBadge
-                    tone={c.status_rh === "ativo" ? "success" : "neutral"}
-                  >
+                  <StatusDot tone={c.status_rh === "ativo" ? "success" : "neutral"}>
                     {c.status_rh === "ativo" ? "Ativo" : "Desligado"}
-                  </StatusBadge>
+                  </StatusDot>
+                </td>
+                <td className="px-4 py-3">
+                  <AcoesLinha
+                    colaboradorId={c.id}
+                    statusRh={c.status_rh}
+                    motivos={motivosDesligamento}
+                  />
                 </td>
               </tr>
             ))}

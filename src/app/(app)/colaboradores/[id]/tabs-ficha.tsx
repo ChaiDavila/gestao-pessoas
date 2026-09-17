@@ -5,6 +5,8 @@ import { ColaboradorForm } from "../colaborador-form";
 import type { OpcoesFormulario } from "@/lib/data/colaboradores";
 import type { FormState } from "../actions";
 import type { SubRecursoState } from "./sub-recursos-actions";
+import { DadosCadastraisView } from "./dados-cadastrais-view";
+import { ContratoFuncaoView } from "./contrato-funcao-view";
 import { DependentesTab } from "./dependentes-tab";
 import { FormacaoTab } from "./formacao-tab";
 import { HistoricoTab } from "./historico-tab";
@@ -20,6 +22,9 @@ export function TabsFicha({
   opcoes,
   valoresIniciais,
   atualizarAction,
+  modo,
+  aoCancelarEdicao,
+  aoSalvarEdicao,
   dependentes,
   adicionarDependenteAction,
   removerDependenteAction,
@@ -45,6 +50,9 @@ export function TabsFicha({
     prevState: FormState,
     formData: FormData,
   ) => Promise<FormState>;
+  modo: "ver" | "editar";
+  aoCancelarEdicao: () => void;
+  aoSalvarEdicao: () => void;
   dependentes: Parameters<typeof DependentesTab>[0]["dependentes"];
   adicionarDependenteAction: AcaoComEstado;
   removerDependenteAction: (dependenteId: string) => Promise<void>;
@@ -64,23 +72,38 @@ export function TabsFicha({
   adicionarExameAction: AcaoComEstado;
   removerExameAction: (exameRegistroId: string) => Promise<void>;
 }) {
-  return (
-    <Tabs defaultValue="dados">
-      <TabsList>
-        <TabsTrigger value="dados">Dados cadastrais e contrato</TabsTrigger>
-        <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
-        <TabsTrigger value="formacao">Formação</TabsTrigger>
-        <TabsTrigger value="historico">Histórico salarial</TabsTrigger>
-        <TabsTrigger value="exames">Exames ocupacionais</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="dados" className="pt-4">
+  if (modo === "editar") {
+    return (
+      <div className="pt-4">
         <ColaboradorForm
           action={atualizarAction}
           opcoes={opcoes}
           valoresIniciais={valoresIniciais}
           textoBotao="Salvar alterações"
+          aoSalvar={aoSalvarEdicao}
+          aoCancelar={aoCancelarEdicao}
         />
+      </div>
+    );
+  }
+
+  return (
+    <Tabs defaultValue="dados">
+      <TabsList>
+        <TabsTrigger value="dados">Dados cadastrais</TabsTrigger>
+        <TabsTrigger value="contrato">Contrato e função</TabsTrigger>
+        <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
+        <TabsTrigger value="historico">Histórico salarial</TabsTrigger>
+        <TabsTrigger value="formacao">Formação</TabsTrigger>
+        <TabsTrigger value="exames">Exames ocupacionais</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="dados" className="pt-4">
+        <DadosCadastraisView colaborador={valoresIniciais} />
+      </TabsContent>
+
+      <TabsContent value="contrato" className="pt-4">
+        <ContratoFuncaoView colaborador={valoresIniciais} />
       </TabsContent>
 
       <TabsContent value="dependentes" className="pt-4">
@@ -88,15 +111,6 @@ export function TabsFicha({
           dependentes={dependentes}
           adicionarAction={adicionarDependenteAction}
           removerAction={removerDependenteAction}
-        />
-      </TabsContent>
-
-      <TabsContent value="formacao" className="pt-4">
-        <FormacaoTab
-          formacoes={formacoes}
-          opcoesNivel={opcoesNivelFormacao}
-          adicionarAction={adicionarFormacaoAction}
-          removerAction={removerFormacaoAction}
         />
       </TabsContent>
 
@@ -112,6 +126,15 @@ export function TabsFicha({
           opcoesMotivo={opcoesMotivoEvolucao}
           adicionarAction={adicionarHistoricoAction}
           removerAction={removerHistoricoAction}
+        />
+      </TabsContent>
+
+      <TabsContent value="formacao" className="pt-4">
+        <FormacaoTab
+          formacoes={formacoes}
+          opcoesNivel={opcoesNivelFormacao}
+          adicionarAction={adicionarFormacaoAction}
+          removerAction={removerFormacaoAction}
         />
       </TabsContent>
 

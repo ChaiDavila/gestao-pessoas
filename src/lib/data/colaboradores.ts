@@ -15,6 +15,7 @@ export type ColaboradorListItem = {
   gestor_nome: string | null;
   status_rh: string;
   data_admissao: string;
+  regime_trabalho: string;
 };
 
 export type ColaboradoresFiltros = {
@@ -34,7 +35,7 @@ export async function getColaboradores(filtros: ColaboradoresFiltros) {
     .schema("rh")
     .from("vw_colaboradores")
     .select(
-      "id, nome, matricula, cargo_nome, setor_id, setor_nome, nivel_id, nivel_nome, eixo_id, eixo_nome, gestor_colaborador_id, gestor_nome, status_rh, data_admissao",
+      "id, nome, matricula, cargo_nome, setor_id, setor_nome, nivel_id, nivel_nome, eixo_id, eixo_nome, gestor_colaborador_id, gestor_nome, status_rh, data_admissao, regime_trabalho",
     )
     .order("nome", { ascending: true });
 
@@ -53,6 +54,39 @@ export async function getColaboradores(filtros: ColaboradoresFiltros) {
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []) as ColaboradorListItem[];
+}
+
+const CAMPOS_RELATORIO =
+  "id, nome, cpf, data_nascimento, matricula, rg, pis_pasep, sexo, estado_civil, " +
+  "conjuge_nome, email_pessoal, telefone_pessoal, numero_corporativo, " +
+  "endereco_rua, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep, " +
+  "cargo_nome, setor_nome, nivel_nome, eixo_nome, gestor_nome, data_admissao, tipo_contrato, regime_trabalho, " +
+  "salario_atual, status_rh";
+
+export async function getColaboradoresRelatorio(filtros: ColaboradoresFiltros) {
+  const supabase = await createClient();
+
+  let query = supabase
+    .schema("rh")
+    .from("vw_colaboradores")
+    .select(CAMPOS_RELATORIO)
+    .order("nome", { ascending: true });
+
+  if (filtros.busca) {
+    query = query.or(
+      `nome.ilike.%${filtros.busca}%,matricula.ilike.%${filtros.busca}%`,
+    );
+  }
+  if (filtros.cargoId) query = query.eq("cargo_id", filtros.cargoId);
+  if (filtros.nivelId) query = query.eq("nivel_id", filtros.nivelId);
+  if (filtros.eixoId) query = query.eq("eixo_id", filtros.eixoId);
+  if (filtros.setorId) query = query.eq("setor_id", filtros.setorId);
+  if (filtros.gestorId) query = query.eq("gestor_colaborador_id", filtros.gestorId);
+  if (filtros.status) query = query.eq("status_rh", filtros.status);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as Record<string, unknown>[];
 }
 
 export async function getColaboradorPorId(id: string) {

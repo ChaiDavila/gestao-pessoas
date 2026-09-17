@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,8 @@ type ColaboradorFormProps = {
   opcoes: OpcoesFormulario;
   valoresIniciais?: Valores;
   textoBotao?: string;
+  aoSalvar?: () => void;
+  aoCancelar?: () => void;
 };
 
 const LABEL_SEXO: Record<string, string> = { M: "Masculino", F: "Feminino" };
@@ -30,10 +32,17 @@ export function ColaboradorForm({
   opcoes,
   valoresIniciais,
   textoBotao = "Salvar",
+  aoSalvar,
+  aoCancelar,
 }: ColaboradorFormProps) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const v = valoresIniciais ?? {};
   const [cbo, setCbo] = useState(String(v.cbo ?? ""));
+
+  useEffect(() => {
+    if (state && "ok" in state) aoSalvar?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   function aoTrocarCargo(cargoId: string) {
     const cargo = opcoes.cargos.find((c) => c.id === cargoId);
@@ -42,7 +51,7 @@ export function ColaboradorForm({
 
   return (
     <form action={formAction} className="space-y-8">
-      {state?.error && (
+      {state && "error" in state && (
         <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
@@ -236,6 +245,11 @@ export function ColaboradorForm({
       </section>
 
       <div className="flex justify-end gap-3">
+        {aoCancelar && (
+          <Button type="button" variant="ghost" onClick={aoCancelar}>
+            Cancelar
+          </Button>
+        )}
         <Button type="submit" disabled={pending}>
           {pending ? "Salvando..." : textoBotao}
         </Button>

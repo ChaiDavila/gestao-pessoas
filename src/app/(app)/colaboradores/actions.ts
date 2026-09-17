@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { colaboradorSchema } from "@/lib/validations/colaborador";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
 
-export type FormState = { error: string } | undefined;
+export type FormState = { error: string } | { ok: true } | undefined;
 
 function parseColaboradorForm(formData: FormData) {
   return colaboradorSchema.safeParse(Object.fromEntries(formData));
@@ -143,7 +143,7 @@ export async function atualizarColaborador(
 
   revalidatePath("/colaboradores");
   revalidatePath(`/colaboradores/${colaboradorId}`);
-  redirect(`/colaboradores/${colaboradorId}`);
+  return { ok: true };
 }
 
 export async function excluirColaborador(colaboradorId: string) {
@@ -160,7 +160,7 @@ export async function excluirColaborador(colaboradorId: string) {
   redirect("/colaboradores");
 }
 
-export type DesligamentoState = { error: string } | undefined;
+export type DesligamentoState = { error: string } | { ok: true } | undefined;
 
 export async function desativarColaborador(
   colaboradorId: string,
@@ -194,7 +194,7 @@ export async function desativarColaborador(
 
   revalidatePath("/colaboradores");
   revalidatePath(`/colaboradores/${colaboradorId}`);
-  redirect(`/colaboradores/${colaboradorId}`);
+  return { ok: true };
 }
 
 export async function reativarColaborador(colaboradorId: string) {
