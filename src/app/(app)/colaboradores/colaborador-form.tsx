@@ -102,7 +102,7 @@ export function ColaboradorForm({
             options={SEXOS.map((s) => ({ value: s, label: LABEL_SEXO[s] }))}
           />
           <Campo
-            label="E-mail pessoal"
+            label="E-mail"
             name="email_pessoal"
             type="email"
             defaultValue={v.email_pessoal}
