@@ -79,6 +79,7 @@ export function AniversariosClient({
           label={`Aniversariantes em ${MESES[mes - 1]}`}
           valor={String(aniversariantesNatal.length)}
           subtitulo="colaboradores ativos"
+          accent
         />
         <StatTile
           label="Aniversários de empresa no mês"
@@ -89,6 +90,7 @@ export function AniversariosClient({
           label="Hoje"
           valor={hojeNomes.length > 0 ? String(hojeNomes.length) : "—"}
           subtitulo={hojeNomes.length > 0 ? hojeNomes.join(", ") : "Nenhum hoje"}
+          accent
         />
       </div>
 

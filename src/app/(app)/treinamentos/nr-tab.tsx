@@ -74,11 +74,12 @@ export function NrTab({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile label="Colaboradores com NR registrada" valor={String(porColaborador.length)} />
+        <StatTile label="Colaboradores com NR registrada" valor={String(porColaborador.length)} accent />
         <StatTile label="Sem NR registrada" valor={String(semNrCount)} />
         <StatTile
           label="Vencidos"
           valor={String(nrPorColaborador.filter((n) => situacaoVencimento(n.data_vencimento)?.tone === "danger").length)}
+          accent
         />
       </div>
 

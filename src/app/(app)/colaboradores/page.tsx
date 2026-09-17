@@ -66,7 +66,7 @@ export default async function ColaboradoresPage({
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
+          <thead className="border-b border-border text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Colaborador</th>
               <th className="px-4 py-3 font-medium">Cargo</th>

@@ -129,6 +129,7 @@ export default async function EvolucaoSalarialPage({
           label="Alterações registradas"
           valor={String(lancamentos.length)}
           subtitulo={`${colaboradoresUnicos} colaborador(es) no filtro atual`}
+          accent
         />
         <StatTile
           label="Promoções"
@@ -167,7 +168,7 @@ export default async function EvolucaoSalarialPage({
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
+          <thead className="border-b border-border text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Colaborador</th>
               <th className="px-4 py-3 font-medium">Data</th>

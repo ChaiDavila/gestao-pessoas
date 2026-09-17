@@ -3,18 +3,24 @@ export function StatTile({
   valor,
   subtitulo,
   onClick,
+  accent = false,
 }: {
   label: string;
   valor: string;
   subtitulo?: string;
   onClick?: () => void;
+  accent?: boolean;
 }) {
   const conteudo = (
     <>
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-semibold text-foreground">{valor}</p>
+      <p
+        className={`mt-1 text-2xl font-bold ${accent ? "text-primary" : "text-foreground"}`}
+      >
+        {valor}
+      </p>
       {subtitulo && (
         <p className="mt-1 text-xs text-muted-foreground">{subtitulo}</p>
       )}

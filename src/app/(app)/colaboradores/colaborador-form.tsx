@@ -57,7 +57,7 @@ export function ColaboradorForm({
         </p>
       )}
 
-      <section className="space-y-4">
+      <section className="space-y-4 rounded-lg border border-border bg-[#faf9f7] p-4">
         <h2 className="text-sm font-semibold text-foreground">
           Dados cadastrais
         </h2>
@@ -161,7 +161,7 @@ export function ColaboradorForm({
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-4 rounded-lg border border-border bg-[#faf9f7] p-4">
         <h2 className="text-sm font-semibold text-foreground">
           Contrato e função
         </h2>

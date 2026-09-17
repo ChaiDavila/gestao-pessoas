@@ -77,6 +77,7 @@ export function DashboardClient({
           valor={String(dados.colaboradoresAtivos)}
           subtitulo={`${dados.totalColaboradoresBase} colaboradores na base total`}
           onClick={() => abrirColaboradores("Colaboradores ativos", dados.ativosIds)}
+          accent
         />
         <StatTile
           label="Folha salarial atual"

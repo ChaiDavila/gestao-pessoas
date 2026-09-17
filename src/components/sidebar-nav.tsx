@@ -17,7 +17,7 @@ export function SidebarNav({ userEmail, papelLabel }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col bg-sidebar text-sidebar-foreground">
+    <aside className="hidden md:flex md:w-[232px] md:flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-3 px-5 py-6">
         <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white">
           <Image
@@ -45,10 +45,10 @@ export function SidebarNav({ userEmail, papelLabel }: SidebarNavProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md border-l-[3px] px-2.5 py-2 text-sm transition-colors",
                 active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  ? "border-l-primary bg-primary/[.18] font-semibold text-white"
+                  : "border-l-transparent text-white/80 hover:bg-white/[.07] hover:text-white",
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -69,7 +69,7 @@ export function SidebarNav({ userEmail, papelLabel }: SidebarNavProps) {
           <form action={logout} className="mt-2">
             <button
               type="submit"
-              className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/[.07] hover:text-white"
             >
               <LogOut className="h-4 w-4 shrink-0" />
               Sair

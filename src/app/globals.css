@@ -8,7 +8,6 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -45,6 +44,9 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
+  --color-success-bg: var(--success-bg);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger-bg: var(--danger-bg);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -55,36 +57,42 @@
 }
 
 :root {
-  --background: #F2F2F1;
-  --foreground: #434342;
+  /* Tokens extraídos ao pé da letra do protótipo (docs/coontrol-rh-prototipo.html). */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --background: #F3F2F0;
+  --foreground: #2A2A29;
   --card: #FFFFFF;
-  --card-foreground: #434342;
+  --card-foreground: #2A2A29;
   --popover: #FFFFFF;
-  --popover-foreground: #434342;
+  --popover-foreground: #2A2A29;
   --primary: #E84E0F;
   --primary-foreground: #FFFFFF;
-  --secondary: #ECECEB;
-  --secondary-foreground: #434342;
-  --muted: #ECECEB;
-  --muted-foreground: #6B6B6A;
-  --accent: #FBE4DA;
+  --secondary: #F2F1EE;
+  --secondary-foreground: #2A2A29;
+  --muted: #F2F1EE;
+  --muted-foreground: #767573;
+  --accent: #FDECE5;
   --accent-foreground: #C43F0C;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #DEDEDC;
-  --input: #DEDEDC;
+  --destructive: #C62828;
+  --destructive-foreground: #FFFFFF;
+  --border: #E3E1DD;
+  --input: #E3E1DD;
   --ring: #E84E0F;
-  --success: #1E8E3E;
+  --success: #2E7D32;
   --success-foreground: #FFFFFF;
-  --warning: #B36B00;
+  --success-bg: #E8F5E9;
+  --warning: #B8860B;
   --warning-foreground: #FFFFFF;
-  --danger: #C43F0C;
+  --warning-bg: #FFF6DE;
+  --danger: #C62828;
   --danger-foreground: #FFFFFF;
+  --danger-bg: #FDECEA;
   --chart-1: #E84E0F;
   --chart-2: #434342;
   --chart-3: #C43F0C;
   --chart-4: #9A9A98;
   --chart-5: #6B6B6A;
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   --sidebar: #434342;
   --sidebar-foreground: #FFFFFF;
   --sidebar-primary: #E84E0F;
@@ -135,6 +143,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-size: 14px;
+    line-height: 1.45;
   }
   html {
     @apply font-sans;

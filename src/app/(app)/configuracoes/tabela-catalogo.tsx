@@ -38,7 +38,7 @@ export function TabelaCatalogo({
       <h3 className="text-sm font-semibold text-foreground">{titulo}</h3>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
+          <thead className="border-b border-border text-xs uppercase text-muted-foreground">
             <tr>
               {colunas.map((c) => (
                 <th key={c.chave} className="px-3 py-2 font-medium">

@@ -42,6 +42,7 @@ export function IndicadoresTab({
         <StatTile
           label="Horas totais"
           valor={`${indicadores.horasTotais.toLocaleString("pt-BR")}h`}
+          accent
         />
         <StatTile
           label="Investimento total"
