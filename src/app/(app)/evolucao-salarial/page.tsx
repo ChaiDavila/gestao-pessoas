@@ -9,7 +9,7 @@ import {
   getTodosColaboradoresOpcoes,
 } from "@/lib/data/colaboradores";
 import { getEvolucaoSalarial } from "@/lib/data/evolucao-salarial";
-import { formatarData, preencherAnosContinuos } from "@/lib/date";
+import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
 import { EvolucaoSalarialFilters } from "./filters";
 import { CrescimentoFolhaChart } from "./crescimento-chart";
@@ -83,11 +83,9 @@ export default async function EvolucaoSalarialPage({
   const alteracoesPorMotivo = agruparContagem(
     lancamentos.map((l) => l.motivo_nome ?? "Sem motivo"),
   );
-  const anosAlteracoes = preencherAnosContinuos(lancamentos.map((l) => l.data.slice(0, 4)));
-  const alteracoesPorAno = anosAlteracoes.map((ano) => ({
-    chave: ano,
-    valor: lancamentos.filter((l) => l.data.startsWith(ano)).length,
-  }));
+  const alteracoesPorAno = agruparContagem(
+    lancamentos.map((l) => l.data.slice(0, 4)),
+  ).sort((a, b) => a.chave.localeCompare(b.chave));
 
   const crescimentoPorAno = new Map<string, { soma: number; qtd: number }>();
   for (const l of lancamentosSemPeriodo) {
@@ -98,11 +96,10 @@ export default async function EvolucaoSalarialPage({
     const atual = crescimentoPorAno.get(ano) ?? { soma: 0, qtd: 0 };
     crescimentoPorAno.set(ano, { soma: atual.soma + pct, qtd: atual.qtd + 1 });
   }
-  const anosCrescimento = preencherAnosContinuos(crescimentoPorAno.keys());
+  const anosCrescimento = Array.from(crescimentoPorAno.keys()).sort();
   const crescimentoValores = anosCrescimento.map((ano) => {
-    const dado = crescimentoPorAno.get(ano);
-    if (!dado) return 0;
-    return Math.round((dado.soma / dado.qtd) * 10) / 10;
+    const { soma, qtd } = crescimentoPorAno.get(ano)!;
+    return Math.round((soma / qtd) * 10) / 10;
   });
 
   return (
