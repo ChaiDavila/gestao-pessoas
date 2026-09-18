@@ -25,3 +25,18 @@ export function somarMeses(data: string, meses: number) {
 export function hojeISO() {
   return new Date().toISOString().slice(0, 10);
 }
+
+/**
+ * Preenche os anos "vazios" entre o menor e o maior ano encontrado, para que gráficos de
+ * tendência por ano tenham um eixo do tempo contínuo (sem pular anos sem nenhum dado, o
+ * que deixaria colunas/pontos vizinhos parecendo consecutivos quando na verdade não são).
+ */
+export function preencherAnosContinuos(anos: Iterable<string>): string[] {
+  const numeros = Array.from(anos, Number).filter((a) => !Number.isNaN(a));
+  if (numeros.length === 0) return [];
+  const min = Math.min(...numeros);
+  const max = Math.max(...numeros);
+  const completos: string[] = [];
+  for (let ano = min; ano <= max; ano++) completos.push(String(ano));
+  return completos;
+}

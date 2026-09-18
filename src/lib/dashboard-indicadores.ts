@@ -3,6 +3,7 @@ import type {
   DesligamentoDashboardItem,
   FormacaoAtualItem,
 } from "@/lib/data/dashboard";
+import { preencherAnosContinuos } from "@/lib/date";
 
 export type DashboardFiltros = {
   cargoId?: string;
@@ -123,7 +124,10 @@ export function calcularDashboard(
   for (const d of desligamentosTodos) {
     if (idsPermitidos.has(d.colaborador_id)) anosComDados.add(d.data.slice(0, 4));
   }
-  const anosOrdenados = Array.from(anosComDados).sort();
+  // Preenche os anos sem nenhuma admissão/desligamento (não só os que têm dado) para o
+  // eixo do tempo ficar contínuo — do contrário, anos vazios somem e a distância entre
+  // colunas passa a impressão errada de que os anos vizinhos são consecutivos.
+  const anosOrdenados = preencherAnosContinuos(anosComDados);
 
   const admissoesPorAno = anosOrdenados.map(
     (ano) => colaboradores.filter((c) => c.data_admissao.startsWith(ano)).length,

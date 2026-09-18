@@ -1,4 +1,5 @@
 import type { ParticipacaoItem, TreinamentoItem } from "@/lib/data/treinamentos";
+import { preencherAnosContinuos } from "@/lib/date";
 
 // Horas são somadas por PARTICIPAÇÃO (pessoa-hora: se 10 pessoas fazem um curso de 8h,
 // isso conta como 80h entregues). Investimento é somado por TREINAMENTO único (o custo é
@@ -76,12 +77,15 @@ export function calcularIndicadores(
   ).slice(0, 10);
 
   // Investimento por ano sempre olha todos os anos, independente do filtro selecionado
-  // (mostra a evolução no tempo, igual à folha salarial do Dashboard).
-  const investimentoPorAno = agruparSoma(
-    treinamentos,
-    (t) => t.data.slice(0, 4),
-    (t) => Number(t.custo_total || 0),
-  ).sort((a, b) => a.chave.localeCompare(b.chave));
+  // (mostra a evolução no tempo, igual à folha salarial do Dashboard). Preenche anos sem
+  // nenhum treinamento para o eixo do tempo ficar contínuo.
+  const anosInvestimento = preencherAnosContinuos(treinamentos.map((t) => t.data.slice(0, 4)));
+  const investimentoPorAno = anosInvestimento.map((ano) => ({
+    chave: ano,
+    valor: treinamentos
+      .filter((t) => t.data.startsWith(ano))
+      .reduce((s, t) => s + Number(t.custo_total || 0), 0),
+  }));
 
   const anosDisponiveis = Array.from(
     new Set(treinamentos.map((t) => t.data.slice(0, 4))),
