@@ -72,12 +72,12 @@ export function LineChart({
     },
     scales: {
       x: {
-        grid: { display: false },
+        grid: { color: COR_GRID, display: true },
         border: { display: false },
         ticks: { color: COR_TEXTO, font: { size: 11 } },
       },
       y: {
-        grid: { color: COR_GRID },
+        grid: { color: COR_GRID, display: true },
         border: { display: false },
         ticks: { color: COR_TEXTO, font: { size: 11 } },
       },

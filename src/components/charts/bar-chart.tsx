@@ -90,18 +90,18 @@ export function BarChart({
     },
     scales: {
       x: {
-        grid: { color: COR_GRID, display: !horizontal },
+        grid: { color: COR_GRID, display: true },
         border: { display: false },
         ticks: horizontal
-          ? { color: COR_TEXTO, font: { size: 11 }, maxTicksLimit: 6, precision: 0 }
+          ? { color: COR_TEXTO, font: { size: 11 }, precision: 0 }
           : { color: COR_TEXTO, font: { size: 11 } },
       },
       y: {
-        grid: { color: COR_GRID, display: horizontal },
+        grid: { color: COR_GRID, display: true },
         border: { display: false },
         ticks: horizontal
           ? { color: COR_TEXTO, font: { size: 11 } }
-          : { color: COR_TEXTO, font: { size: 11 }, maxTicksLimit: 6, precision: 0 },
+          : { color: COR_TEXTO, font: { size: 11 }, precision: 0 },
       },
     },
   };
