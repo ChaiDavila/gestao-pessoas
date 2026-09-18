@@ -201,8 +201,9 @@ export function PerfilFamiliarClient({
               <th className="px-4 py-3 font-medium">Colaborador</th>
               <th className="px-4 py-3 font-medium">Setor</th>
               <th className="px-4 py-3 font-medium">Estado civil</th>
-              <th className="px-4 py-3 font-medium">Cônjuge / Companheiro(a)</th>
-              <th className="px-4 py-3 font-medium">Filhos</th>
+              <th className="px-4 py-3 font-medium">Cônjuge / companheiro(a)</th>
+              <th className="px-4 py-3 font-medium">Nome do(s) filho(s)</th>
+              <th className="px-4 py-3 font-medium">Idade</th>
             </tr>
           </thead>
           <tbody>
@@ -226,15 +227,26 @@ export function PerfilFamiliarClient({
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{c.estado_civil}</td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {c.conjuge_nome
-                      ? `${c.conjuge_nome}${c.conjuge_sexo ? ` (${LABEL_SEXO[c.conjuge_sexo]})` : ""}`
+                    {c.conjuge_nome ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {filhos.length > 0
+                      ? filhos.map((f, i) => (
+                          <span key={f.id}>
+                            {i > 0 && <br />}
+                            {f.nome}
+                          </span>
+                        ))
                       : "—"}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {filhos.length > 0
-                      ? filhos
-                          .map((f) => `${f.nome} (${calcularIdade(f.data_nascimento) ?? "?"})`)
-                          .join(", ")
+                      ? filhos.map((f, i) => (
+                          <span key={f.id}>
+                            {i > 0 && <br />}
+                            {calcularIdade(f.data_nascimento) ?? "?"} anos
+                          </span>
+                        ))
                       : "—"}
                   </td>
                 </tr>
@@ -242,7 +254,7 @@ export function PerfilFamiliarClient({
             })}
             {colaboradores.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                   Nenhum colaborador encontrado para os filtros selecionados.
                 </td>
               </tr>
