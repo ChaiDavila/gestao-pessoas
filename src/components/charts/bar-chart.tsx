@@ -93,7 +93,7 @@ export function BarChart({
         grid: { color: COR_GRID, display: !horizontal },
         border: { display: false },
         ticks: horizontal
-          ? { color: COR_TEXTO, font: { size: 11 }, precision: 0 }
+          ? { color: COR_TEXTO, font: { size: 11 }, maxTicksLimit: 6, precision: 0 }
           : { color: COR_TEXTO, font: { size: 11 } },
       },
       y: {
@@ -101,7 +101,7 @@ export function BarChart({
         border: { display: false },
         ticks: horizontal
           ? { color: COR_TEXTO, font: { size: 11 } }
-          : { color: COR_TEXTO, font: { size: 11 }, precision: 0 },
+          : { color: COR_TEXTO, font: { size: 11 }, maxTicksLimit: 6, precision: 0 },
       },
     },
   };
