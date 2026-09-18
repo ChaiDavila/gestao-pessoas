@@ -11,6 +11,7 @@ import {
 import { StatTile } from "@/components/stat-tile";
 import { ChartCard } from "@/components/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
+import { DoughnutChart } from "@/components/charts/doughnut-chart";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { calcularIdade } from "@/lib/date";
 import type {
@@ -179,10 +180,10 @@ export function PerfilFamiliarClient({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard titulo="Filhos por sexo">
-          <BarChart
+          <DoughnutChart
             labels={filhosPorSexo.map((f) => f.rotulo)}
             valores={filhosPorSexo.map((f) => f.valor)}
-            aoClicarBarra={(i) => abrirListaSexo(i === 0 ? "F" : "M")}
+            aoClicarFatia={(i) => abrirListaSexo(i === 0 ? "F" : "M")}
           />
         </ChartCard>
         <ChartCard titulo="Filhos por faixa etária">
