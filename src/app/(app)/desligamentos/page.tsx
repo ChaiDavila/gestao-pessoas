@@ -8,6 +8,7 @@ import { getOpcoesFormulario } from "@/lib/data/colaboradores";
 import { formatarData } from "@/lib/date";
 import { DesligamentosFilters } from "./filters";
 import { BotaoRemoverDesligamento } from "./botao-remover-desligamento";
+import { EditarDesligamentoDialog } from "./editar-desligamento-dialog";
 
 const TIPO_LABEL: Record<string, string> = {
   voluntario: "Voluntário",
@@ -159,14 +160,26 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <BotaoRemoverDesligamento
-                    desligamentoId={d.id}
-                    confirmar={
-                      d.data_reativacao
-                        ? "Remover este registro de desligamento?"
-                        : `Remover este desligamento? ${d.colaborador_nome} volta automaticamente para status ativo.`
-                    }
-                  />
+                  <div className="flex justify-end gap-1">
+                    <EditarDesligamentoDialog
+                      desligamentoId={d.id}
+                      valoresIniciais={{
+                        data: d.data,
+                        tipo: d.tipo,
+                        motivo_id: d.motivo_id,
+                        descricao: d.descricao,
+                      }}
+                      motivos={motivosDesligamento}
+                    />
+                    <BotaoRemoverDesligamento
+                      desligamentoId={d.id}
+                      confirmar={
+                        d.data_reativacao
+                          ? "Remover este registro de desligamento?"
+                          : `Remover este desligamento? ${d.colaborador_nome} volta automaticamente para status ativo.`
+                      }
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
