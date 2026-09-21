@@ -22,7 +22,8 @@ function aplicaFiltrosBase(c: ColaboradorDashboardItem, f: TurnoverFiltrosBase) 
  * Turnover histórico completo (todos os anos, sem filtro de período), para a tela de
  * Desligamentos. Os filtros de cargo/nível/eixo/setor/gestor recortam quem entra na conta
  * do headcount; `desligamentosFiltrados` já vem filtrado (inclusive por tipo/motivo) de
- * `getDesligamentos`.
+ * `getDesligamentos`. O gráfico por ano e a taxa geral usam os mesmos anos: do primeiro
+ * ao último ano com algum dado (admissão ou desligamento) no recorte atual.
  *
  * "Taxa de turnover geral" = total de desligamentos no recorte ÷ headcount médio do
  * período todo (média do headcount de cada ano) — não é a média das taxas anuais, que
@@ -35,32 +36,27 @@ export function calcularTurnoverGeral(
 ) {
   const colaboradores = colaboradoresTodos.filter((c) => aplicaFiltrosBase(c, filtrosBase));
 
-  // Headcount médio considera todo o histórico da empresa (mesmo os anos sem nenhum
-  // desligamento), porque é isso que dá o denominador correto pra "taxa geral".
-  const anosHistorico = new Set<string>();
-  for (const c of colaboradores) anosHistorico.add(c.data_admissao.slice(0, 4));
-  for (const d of desligamentosFiltrados) anosHistorico.add(d.data.slice(0, 4));
-  const headcountPorAnoHistorico = Array.from(anosHistorico)
-    .sort()
-    .map((ano) => colaboradores.filter((c) => c.data_admissao <= `${ano}-12-31`).length);
+  const anosComDados = new Set<string>();
+  for (const c of colaboradores) anosComDados.add(c.data_admissao.slice(0, 4));
+  for (const d of desligamentosFiltrados) anosComDados.add(d.data.slice(0, 4));
+  const anosOrdenados = Array.from(anosComDados).sort();
+
+  const headcountPorAno = anosOrdenados.map(
+    (ano) => colaboradores.filter((c) => c.data_admissao <= `${ano}-12-31`).length,
+  );
+
+  const turnoverPorAno = anosOrdenados.map((ano, i) => {
+    const desligadosNoAno = desligamentosFiltrados.filter((d) => d.data.startsWith(ano)).length;
+    const headcount = headcountPorAno[i];
+    return headcount > 0 ? Math.round((desligadosNoAno / headcount) * 1000) / 10 : 0;
+  });
 
   const headcountMedio =
-    headcountPorAnoHistorico.length > 0
-      ? headcountPorAnoHistorico.reduce((s, v) => s + v, 0) / headcountPorAnoHistorico.length
+    headcountPorAno.length > 0
+      ? headcountPorAno.reduce((s, v) => s + v, 0) / headcountPorAno.length
       : 0;
   const taxaGeral =
     headcountMedio > 0 ? (desligamentosFiltrados.length / headcountMedio) * 100 : 0;
-
-  // Já o gráfico por ano mostra só os anos que realmente tiveram desligamento — não os
-  // anos "vazios" do histórico, que só serviriam pra encher o eixo com barras zeradas.
-  const anosOrdenados = Array.from(
-    new Set(desligamentosFiltrados.map((d) => d.data.slice(0, 4))),
-  ).sort();
-  const turnoverPorAno = anosOrdenados.map((ano) => {
-    const desligadosNoAno = desligamentosFiltrados.filter((d) => d.data.startsWith(ano)).length;
-    const headcount = colaboradores.filter((c) => c.data_admissao <= `${ano}-12-31`).length;
-    return headcount > 0 ? Math.round((desligadosNoAno / headcount) * 1000) / 10 : 0;
-  });
 
   return {
     anosOrdenados,
