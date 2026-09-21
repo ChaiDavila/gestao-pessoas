@@ -35,27 +35,32 @@ export function calcularTurnoverGeral(
 ) {
   const colaboradores = colaboradoresTodos.filter((c) => aplicaFiltrosBase(c, filtrosBase));
 
-  const anosComDados = new Set<string>();
-  for (const c of colaboradores) anosComDados.add(c.data_admissao.slice(0, 4));
-  for (const d of desligamentosFiltrados) anosComDados.add(d.data.slice(0, 4));
-  const anosOrdenados = Array.from(anosComDados).sort();
-
-  const headcountPorAno = anosOrdenados.map(
-    (ano) => colaboradores.filter((c) => c.data_admissao <= `${ano}-12-31`).length,
-  );
-
-  const turnoverPorAno = anosOrdenados.map((ano, i) => {
-    const desligadosNoAno = desligamentosFiltrados.filter((d) => d.data.startsWith(ano)).length;
-    const headcount = headcountPorAno[i];
-    return headcount > 0 ? Math.round((desligadosNoAno / headcount) * 1000) / 10 : 0;
-  });
+  // Headcount médio considera todo o histórico da empresa (mesmo os anos sem nenhum
+  // desligamento), porque é isso que dá o denominador correto pra "taxa geral".
+  const anosHistorico = new Set<string>();
+  for (const c of colaboradores) anosHistorico.add(c.data_admissao.slice(0, 4));
+  for (const d of desligamentosFiltrados) anosHistorico.add(d.data.slice(0, 4));
+  const headcountPorAnoHistorico = Array.from(anosHistorico)
+    .sort()
+    .map((ano) => colaboradores.filter((c) => c.data_admissao <= `${ano}-12-31`).length);
 
   const headcountMedio =
-    headcountPorAno.length > 0
-      ? headcountPorAno.reduce((s, v) => s + v, 0) / headcountPorAno.length
+    headcountPorAnoHistorico.length > 0
+      ? headcountPorAnoHistorico.reduce((s, v) => s + v, 0) / headcountPorAnoHistorico.length
       : 0;
   const taxaGeral =
     headcountMedio > 0 ? (desligamentosFiltrados.length / headcountMedio) * 100 : 0;
+
+  // Já o gráfico por ano mostra só os anos que realmente tiveram desligamento — não os
+  // anos "vazios" do histórico, que só serviriam pra encher o eixo com barras zeradas.
+  const anosOrdenados = Array.from(
+    new Set(desligamentosFiltrados.map((d) => d.data.slice(0, 4))),
+  ).sort();
+  const turnoverPorAno = anosOrdenados.map((ano) => {
+    const desligadosNoAno = desligamentosFiltrados.filter((d) => d.data.startsWith(ano)).length;
+    const headcount = colaboradores.filter((c) => c.data_admissao <= `${ano}-12-31`).length;
+    return headcount > 0 ? Math.round((desligadosNoAno / headcount) * 1000) / 10 : 0;
+  });
 
   return {
     anosOrdenados,

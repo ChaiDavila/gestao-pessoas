@@ -78,6 +78,10 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
         </p>
       </div>
 
+      <div className="rounded-lg border border-border bg-card p-4">
+        <DesligamentosFilters opcoes={opcoes} motivos={motivosDesligamento} />
+      </div>
+
       <InfoBanner>
         Estes registros vêm da ação <strong>Desativar</strong>, disponível na
         tela Colaboradores (ação rápida na linha) e na ficha individual. Ao
@@ -130,10 +134,6 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
           </table>
         </div>
       )}
-
-      <div className="rounded-lg border border-border bg-card p-4">
-        <DesligamentosFilters opcoes={opcoes} motivos={motivosDesligamento} />
-      </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-left text-sm">
