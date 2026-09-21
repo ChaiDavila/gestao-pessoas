@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { StatusBadge } from "@/components/status-badge";
-import { BotaoRemover } from "@/components/botao-remover";
 import { InfoBanner } from "@/components/info-banner";
 import { getDesligamentos } from "@/lib/data/desligamentos";
 import { getMotivosDesligamento } from "@/lib/data/catalogos";
 import { getOpcoesFormulario } from "@/lib/data/colaboradores";
 import { formatarData } from "@/lib/date";
-import { removerDesligamento } from "./actions";
 import { DesligamentosFilters } from "./filters";
+import { BotaoRemoverDesligamento } from "./botao-remover-desligamento";
 
 const TIPO_LABEL: Record<string, string> = {
   voluntario: "Voluntário",
@@ -160,8 +159,8 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <BotaoRemover
-                    action={() => removerDesligamento(d.id)}
+                  <BotaoRemoverDesligamento
+                    desligamentoId={d.id}
                     confirmar={
                       d.data_reativacao
                         ? "Remover este registro de desligamento?"

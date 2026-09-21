@@ -88,10 +88,10 @@ export function ColaboradoresFilters({ opcoes }: ColaboradoresFiltersProps) {
           Status
         </label>
         <NativeSelect
-          value={searchParams.get("status") ?? ""}
+          value={searchParams.get("status") ?? "ativo"}
           onChange={(e) => atualizarFiltro("status", e.target.value)}
         >
-          <option value="">Todos</option>
+          <option value="todos">Todos</option>
           {STATUS_RH.map((status) => (
             <option key={status} value={status}>
               {STATUS_RH_LABEL[status]}

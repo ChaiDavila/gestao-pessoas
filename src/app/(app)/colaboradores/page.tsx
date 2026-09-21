@@ -22,6 +22,7 @@ export default async function ColaboradoresPage({
   searchParams,
 }: ColaboradoresPageProps) {
   const params = await searchParams;
+  const statusParam = primeiro(params.status);
 
   const filtros = {
     busca: primeiro(params.busca),
@@ -30,7 +31,9 @@ export default async function ColaboradoresPage({
     eixoId: primeiro(params.eixo),
     setorId: primeiro(params.setor),
     gestorId: primeiro(params.gestor),
-    status: primeiro(params.status),
+    // Ao entrar na tela sem mexer no filtro, mostra só quem está ativo — desligados só
+    // aparecem se a pessoa escolher "Desligado" ou "Todos" no filtro de status.
+    status: statusParam === "todos" ? undefined : (statusParam ?? "ativo"),
   };
 
   const [colaboradores, opcoes, motivosDesligamento] = await Promise.all([
