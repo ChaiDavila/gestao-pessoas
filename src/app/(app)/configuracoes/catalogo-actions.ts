@@ -26,7 +26,34 @@ export async function criarItemCatalogo(
   }
 
   const { error } = await supabase.schema("rh").from(tabela).insert(valores);
-  if (error) return { error: error.message };
+
+  if (error) {
+    // "Remover" nunca apaga de verdade (só marca ativo=false), então o nome continua
+    // ocupado pela constraint de unicidade. Se o que travou foi exatamente esse caso —
+    // já existe um item removido com o mesmo valor no campo identificador (primeira
+    // coluna do formulário) — reativa esse item com os dados novos em vez de travar.
+    if (error.code === "23505") {
+      const campoChave = campos[0];
+      const { data: existente } = await supabase
+        .schema("rh")
+        .from(tabela)
+        .select("id, ativo")
+        .eq(campoChave, valores[campoChave] as string)
+        .maybeSingle();
+
+      if (existente && !existente.ativo) {
+        const { error: reativarError } = await supabase
+          .schema("rh")
+          .from(tabela)
+          .update({ ...valores, ativo: true })
+          .eq("id", existente.id);
+        if (reativarError) return { error: reativarError.message };
+        revalidar();
+        return { ok: true };
+      }
+    }
+    return { error: error.message };
+  }
 
   revalidar();
   return { ok: true };
