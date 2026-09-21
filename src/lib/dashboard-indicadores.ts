@@ -63,6 +63,25 @@ function anosDeCasa(dataAdmissao: string, hoje: Date) {
   return idade(dataAdmissao, hoje);
 }
 
+// Anos de casa em fração (anos + meses/12), igual ao protótipo — usado só para a MÉDIA
+// do KPI "Tempo médio de casa". Usar anos inteiros aqui (como em anosDeCasa) sub-representa
+// a média, já que arredonda todo mundo pra baixo antes de somar.
+function tempoDeCasaFracionario(dataAdmissao: string, hoje: Date) {
+  const inicio = new Date(dataAdmissao + "T00:00:00");
+  let anos = hoje.getFullYear() - inicio.getFullYear();
+  let meses = hoje.getMonth() - inicio.getMonth();
+  if (hoje.getDate() < inicio.getDate()) meses -= 1;
+  if (meses < 0) {
+    anos -= 1;
+    meses += 12;
+  }
+  if (anos < 0) {
+    anos = 0;
+    meses = 0;
+  }
+  return anos + meses / 12;
+}
+
 const FAIXAS_ETARIAS = [
   { rotulo: "<15", min: -Infinity, max: 14 },
   { rotulo: "15-19", min: 15, max: 19 },
@@ -111,7 +130,7 @@ export function calcularDashboard(
     colaboradoresAtivos > 0 ? (desligamentosAnoAtual / colaboradoresAtivos) * 100 : 0;
   const tempoMedioDeCasa =
     ativos.length > 0
-      ? ativos.reduce((s, c) => s + anosDeCasa(c.data_admissao, hoje), 0) / ativos.length
+      ? ativos.reduce((s, c) => s + tempoDeCasaFracionario(c.data_admissao, hoje), 0) / ativos.length
       : 0;
 
   // Admissões x desligamentos por ano (todos os anos, ignora período — igual ao padrão
