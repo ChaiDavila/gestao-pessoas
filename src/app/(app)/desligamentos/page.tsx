@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { StatusBadge } from "@/components/status-badge";
+import { StatTile } from "@/components/stat-tile";
+import { ChartCard } from "@/components/chart-card";
+import { LineChart } from "@/components/charts/line-chart";
 import { InfoBanner } from "@/components/info-banner";
 import { getDesligamentos } from "@/lib/data/desligamentos";
 import { getMotivosDesligamento } from "@/lib/data/catalogos";
 import { getOpcoesFormulario } from "@/lib/data/colaboradores";
+import { getColaboradoresDashboard } from "@/lib/data/dashboard";
+import { calcularTurnoverGeral } from "@/lib/desligamentos-indicadores";
 import { formatarData } from "@/lib/date";
 import { DesligamentosFilters } from "./filters";
 import { BotaoRemoverDesligamento } from "./botao-remover-desligamento";
@@ -37,10 +42,11 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
     motivoId: primeiro(params.motivo),
   };
 
-  const [desligamentos, motivosDesligamento, opcoes] = await Promise.all([
+  const [desligamentos, motivosDesligamento, opcoes, colaboradoresTodos] = await Promise.all([
     getDesligamentos(filtros),
     getMotivosDesligamento(),
     getOpcoesFormulario(),
+    getColaboradoresDashboard(),
   ]);
 
   const resumoPorMotivo = motivosDesligamento
@@ -51,6 +57,14 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
     }))
     .filter((r) => r.ocorrencias > 0)
     .sort((a, b) => b.ocorrencias - a.ocorrencias);
+
+  const turnoverGeral = calcularTurnoverGeral(colaboradoresTodos, desligamentos, {
+    cargoId: filtros.cargoId,
+    nivelId: filtros.nivelId,
+    eixoId: filtros.eixoId,
+    setorId: filtros.setorId,
+    gestorId: filtros.gestorId,
+  });
 
   return (
     <div className="space-y-6">
@@ -72,6 +86,23 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
         descrição livre com o contexto da saída (não entra nos cálculos, é só
         para consulta).
       </InfoBanner>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <StatTile
+          label="Taxa de turnover geral"
+          valor={`${turnoverGeral.taxaGeral.toFixed(1)}%`}
+          subtitulo={`${turnoverGeral.totalDesligamentos} desligamento(s) no filtro atual · headcount médio de ${turnoverGeral.headcountMedio.toFixed(0)} pessoas no período`}
+          accent
+        />
+        <div className="lg:col-span-2">
+          <ChartCard titulo="Turnover anual (%)">
+            <LineChart
+              labels={turnoverGeral.anosOrdenados}
+              valores={turnoverGeral.turnoverPorAno}
+            />
+          </ChartCard>
+        </div>
+      </div>
 
       {resumoPorMotivo.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-border bg-card">
