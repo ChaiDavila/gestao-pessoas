@@ -42,6 +42,8 @@ export function DashboardClient({
     () => calcularDashboard(colaboradores, desligamentos, formacaoAtual, filtros),
     [colaboradores, desligamentos, formacaoAtual, filtros],
   );
+  // Esconde faixas etárias sem ninguém no recorte atual, em vez de mostrar colunas zeradas.
+  const faixaEtariaComDados = dados.porFaixaEtaria.filter((g) => g.valor > 0);
 
   const [dialogTitulo, setDialogTitulo] = useState<string | null>(null);
   const [dialogColaboradorIds, setDialogColaboradorIds] = useState<string[] | null>(null);
@@ -180,10 +182,10 @@ export function DashboardClient({
 
         <ChartCard titulo="Distribuição por faixa etária">
           <BarChart
-            labels={dados.porFaixaEtaria.map((g) => g.chave)}
-            valores={dados.porFaixaEtaria.map((g) => g.valor)}
+            labels={faixaEtariaComDados.map((g) => g.chave)}
+            valores={faixaEtariaComDados.map((g) => g.valor)}
             aoClicarBarra={(i) =>
-              abrirColaboradores(`Faixa etária ${dados.porFaixaEtaria[i].chave}`, dados.porFaixaEtaria[i].ids)
+              abrirColaboradores(`Faixa etária ${faixaEtariaComDados[i].chave}`, faixaEtariaComDados[i].ids)
             }
           />
         </ChartCard>
