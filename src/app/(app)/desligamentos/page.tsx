@@ -46,12 +46,6 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
     motivoId: primeiro(params.motivo),
   };
 
-  const periodo = resolverPeriodo(
-    primeiro(params.periodo),
-    primeiro(params.periodoDe),
-    primeiro(params.periodoAte),
-  );
-
   const [desligamentos, motivosDesligamento, opcoes, colaboradoresTodos, desligamentosHistorico] =
     await Promise.all([
       getDesligamentos(filtros),
@@ -60,6 +54,18 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
       getColaboradoresDashboard(),
       getTodosDesligamentosHistorico(),
     ]);
+
+  const primeiraDataAdmissao = colaboradoresTodos.reduce(
+    (min, c) => (c.data_admissao < min ? c.data_admissao : min),
+    colaboradoresTodos[0]?.data_admissao ?? new Date().toISOString().slice(0, 10),
+  );
+
+  const periodo = resolverPeriodo(
+    primeiro(params.periodo),
+    primeiro(params.periodoDe),
+    primeiro(params.periodoAte),
+    primeiraDataAdmissao,
+  );
 
   const indicadores = calcularIndicadoresDesligamentos(
     colaboradoresTodos,

@@ -29,14 +29,17 @@ export function hojeISO() {
 export type PeriodoResolvido = { inicio: string; fim: string; rotulo: string };
 
 /**
- * Resolve o filtro de período (ano atual / ano anterior / personalizado) em datas
- * concretas. "Ano atual" vai até hoje (não até 31/dez), porque o resto do ano ainda não
- * aconteceu. Num período personalizado, o fim nunca passa de hoje.
+ * Resolve o filtro de período (ano atual / ano anterior / todo o período / personalizado)
+ * em datas concretas. "Ano atual" vai até hoje (não até 31/dez), porque o resto do ano
+ * ainda não aconteceu. Num período personalizado, o fim nunca passa de hoje. "Todo o
+ * período" usa `primeiraDataDisponivel` (ex.: a admissão mais antiga da base) como início —
+ * quem chama precisa fornecer isso, já que esta função não conhece os dados.
  */
 export function resolverPeriodo(
   modo: string | undefined,
   de: string | undefined,
   ate: string | undefined,
+  primeiraDataDisponivel?: string,
 ): PeriodoResolvido {
   const hoje = hojeISO();
   const anoAtual = new Date().getFullYear();
@@ -47,6 +50,14 @@ export function resolverPeriodo(
       inicio: `${anoAnterior}-01-01`,
       fim: `${anoAnterior}-12-31`,
       rotulo: String(anoAnterior),
+    };
+  }
+
+  if (modo === "todo") {
+    return {
+      inicio: primeiraDataDisponivel ?? `${anoAtual}-01-01`,
+      fim: hoje,
+      rotulo: "Todo o período",
     };
   }
 

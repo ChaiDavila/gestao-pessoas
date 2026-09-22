@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
 
@@ -12,14 +12,20 @@ export function PeriodoFilter() {
   const [, startTransition] = useTransition();
 
   const modo = searchParams.get("periodo") ?? "atual";
+  const [de, setDe] = useState(searchParams.get("periodoDe") ?? "");
+  const [ate, setAte] = useState(searchParams.get("periodoAte") ?? "");
 
-  function atualizar(chave: string, valor: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (valor) params.set(chave, valor);
-    else params.delete(chave);
+  function navegar(params: URLSearchParams) {
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`);
     });
+  }
+
+  function aplicarData(chave: string, valor: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (valor) params.set(chave, valor);
+    else params.delete(chave);
+    navegar(params);
   }
 
   function aoTrocarModo(novoModo: string) {
@@ -28,10 +34,10 @@ export function PeriodoFilter() {
     if (novoModo !== "personalizado") {
       params.delete("periodoDe");
       params.delete("periodoAte");
+      setDe("");
+      setAte("");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    navegar(params);
   }
 
   return (
@@ -41,6 +47,7 @@ export function PeriodoFilter() {
         <NativeSelect value={modo} onChange={(e) => aoTrocarModo(e.target.value)}>
           <option value="atual">Ano atual</option>
           <option value="anterior">Ano anterior</option>
+          <option value="todo">Todo o período</option>
           <option value="personalizado">Personalizado</option>
         </NativeSelect>
       </div>
@@ -50,16 +57,18 @@ export function PeriodoFilter() {
             <label className="text-xs font-medium text-muted-foreground">De</label>
             <Input
               type="date"
-              value={searchParams.get("periodoDe") ?? ""}
-              onChange={(e) => atualizar("periodoDe", e.target.value)}
+              value={de}
+              onChange={(e) => setDe(e.target.value)}
+              onBlur={() => aplicarData("periodoDe", de)}
             />
           </div>
           <div className="w-40 space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Até</label>
             <Input
               type="date"
-              value={searchParams.get("periodoAte") ?? ""}
-              onChange={(e) => atualizar("periodoAte", e.target.value)}
+              value={ate}
+              onChange={(e) => setAte(e.target.value)}
+              onBlur={() => aplicarData("periodoAte", ate)}
             />
           </div>
         </>
