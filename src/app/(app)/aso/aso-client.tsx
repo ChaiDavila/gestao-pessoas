@@ -18,7 +18,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatarData, hojeISO } from "@/lib/date";
 import { situacaoVencimento, type SituacaoVencimento } from "@/lib/vencimento";
@@ -98,6 +97,18 @@ function piorLinha(linhas: LinhaResumo[]): LinhaResumo {
   return linhas.reduce((pior, l) => (peso(l.situacao.tone) > peso(pior.situacao.tone) ? l : pior), linhas[0]);
 }
 
+type ItemTimeline = {
+  chave: string;
+  colaboradorId: string;
+  colaboradorNome: string;
+  cargoNome: string | null;
+  setorNome: string | null;
+  rotulo: string;
+  resultado: string | null;
+  dataVencimento: string | null;
+  situacao: SituacaoVencimento;
+};
+
 export function AsoClient({
   asoColaboradores,
   pgrColaboradores,
@@ -112,6 +123,9 @@ export function AsoClient({
   const searchParams = useSearchParams();
   const situacaoFiltro = searchParams.get("situacao") ?? ""; // "", "pendente", "valido"
   const [visao, setVisao] = useState<"lista" | "linha_do_tempo">("lista");
+  // null = dialog fechado; "" = aberto sem colaborador pré-selecionado (botão do topo);
+  // um id = aberto já com aquele colaborador (atalho "+ Registrar" da linha do tempo).
+  const [dialogColaboradorId, setDialogColaboradorId] = useState<string | null>(null);
 
   // Base = todo colaborador que passou nos filtros da tela (não só quem já tem ASO/PGR
   // registrado) — assim quem nunca teve nenhum exame lançado também aparece, com a
@@ -178,14 +192,6 @@ export function AsoClient({
   }, [gruposComPior, situacaoFiltro]);
 
   const timeline = useMemo(() => {
-    type ItemTimeline = {
-      chave: string;
-      colaboradorId: string;
-      colaboradorNome: string;
-      rotulo: string;
-      dataVencimento: string | null;
-      situacao: SituacaoVencimento;
-    };
     const itens: ItemTimeline[] = [];
     for (const g of grupos) {
       for (const a of g.asoItens) {
@@ -195,7 +201,10 @@ export function AsoClient({
           chave: `aso-${a.registro_id}`,
           colaboradorId: g.colaboradorId,
           colaboradorNome: g.nome,
+          cargoNome: g.cargoNome,
+          setorNome: g.setorNome,
           rotulo: `ASO — ${TIPO_EXAME_LABEL[a.tipo_exame] ?? a.tipo_exame}`,
+          resultado: a.resultado,
           dataVencimento: a.data_vencimento,
           situacao: s,
         });
@@ -206,13 +215,18 @@ export function AsoClient({
           chave: `pgr-${p.colaborador_id}-${p.exame_id}`,
           colaboradorId: g.colaboradorId,
           colaboradorNome: g.nome,
+          cargoNome: g.cargoNome,
+          setorNome: g.setorNome,
           rotulo: p.exame_nome,
+          resultado: null,
           dataVencimento: p.data_vencimento,
           situacao: s,
         });
       }
     }
-    const vencidos = itens.filter((i) => i.situacao.tone === "danger");
+    const vencidos = itens
+      .filter((i) => i.situacao.tone === "danger")
+      .sort((a, b) => (a.dataVencimento ?? "").localeCompare(b.dataVencimento ?? ""));
     const porMes = new Map<string, ItemTimeline[]>();
     for (const i of itens) {
       if (i.situacao.tone === "danger") continue;
@@ -221,6 +235,9 @@ export function AsoClient({
       porMes.get(mes)!.push(i);
     }
     const meses = Array.from(porMes.keys()).sort();
+    for (const itensDoMes of porMes.values()) {
+      itensDoMes.sort((a, b) => a.colaboradorNome.localeCompare(b.colaboradorNome));
+    }
     return { vencidos, meses, porMes };
   }, [grupos]);
 
@@ -257,7 +274,15 @@ export function AsoClient({
             Linha do tempo
           </button>
         </div>
-        <RegistrarExameDialog colaboradores={colaboradoresNoFiltro} tiposExame={tiposExame} />
+        <Button onClick={() => setDialogColaboradorId("")}>+ Registrar exame</Button>
+        <RegistrarExameDialog
+          key={dialogColaboradorId ?? "fechado"}
+          aberto={dialogColaboradorId !== null}
+          colaboradorInicialId={dialogColaboradorId ?? ""}
+          colaboradores={colaboradoresNoFiltro}
+          tiposExame={tiposExame}
+          onOpenChange={(v) => setDialogColaboradorId(v ? (dialogColaboradorId ?? "") : null)}
+        />
       </div>
 
       {visao === "lista" ? (
@@ -295,57 +320,24 @@ export function AsoClient({
       ) : (
         <div className="space-y-6">
           {timeline.vencidos.length > 0 && (
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-danger">Vencidos</h3>
-              <div className="space-y-1">
-                {timeline.vencidos.map((i) => (
-                  <div key={i.chave} className="rounded-lg border border-border p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {i.colaboradorNome}{" "}
-                          <span className="font-normal text-muted-foreground">
-                            · {i.rotulo}
-                          </span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Vencimento: {formatarData(i.dataVencimento)}
-                        </p>
-                      </div>
-                      <StatusBadge tone={i.situacao.tone}>{i.situacao.texto}</StatusBadge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TabelaTimeline
+              titulo={`Vencidos (${timeline.vencidos.length})`}
+              tituloTone="danger"
+              itens={timeline.vencidos}
+              aoRegistrar={setDialogColaboradorId}
+            />
           )}
-          {timeline.meses.map((mes) => (
-            <div key={mes}>
-              <h3 className="mb-2 text-sm font-semibold text-foreground">
-                {mes === "sem-vencimento" ? "Sem vencimento" : formatarMes(mes)}
-              </h3>
-              <div className="space-y-1">
-                {timeline.porMes.get(mes)!.map((i) => (
-                  <div key={i.chave} className="rounded-lg border border-border p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {i.colaboradorNome}{" "}
-                          <span className="font-normal text-muted-foreground">
-                            · {i.rotulo}
-                          </span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Vencimento: {formatarData(i.dataVencimento)}
-                        </p>
-                      </div>
-                      <StatusBadge tone={i.situacao.tone}>{i.situacao.texto}</StatusBadge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+          {timeline.meses.map((mes) => {
+            const itensDoMes = timeline.porMes.get(mes)!;
+            return (
+              <TabelaTimeline
+                key={mes}
+                titulo={`${mes === "sem-vencimento" ? "Sem vencimento" : formatarMes(mes)} (${itensDoMes.length})`}
+                itens={itensDoMes}
+                aoRegistrar={setDialogColaboradorId}
+              />
+            );
+          })}
           {timeline.vencidos.length === 0 && timeline.meses.length === 0 && (
             <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
               Nada a vencer no filtro atual.
@@ -361,6 +353,73 @@ function formatarMes(mesIso: string) {
   const [ano, mes] = mesIso.split("-");
   const data = new Date(Number(ano), Number(mes) - 1, 1);
   return data.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
+function TabelaTimeline({
+  titulo,
+  tituloTone,
+  itens,
+  aoRegistrar,
+}: {
+  titulo: string;
+  tituloTone?: "danger";
+  itens: ItemTimeline[];
+  aoRegistrar: (colaboradorId: string) => void;
+}) {
+  return (
+    <div>
+      <h3 className={`mb-2 text-sm font-semibold ${tituloTone === "danger" ? "text-danger" : "text-foreground"}`}>
+        {titulo}
+      </h3>
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-border text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 font-medium">Colaborador</th>
+              <th className="px-3 py-2 font-medium">Setor</th>
+              <th className="px-3 py-2 font-medium">Exame</th>
+              <th className="px-3 py-2 font-medium">Vencimento</th>
+              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {itens.map((i) => (
+              <tr key={i.chave} className="border-b border-border last:border-0 hover:bg-muted/30">
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-3">
+                    <ColaboradorAvatar nome={i.colaboradorNome} size="sm" />
+                    <div>
+                      <p className="font-medium text-foreground">{i.colaboradorNome}</p>
+                      <p className="text-xs text-muted-foreground">{i.cargoNome ?? "—"}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-3 py-2 text-muted-foreground">{i.setorNome ?? "—"}</td>
+                <td className="px-3 py-2">
+                  {i.rotulo}
+                  {i.resultado && (
+                    <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                      {i.resultado === "apto" ? "Apto" : "Inapto"}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-muted-foreground">{formatarData(i.dataVencimento)}</td>
+                <td className="px-3 py-2">
+                  <StatusBadge tone={i.situacao.tone}>{i.situacao.texto}</StatusBadge>
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <Button variant="outline" size="sm" onClick={() => aoRegistrar(i.colaboradorId)}>
+                    + Registrar
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 function LinhaColaborador({
@@ -504,24 +563,22 @@ function LinhaColaborador({
 }
 
 function RegistrarExameDialog({
+  aberto,
+  colaboradorInicialId,
   colaboradores,
   tiposExame,
+  onOpenChange,
 }: {
+  aberto: boolean;
+  colaboradorInicialId: string;
   colaboradores: { id: string; nome: string; setor_nome: string | null }[];
   tiposExame: { id: string; nome: string; periodicidade_meses: number | null }[];
+  onOpenChange: (aberto: boolean) => void;
 }) {
-  const [aberto, setAberto] = useState(false);
-  const [colaboradorId, setColaboradorId] = useState("");
+  const [colaboradorId, setColaboradorId] = useState(colaboradorInicialId);
 
   return (
-    <Dialog
-      open={aberto}
-      onOpenChange={(v) => {
-        setAberto(v);
-        if (!v) setColaboradorId("");
-      }}
-    >
-      <DialogTrigger render={<Button>+ Registrar exame</Button>} />
+    <Dialog open={aberto} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Registrar exame</DialogTitle>
@@ -548,7 +605,7 @@ function RegistrarExameDialog({
               <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
                 ASO
               </h4>
-              <FormularioAso colaboradorId={colaboradorId} aoSalvar={() => setAberto(false)} />
+              <FormularioAso colaboradorId={colaboradorId} aoSalvar={() => onOpenChange(false)} />
             </div>
             <div>
               <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
@@ -557,7 +614,7 @@ function RegistrarExameDialog({
               <FormularioExameComplementar
                 colaboradorId={colaboradorId}
                 tiposExame={tiposExame}
-                aoSalvar={() => setAberto(false)}
+                aoSalvar={() => onOpenChange(false)}
               />
             </div>
           </div>
