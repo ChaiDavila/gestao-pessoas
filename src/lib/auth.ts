@@ -21,11 +21,16 @@ export async function getUsuarioAtual(): Promise<UsuarioAtual | null> {
 
   if (!user) return null;
 
+  // Filtra por usuario_id explicitamente (não só por RLS): um admin enxerga, via
+  // política de select, a linha de TODO usuário da área — sem esse filtro, a partir
+  // do segundo usuário cadastrado o maybeSingle() quebra (mais de uma linha
+  // retornada) assim que quem está logado for admin.
   const { data } = await supabase
     .schema("core")
     .from("usuarios_areas")
     .select("papel, escopo_telas")
     .eq("area", "rh")
+    .eq("usuario_id", user.id)
     .maybeSingle();
 
   const papel = (data?.papel as PapelRh | undefined) ?? null;

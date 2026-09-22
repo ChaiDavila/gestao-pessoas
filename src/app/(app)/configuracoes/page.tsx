@@ -31,6 +31,7 @@ export default async function ConfiguracoesPage() {
         pgrItens={pgrItens}
         usuarios={usuarios}
         souAdmin={souAdmin}
+        usuarioAtualId={usuarioAtual?.id ?? null}
       />
     </div>
   );

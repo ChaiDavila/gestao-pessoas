@@ -59,11 +59,13 @@ export function ConfiguracoesClient({
   pgrItens,
   usuarios,
   souAdmin,
+  usuarioAtualId,
 }: {
   catalogos: Catalogos;
   pgrItens: PgrItem[];
   usuarios: UsuarioArea[];
   souAdmin: boolean;
+  usuarioAtualId: string | null;
 }) {
   const cargosOpcoes = catalogos.cargos.map((c) => ({
     id: String(c.id),
@@ -182,7 +184,7 @@ export function ConfiguracoesClient({
 
       {souAdmin && (
         <TabsContent value="usuarios" className="pt-4">
-          <UsuariosTab usuarios={usuarios} />
+          <UsuariosTab usuarios={usuarios} usuarioAtualId={usuarioAtualId} />
         </TabsContent>
       )}
     </Tabs>

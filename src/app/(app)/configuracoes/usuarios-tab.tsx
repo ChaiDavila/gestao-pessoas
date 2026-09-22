@@ -36,7 +36,13 @@ const PAPEL_DESCRICAO: Record<PapelRh, string> = {
 
 const PAPEIS: PapelRh[] = ["leitor", "operador", "gestor", "admin"];
 
-export function UsuariosTab({ usuarios }: { usuarios: UsuarioArea[] }) {
+export function UsuariosTab({
+  usuarios,
+  usuarioAtualId,
+}: {
+  usuarios: UsuarioArea[];
+  usuarioAtualId: string | null;
+}) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="mb-3 flex items-start justify-between gap-2">
@@ -84,7 +90,11 @@ export function UsuariosTab({ usuarios }: { usuarios: UsuarioArea[] }) {
           </thead>
           <tbody>
             {usuarios.map((u) => (
-              <LinhaUsuario key={u.usuarioId} usuario={u} />
+              <LinhaUsuario
+                key={u.usuarioId}
+                usuario={u}
+                souEu={u.usuarioId === usuarioAtualId}
+              />
             ))}
             {usuarios.length === 0 && (
               <tr>
@@ -140,70 +150,43 @@ function SeletorTelas({
   );
 }
 
-function LinhaUsuario({ usuario }: { usuario: UsuarioArea }) {
-  const [papel, setPapel] = useState(usuario.papel);
-  const [pending, startTransition] = useTransition();
-  const [editandoTelas, setEditandoTelas] = useState(false);
-
-  function aoTrocarPapel(novoPapel: string) {
-    setPapel(novoPapel as PapelRh);
-    startTransition(() => {
-      atualizarPapelUsuario(usuario.usuarioId, novoPapel);
-    });
-  }
+function LinhaUsuario({ usuario, souEu }: { usuario: UsuarioArea; souEu: boolean }) {
+  const [editando, setEditando] = useState(false);
 
   return (
     <>
       <tr className="border-b border-border last:border-0">
-        <td className="px-3 py-2 text-foreground">{usuario.email}</td>
-        <td className="px-3 py-2">
-          <NativeSelect
-            value={papel}
-            onChange={(e) => aoTrocarPapel(e.target.value)}
-            disabled={pending}
-            className="w-32"
-          >
-            {PAPEIS.map((p) => (
-              <option key={p} value={p}>
-                {PAPEL_LABEL[p]}
-              </option>
-            ))}
-          </NativeSelect>
-        </td>
         <td className="px-3 py-2 text-foreground">
-          {papel === "admin" ? (
-            <span className="text-muted-foreground">Acesso completo</span>
-          ) : (
-            <div className="flex items-center gap-2">
-              <ResumoTelas escopoTelas={usuario.escopoTelas} />
-              <button
-                type="button"
-                className="shrink-0 text-xs text-primary hover:underline"
-                onClick={() => setEditandoTelas((v) => !v)}
-              >
-                Editar
-              </button>
-            </div>
-          )}
+          {usuario.email}
+          {souEu && <span className="ml-1.5 text-xs text-muted-foreground">(você)</span>}
+        </td>
+        <td className="px-3 py-2 text-foreground">{PAPEL_LABEL[usuario.papel]}</td>
+        <td className="px-3 py-2 text-foreground">
+          <ResumoTelas escopoTelas={usuario.papel === "admin" ? null : usuario.escopoTelas} />
         </td>
         <td className="px-3 py-2 text-muted-foreground">
           {formatarData(usuario.criadoEm.slice(0, 10))}
         </td>
         <td className="px-3 py-2 text-right">
-          <BotaoRemover
-            action={() => removerAcessoUsuario(usuario.usuarioId)}
-            confirmar={`Remover o acesso de ${usuario.email}? A conta continua existindo, só perde o acesso ao RH.`}
-          />
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setEditando((v) => !v)}>
+              Editar
+            </Button>
+            <BotaoRemover
+              action={() => removerAcessoUsuario(usuario.usuarioId)}
+              confirmar={`Remover o acesso de ${usuario.email}? A conta continua existindo, só perde o acesso ao RH.`}
+            />
+          </div>
         </td>
       </tr>
-      {editandoTelas && (
+      {editando && (
         <tr className="border-b border-border bg-muted/20 last:border-0">
           <td colSpan={5} className="p-3">
-            <EditorTelas
-              usuarioId={usuario.usuarioId}
-              escopoInicial={usuario.escopoTelas}
-              aoSalvar={() => setEditandoTelas(false)}
-              aoCancelar={() => setEditandoTelas(false)}
+            <EditorUsuario
+              usuario={usuario}
+              souEu={souEu}
+              aoSalvar={() => setEditando(false)}
+              aoCancelar={() => setEditando(false)}
             />
           </td>
         </tr>
@@ -212,61 +195,100 @@ function LinhaUsuario({ usuario }: { usuario: UsuarioArea }) {
   );
 }
 
-function EditorTelas({
-  usuarioId,
-  escopoInicial,
+function EditorUsuario({
+  usuario,
+  souEu,
   aoSalvar,
   aoCancelar,
 }: {
-  usuarioId: string;
-  escopoInicial: TelaId[] | null;
+  usuario: UsuarioArea;
+  souEu: boolean;
   aoSalvar: () => void;
   aoCancelar: () => void;
 }) {
-  const [restrito, setRestrito] = useState(!!escopoInicial && escopoInicial.length > 0);
+  const [papel, setPapel] = useState<PapelRh>(usuario.papel);
+  const [restrito, setRestrito] = useState(
+    !!usuario.escopoTelas && usuario.escopoTelas.length > 0,
+  );
   const [selecionadas, setSelecionadas] = useState<Set<TelaId>>(
-    new Set(escopoInicial ?? []),
+    new Set(usuario.escopoTelas ?? []),
   );
   const [pending, startTransition] = useTransition();
 
+  // Evita o próprio admin trocar o seu papel e ficar sem acesso a Configurações
+  // (já aconteceu — sem esse trava, dava pra escolher "leitor" pra si mesmo e
+  // perder o acesso à tela que corrigiria isso).
+  const travadoNoAdmin = souEu && usuario.papel === "admin";
+
   function salvar() {
     startTransition(async () => {
-      await atualizarEscopoUsuario(
-        usuarioId,
-        restrito ? Array.from(selecionadas) : null,
-      );
+      if (papel !== usuario.papel) {
+        await atualizarPapelUsuario(usuario.usuarioId, papel);
+      }
+      if (papel !== "admin") {
+        await atualizarEscopoUsuario(
+          usuario.usuarioId,
+          restrito ? Array.from(selecionadas) : null,
+        );
+      }
       aoSalvar();
     });
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-4 text-sm">
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={!restrito}
-            onChange={() => setRestrito(false)}
-          />
-          Acesso completo (todas as telas)
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={restrito}
-            onChange={() => setRestrito(true)}
-          />
-          Restrito a telas específicas
-        </label>
+    <div className="max-w-md space-y-3">
+      {travadoNoAdmin && (
+        <p className="rounded-md bg-warning-bg px-3 py-2 text-xs text-warning">
+          Você não pode tirar o próprio papel de admin por aqui — peça pra
+          outro admin fazer essa troca, assim evita perder o próprio acesso.
+        </p>
+      )}
+      <div className="space-y-1.5">
+        <Label>Papel</Label>
+        <NativeSelect
+          value={papel}
+          disabled={travadoNoAdmin}
+          onChange={(e) => setPapel(e.target.value as PapelRh)}
+          className="w-full"
+        >
+          {PAPEIS.map((p) => (
+            <option key={p} value={p}>
+              {PAPEL_LABEL[p]} — {PAPEL_DESCRICAO[p]}
+            </option>
+          ))}
+        </NativeSelect>
       </div>
-      {restrito && (
-        <SeletorTelas selecionadas={selecionadas} onChange={setSelecionadas} />
+      {papel !== "admin" && (
+        <div className="space-y-1.5">
+          <Label>Telas</Label>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                checked={!restrito}
+                onChange={() => setRestrito(false)}
+              />
+              Acesso completo
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                checked={restrito}
+                onChange={() => setRestrito(true)}
+              />
+              Restrito a telas específicas
+            </label>
+          </div>
+          {restrito && (
+            <SeletorTelas selecionadas={selecionadas} onChange={setSelecionadas} />
+          )}
+        </div>
       )}
       <div className="flex gap-2">
         <Button
           type="button"
           size="sm"
-          disabled={pending || (restrito && selecionadas.size === 0)}
+          disabled={pending || (papel !== "admin" && restrito && selecionadas.size === 0)}
           onClick={salvar}
         >
           {pending ? "Salvando..." : "Salvar"}
