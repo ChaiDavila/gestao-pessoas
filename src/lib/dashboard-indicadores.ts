@@ -3,6 +3,7 @@ import type {
   DesligamentoDashboardItem,
   FormacaoAtualItem,
 } from "@/lib/data/dashboard";
+import { agruparDesligamentosPorColaborador, headcountEm } from "@/lib/headcount";
 
 export type DashboardFiltros = {
   cargoId?: string;
@@ -109,11 +110,17 @@ export function calcularDashboard(
   filtros: DashboardFiltros,
 ) {
   const hoje = new Date();
+  const hojeISO = hoje.toISOString().slice(0, 10);
   const colaboradores = colaboradoresTodos.filter((c) => aplicaFiltrosBase(c, filtros));
   const idsPermitidos = new Set(colaboradores.map((c) => c.id));
   let desligamentos = desligamentosTodos.filter((d) => idsPermitidos.has(d.colaborador_id));
   if (filtros.de) desligamentos = desligamentos.filter((d) => d.data >= filtros.de!);
   if (filtros.ate) desligamentos = desligamentos.filter((d) => d.data <= filtros.ate!);
+
+  // Histórico completo de desligamento/reativação por colaborador (sem filtro nenhum) —
+  // usado só pra reconstruir quem estava ativo em datas passadas, nunca pra contar quem
+  // entra no numerador de cada indicador (isso continua respeitando os filtros normais).
+  const desligamentosPorColaborador = agruparDesligamentosPorColaborador(desligamentosTodos);
 
   const ativos = colaboradores.filter((c) => c.status_rh === "ativo");
 
@@ -125,9 +132,13 @@ export function calcularDashboard(
     (d) => idsPermitidos.has(d.colaborador_id) && d.data.startsWith(String(anoAtual)),
   );
   const desligamentosAnoAtual = desligamentosAnoAtualLista.length;
-  // Aproximação: turnover = desligamentos do ano / colaboradores ativos atuais.
+  // Turnover do ano corrente = desligamentos do ano ÷ headcount médio do ano (início do
+  // ano + hoje, ÷ 2) — headcount reconstruído do histórico real, não o headcount de hoje.
+  const headcountInicioAnoAtual = headcountEm(colaboradores, desligamentosPorColaborador, `${anoAtual}-01-01`);
+  const headcountHoje = headcountEm(colaboradores, desligamentosPorColaborador, hojeISO);
+  const headcountMedioAnoAtual = (headcountInicioAnoAtual + headcountHoje) / 2;
   const turnoverAnoAtual =
-    colaboradoresAtivos > 0 ? (desligamentosAnoAtual / colaboradoresAtivos) * 100 : 0;
+    headcountMedioAnoAtual > 0 ? (desligamentosAnoAtual / headcountMedioAnoAtual) * 100 : 0;
   const tempoMedioDeCasa =
     ativos.length > 0
       ? ativos.reduce((s, c) => s + tempoDeCasaFracionario(c.data_admissao, hoje), 0) / ativos.length
@@ -151,14 +162,19 @@ export function calcularDashboard(
     (ano) => desligamentosTodos.filter((d) => idsPermitidos.has(d.colaborador_id) && d.data.startsWith(ano)).length,
   );
 
-  // Turnover anual (%) por ano: desligamentos do ano / colaboradores admitidos até o fim
-  // daquele ano (aproximação de headcount, não uma média mensal precisa).
+  // Turnover anual (%) por ano: desligamentos do ano ÷ headcount médio daquele ano (início
+  // do ano + fim do ano — ou hoje, se for o ano corrente — ÷ 2). Headcount reconstruído do
+  // histórico real de admissão/desligamento/reativação, não "todo mundo admitido até a
+  // data" (isso contava gente que já tinha saído antes daquele ano).
   const turnoverPorAno = anosOrdenados.map((ano) => {
-    const admitidosAte = colaboradores.filter((c) => c.data_admissao <= `${ano}-12-31`).length;
+    const fimAno = ano === String(anoAtual) ? hojeISO : `${ano}-12-31`;
+    const hc1 = headcountEm(colaboradores, desligamentosPorColaborador, `${ano}-01-01`);
+    const hc2 = headcountEm(colaboradores, desligamentosPorColaborador, fimAno);
+    const headcountMedio = (hc1 + hc2) / 2;
     const desligadosNoAno = desligamentosTodos.filter(
       (d) => idsPermitidos.has(d.colaborador_id) && d.data.startsWith(ano),
     ).length;
-    return admitidosAte > 0 ? Math.round((desligadosNoAno / admitidosAte) * 1000) / 10 : 0;
+    return headcountMedio > 0 ? Math.round((desligadosNoAno / headcountMedio) * 1000) / 10 : 0;
   });
 
   // Evolução da folha salarial total por ano: aproximação usando o salário ATUAL de quem

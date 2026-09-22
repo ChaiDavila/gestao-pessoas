@@ -24,6 +24,7 @@ export type DesligamentoDashboardItem = {
   data: string;
   tipo: string;
   motivo_nome: string | null;
+  data_reativacao: string | null;
 };
 
 export type FormacaoAtualItem = {
@@ -50,7 +51,7 @@ export async function getDesligamentosDashboard() {
   const { data, error } = await supabase
     .schema("rh")
     .from("vw_desligamentos")
-    .select("id, colaborador_id, colaborador_nome, data, tipo, motivo_nome")
+    .select("id, colaborador_id, colaborador_nome, data, tipo, motivo_nome, data_reativacao")
     .eq("ativo", true);
 
   if (error) throw new Error(error.message);
