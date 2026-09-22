@@ -22,11 +22,13 @@ export type ColunaCatalogo = {
 
 export function TabelaCatalogo({
   titulo,
+  descricao,
   tabela,
   colunas,
   itens,
 }: {
   titulo: string;
+  descricao?: string;
   tabela: string;
   colunas: ColunaCatalogo[];
   itens: Record<string, unknown>[];
@@ -34,9 +36,22 @@ export function TabelaCatalogo({
   const campos = colunas.map((c) => c.chave);
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground">{titulo}</h3>
-      <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="flex h-full flex-col rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{titulo}</h3>
+          {descricao && (
+            <p className="mt-0.5 text-xs text-muted-foreground">{descricao}</p>
+          )}
+        </div>
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          {itens.length}
+        </span>
+      </div>
+
+      <FormularioAdicionar colunas={colunas} tabela={tabela} campos={campos} />
+
+      <div className="mt-3 overflow-x-auto rounded-md border border-border">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-xs uppercase text-muted-foreground">
             <tr>
@@ -58,7 +73,16 @@ export function TabelaCatalogo({
                 campos={campos}
               />
             ))}
-            <LinhaNova colunas={colunas} tabela={tabela} campos={campos} />
+            {itens.length === 0 && (
+              <tr>
+                <td
+                  colSpan={colunas.length + 1}
+                  className="px-3 py-6 text-center text-muted-foreground"
+                >
+                  Nenhum item cadastrado ainda.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -89,53 +113,53 @@ function LinhaCatalogo({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
-  if (!editando) {
+  if (editando) {
     return (
-      <tr className="border-b border-border last:border-0">
-        {colunas.map((c) => (
-          <td key={c.chave} className="px-3 py-2 text-foreground">
-            {c.tipo === "select"
-              ? c.opcoes?.find((o) => o.value === item[c.chave])?.label ?? String(item[c.chave] ?? "—")
-              : String(item[c.chave] ?? "—")}
-          </td>
-        ))}
-        <td className="px-3 py-2 text-right">
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setEditando(true)}>
-              Editar
+      <tr className="border-b border-border bg-muted/20 last:border-0">
+        <td colSpan={colunas.length + 1} className="p-3">
+          <form action={formAction} className="flex flex-wrap items-end gap-2">
+            {state && "error" in state && (
+              <p className="w-full rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
+                {state.error}
+              </p>
+            )}
+            {colunas.map((c) => (
+              <CampoCatalogo key={c.chave} coluna={c} valorInicial={item[c.chave]} />
+            ))}
+            <Button type="submit" size="sm" disabled={pending}>
+              {pending ? "Salvando..." : "Salvar"}
             </Button>
-            <BotaoRemover action={() => removerItemCatalogo(tabela, String(item.id))} />
-          </div>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditando(false)}>
+              Cancelar
+            </Button>
+          </form>
         </td>
       </tr>
     );
   }
 
   return (
-    <tr className="border-b border-border bg-muted/20 last:border-0">
-      <td colSpan={colunas.length + 1} className="p-3">
-        <form action={formAction} className="flex flex-wrap items-end gap-2">
-          {state && "error" in state && (
-            <p className="w-full rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
-              {state.error}
-            </p>
-          )}
-          {colunas.map((c) => (
-            <CampoCatalogo key={c.chave} coluna={c} valorInicial={item[c.chave]} />
-          ))}
-          <Button type="submit" size="sm" disabled={pending}>
-            {pending ? "Salvando..." : "Salvar"}
+    <tr className="border-b border-border last:border-0 hover:bg-muted/30">
+      {colunas.map((c) => (
+        <td key={c.chave} className="px-3 py-2 text-foreground">
+          {c.tipo === "select"
+            ? c.opcoes?.find((o) => o.value === item[c.chave])?.label ?? String(item[c.chave] ?? "—")
+            : String(item[c.chave] ?? "—")}
+        </td>
+      ))}
+      <td className="px-3 py-2 text-right">
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setEditando(true)}>
+            Editar
           </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setEditando(false)}>
-            Cancelar
-          </Button>
-        </form>
+          <BotaoRemover action={() => removerItemCatalogo(tabela, String(item.id))} />
+        </div>
       </td>
     </tr>
   );
 }
 
-function LinhaNova({
+function FormularioAdicionar({
   colunas,
   tabela,
   campos,
@@ -157,27 +181,23 @@ function LinhaNova({
   }, [state]);
 
   return (
-    <tr>
-      <td colSpan={colunas.length + 1} className="p-3">
-        <form
-          key={chaveForm}
-          action={formAction}
-          className="flex flex-wrap items-end gap-2"
-        >
-          {state && "error" in state && (
-            <p className="w-full rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
-              {state.error}
-            </p>
-          )}
-          {colunas.map((c) => (
-            <CampoCatalogo key={c.chave} coluna={c} />
-          ))}
-          <Button type="submit" size="sm" disabled={pending}>
-            {pending ? "Adicionando..." : "+ Adicionar"}
-          </Button>
-        </form>
-      </td>
-    </tr>
+    <form
+      key={chaveForm}
+      action={formAction}
+      className="flex flex-wrap items-end gap-2 rounded-md bg-[#faf9f7] p-3"
+    >
+      {state && "error" in state && (
+        <p className="w-full rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
+          {state.error}
+        </p>
+      )}
+      {colunas.map((c) => (
+        <CampoCatalogo key={c.chave} coluna={c} />
+      ))}
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? "Adicionando..." : "+ Adicionar"}
+      </Button>
+    </form>
   );
 }
 
@@ -194,7 +214,7 @@ function CampoCatalogo({
         name={coluna.chave}
         required={coluna.obrigatorio}
         defaultValue={valorInicial != null ? String(valorInicial) : ""}
-        className="w-44"
+        className="w-40"
       >
         <option value="" disabled>
           {coluna.rotulo}
@@ -215,7 +235,7 @@ function CampoCatalogo({
       required={coluna.obrigatorio}
       defaultValue={valorInicial != null ? String(valorInicial) : ""}
       placeholder={coluna.rotulo}
-      className="w-40"
+      className="w-36 flex-1"
     />
   );
 }

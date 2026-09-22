@@ -27,14 +27,29 @@ const PAPEIS: PapelRh[] = ["leitor", "operador", "gestor", "admin"];
 
 export function UsuariosTab({ usuarios }: { usuarios: UsuarioArea[] }) {
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Quem tem acesso ao sistema e com qual papel. "Remover" tira o acesso a
-        RH — a conta em si continua existindo (pode ser reaproveitada por
-        outra área da COONTROL no futuro).
-      </p>
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            Quem tem acesso
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            "Remover" tira o acesso a RH — a conta continua existindo (pode
+            ser reaproveitada por outra área da COONTROL no futuro).
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          {usuarios.length}
+        </span>
+      </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="mb-3">
+        <PainelAdicionar rotulo="+ Novo usuário">
+          {(fechar) => <FormularioNovoUsuario aoSalvar={fechar} />}
+        </PainelAdicionar>
+      </div>
+
+      <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-xs uppercase text-muted-foreground">
             <tr>
@@ -58,10 +73,6 @@ export function UsuariosTab({ usuarios }: { usuarios: UsuarioArea[] }) {
           </tbody>
         </table>
       </div>
-
-      <PainelAdicionar rotulo="+ Novo usuário">
-        {(fechar) => <FormularioNovoUsuario aoSalvar={fechar} />}
-      </PainelAdicionar>
     </div>
   );
 }
@@ -124,7 +135,7 @@ function FormularioNovoUsuario({ aoSalvar }: { aoSalvar: () => void }) {
       className="max-w-lg space-y-4 rounded-lg border border-border bg-card p-4"
     >
       {state && "error" in state && (
-        <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}

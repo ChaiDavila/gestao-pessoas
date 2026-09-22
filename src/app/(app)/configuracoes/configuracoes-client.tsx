@@ -1,6 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InfoBanner } from "@/components/info-banner";
 import { TabelaCatalogo, type ColunaCatalogo } from "./tabela-catalogo";
 import { PgrTab } from "./pgr-tab";
 import { UsuariosTab } from "./usuarios-tab";
@@ -83,75 +84,92 @@ export function ConfiguracoesClient({
         {souAdmin && <TabsTrigger value="usuarios">Usuários</TabsTrigger>}
       </TabsList>
 
-      <TabsContent value="geral" className="space-y-8 pt-4">
-        <TabelaCatalogo
-          titulo="Setores"
-          tabela="config_setores"
-          colunas={COL_NOME}
-          itens={catalogos.setores}
-        />
+      <TabsContent value="geral" className="space-y-6 pt-4">
+        <InfoBanner>
+          Remover um item do catálogo não altera cadastros já existentes que
+          usam aquele valor — só deixa de sugeri-lo em novos cadastros,
+          edições ou filtros.
+        </InfoBanner>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <TabelaCatalogo
+            titulo="Setores"
+            tabela="config_setores"
+            colunas={COL_NOME}
+            itens={catalogos.setores}
+          />
+          <TabelaCatalogo
+            titulo="Eixos"
+            tabela="config_eixos"
+            colunas={COL_NOME}
+            itens={catalogos.eixos}
+          />
+          <TabelaCatalogo
+            titulo="Níveis"
+            descricao="Hierarquia exibida do menor pro maior conforme a ordem."
+            tabela="config_niveis"
+            colunas={COL_NIVEL}
+            itens={catalogos.niveis}
+          />
+          <TabelaCatalogo
+            titulo="Formação acadêmica"
+            descricao="Usada no cadastro do colaborador e no indicador Formação do Dashboard."
+            tabela="config_formacoes"
+            colunas={COL_NIVEL}
+            itens={catalogos.formacoes}
+          />
+          <TabelaCatalogo
+            titulo="Motivos de evolução salarial"
+            tabela="config_motivos_evolucao_salarial"
+            colunas={COL_MOTIVO}
+            itens={catalogos.motivosEvolucao}
+          />
+          <TabelaCatalogo
+            titulo="Motivos de desligamento"
+            descricao="Usados no resumo de Desligamentos e nos indicadores de turnover."
+            tabela="config_motivos_desligamento"
+            colunas={COL_MOTIVO_DESLIGAMENTO}
+            itens={catalogos.motivosDesligamento}
+          />
+        </div>
+
         <TabelaCatalogo
           titulo="Funções (cargo + CBO)"
           tabela="config_cargos"
           colunas={COL_CARGO}
           itens={catalogos.cargos}
         />
-        <TabelaCatalogo
-          titulo="Níveis"
-          tabela="config_niveis"
-          colunas={COL_NIVEL}
-          itens={catalogos.niveis}
-        />
-        <TabelaCatalogo
-          titulo="Eixos"
-          tabela="config_eixos"
-          colunas={COL_NOME}
-          itens={catalogos.eixos}
-        />
-        <TabelaCatalogo
-          titulo="Motivos de evolução salarial"
-          tabela="config_motivos_evolucao_salarial"
-          colunas={COL_MOTIVO}
-          itens={catalogos.motivosEvolucao}
-        />
-        <TabelaCatalogo
-          titulo="Motivos de desligamento"
-          tabela="config_motivos_desligamento"
-          colunas={COL_MOTIVO_DESLIGAMENTO}
-          itens={catalogos.motivosDesligamento}
-        />
-        <TabelaCatalogo
-          titulo="Formação acadêmica"
-          tabela="config_formacoes"
-          colunas={COL_NIVEL}
-          itens={catalogos.formacoes}
-        />
       </TabsContent>
 
-      <TabsContent value="treinamentos" className="space-y-8 pt-4">
-        <TabelaCatalogo
-          titulo="Categorias de treinamento"
-          tabela="config_categorias_treinamento"
-          colunas={COL_NOME}
-          itens={catalogos.categoriasTreinamento}
-        />
-        <TabelaCatalogo
-          titulo="Cursos de NR"
-          tabela="config_nrs_catalogo"
-          colunas={COL_NR}
-          itens={catalogos.nrsCatalogo}
-        />
+      <TabsContent value="treinamentos" className="space-y-6 pt-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <TabelaCatalogo
+            titulo="Categorias de treinamento"
+            descricao="Classificação usada nos indicadores de Treinamentos, além de NR/Geral."
+            tabela="config_categorias_treinamento"
+            colunas={COL_NOME}
+            itens={catalogos.categoriasTreinamento}
+          />
+          <TabelaCatalogo
+            titulo="Cursos de NR"
+            descricao="A periodicidade define o vencimento calculado automaticamente."
+            tabela="config_nrs_catalogo"
+            colunas={COL_NR}
+            itens={catalogos.nrsCatalogo}
+          />
+        </div>
       </TabsContent>
 
-      <TabsContent value="aso" className="space-y-8 pt-4">
+      <TabsContent value="aso" className="space-y-6 pt-4">
         <TabelaCatalogo
           titulo="Tipos de exame complementar"
+          descricao="A periodicidade já vale automaticamente ao vincular o exame a uma função no PGR abaixo."
           tabela="config_tipos_exame"
           colunas={COL_TIPO_EXAME}
           itens={catalogos.tiposExame}
         />
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-foreground">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="mb-1 text-sm font-semibold text-foreground">
             Exames exigidos por função (PGR)
           </h3>
           <PgrTab

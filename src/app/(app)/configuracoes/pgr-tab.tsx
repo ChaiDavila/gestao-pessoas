@@ -143,7 +143,7 @@ function AdicionarExameCargo({
   return (
     <form action={formAction} className="mt-3 flex items-end gap-2">
       {state && "error" in state && (
-        <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>
+        <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">{state.error}</p>
       )}
       <NativeSelect
         value={exameId}
@@ -189,7 +189,7 @@ function FormularioLote({
       className="max-w-3xl space-y-4 rounded-lg border border-border bg-card p-4"
     >
       {state && "error" in state && (
-        <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
