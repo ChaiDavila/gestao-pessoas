@@ -25,3 +25,34 @@ export function somarMeses(data: string, meses: number) {
 export function hojeISO() {
   return new Date().toISOString().slice(0, 10);
 }
+
+export type PeriodoResolvido = { inicio: string; fim: string; rotulo: string };
+
+/**
+ * Resolve o filtro de período (ano atual / ano anterior / personalizado) em datas
+ * concretas. "Ano atual" vai até hoje (não até 31/dez), porque o resto do ano ainda não
+ * aconteceu. Num período personalizado, o fim nunca passa de hoje.
+ */
+export function resolverPeriodo(
+  modo: string | undefined,
+  de: string | undefined,
+  ate: string | undefined,
+): PeriodoResolvido {
+  const hoje = hojeISO();
+  const anoAtual = new Date().getFullYear();
+
+  if (modo === "anterior") {
+    const anoAnterior = anoAtual - 1;
+    return {
+      inicio: `${anoAnterior}-01-01`,
+      fim: `${anoAnterior}-12-31`,
+      rotulo: String(anoAnterior),
+    };
+  }
+
+  if (modo === "personalizado" && de && ate) {
+    return { inicio: de, fim: ate > hoje ? hoje : ate, rotulo: `${formatarData(de)} a ${formatarData(ate)}` };
+  }
+
+  return { inicio: `${anoAtual}-01-01`, fim: hoje, rotulo: String(anoAtual) };
+}

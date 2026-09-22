@@ -217,26 +217,6 @@ export function DashboardClient({
           />
         </ChartCard>
 
-        <ChartCard titulo="Desligamentos por tipo">
-          <DoughnutChart
-            labels={dados.desligamentosPorTipo.map((g) => g.chave)}
-            valores={dados.desligamentosPorTipo.map((g) => g.valor)}
-            aoClicarFatia={(i) =>
-              abrirDesligamentos(dados.desligamentosPorTipo[i].chave, dados.desligamentosPorTipo[i].ids)
-            }
-          />
-        </ChartCard>
-
-        <ChartCard titulo="Desligamentos por motivo" altura={Math.max(200, dados.desligamentosPorMotivo.length * 36)}>
-          <BarChart
-            horizontal
-            labels={dados.desligamentosPorMotivo.map((g) => g.chave)}
-            valores={dados.desligamentosPorMotivo.map((g) => g.valor)}
-            aoClicarBarra={(i) =>
-              abrirDesligamentos(dados.desligamentosPorMotivo[i].chave, dados.desligamentosPorMotivo[i].ids)
-            }
-          />
-        </ChartCard>
       </div>
 
       <Dialog

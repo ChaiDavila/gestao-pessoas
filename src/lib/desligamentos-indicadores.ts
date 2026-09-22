@@ -1,5 +1,10 @@
 import type { ColaboradorDashboardItem } from "@/lib/data/dashboard";
-import type { DesligamentoItem } from "@/lib/data/desligamentos";
+import type { DesligamentoItem, DesligamentoHistoricoItem } from "@/lib/data/desligamentos";
+import { hojeISO, type PeriodoResolvido } from "@/lib/date";
+import {
+  agruparDesligamentosPorColaborador,
+  headcountEm,
+} from "@/lib/headcount";
 
 export type TurnoverFiltrosBase = {
   cargoId?: string;
@@ -18,51 +23,129 @@ function aplicaFiltrosBase(c: ColaboradorDashboardItem, f: TurnoverFiltrosBase) 
   return true;
 }
 
+function agrupar(itens: { chave: string; id: string }[]) {
+  const mapa = new Map<string, string[]>();
+  for (const item of itens) {
+    if (!mapa.has(item.chave)) mapa.set(item.chave, []);
+    mapa.get(item.chave)!.push(item.id);
+  }
+  return Array.from(mapa.entries()).map(([chave, ids]) => ({ chave, valor: ids.length, ids }));
+}
+
 /**
- * Turnover histórico completo (todos os anos, sem filtro de período), para a tela de
- * Desligamentos. Os filtros de cargo/nível/eixo/setor/gestor recortam quem entra na conta
- * do headcount; `desligamentosFiltrados` já vem filtrado (inclusive por tipo/motivo) de
- * `getDesligamentos`. O gráfico por ano e a taxa geral usam os mesmos anos: do primeiro
- * ao último ano com algum dado (admissão ou desligamento) no recorte atual.
+ * Indicadores da tela Desligamentos, todos calculados com headcount reconstruído a partir
+ * de admissão + histórico real de desligamento/reativação (ver src/lib/headcount.ts) — não
+ * a partir do headcount atual nem do status_rh de hoje.
  *
- * "Taxa de turnover geral" = total de desligamentos no recorte ÷ headcount médio do
- * período todo (média do headcount de cada ano) — não é a média das taxas anuais, que
- * distorceria o resultado numa empresa que cresceu de poucas pessoas pra dezenas.
+ * - `desligamentosHistorico`: TODOS os desligamentos, sem filtro nenhum — só pra saber quem
+ *   estava ativo em cada data (o histórico de uma pessoa não muda por causa de um filtro).
+ * - `desligamentosNoRecorte`: já filtrado por cargo/nível/eixo/setor/gestor/tipo/motivo
+ *   (mas não por período) — é o que entra no numerador de cada indicador.
  */
-export function calcularTurnoverGeral(
+export function calcularIndicadoresDesligamentos(
   colaboradoresTodos: ColaboradorDashboardItem[],
-  desligamentosFiltrados: DesligamentoItem[],
+  desligamentosHistorico: DesligamentoHistoricoItem[],
+  desligamentosNoRecorte: DesligamentoItem[],
   filtrosBase: TurnoverFiltrosBase,
+  periodo: PeriodoResolvido,
 ) {
   const colaboradores = colaboradoresTodos.filter((c) => aplicaFiltrosBase(c, filtrosBase));
+  const desligamentosPorColaborador = agruparDesligamentosPorColaborador(desligamentosHistorico);
+  const hoje = hojeISO();
+  const anoAtual = Number(hoje.slice(0, 4));
 
-  const anosComDados = new Set<string>();
-  for (const c of colaboradores) anosComDados.add(c.data_admissao.slice(0, 4));
-  for (const d of desligamentosFiltrados) anosComDados.add(d.data.slice(0, 4));
-  const anosOrdenados = Array.from(anosComDados).sort();
-
-  const headcountPorAno = anosOrdenados.map(
-    (ano) => colaboradores.filter((c) => c.data_admissao <= `${ano}-12-31`).length,
+  // --- indicadores do período selecionado ---
+  const desligamentosDoPeriodo = desligamentosNoRecorte.filter(
+    (d) => d.data >= periodo.inicio && d.data <= periodo.fim,
   );
+  const headcountInicioPeriodo = headcountEm(colaboradores, desligamentosPorColaborador, periodo.inicio);
+  const headcountFimPeriodo = headcountEm(colaboradores, desligamentosPorColaborador, periodo.fim);
+  const headcountMedioPeriodo = (headcountInicioPeriodo + headcountFimPeriodo) / 2;
+  const taxaPeriodo =
+    headcountMedioPeriodo > 0
+      ? Math.round((desligamentosDoPeriodo.length / headcountMedioPeriodo) * 1000) / 10
+      : null;
 
-  const turnoverPorAno = anosOrdenados.map((ano, i) => {
-    const desligadosNoAno = desligamentosFiltrados.filter((d) => d.data.startsWith(ano)).length;
-    const headcount = headcountPorAno[i];
-    return headcount > 0 ? Math.round((desligadosNoAno / headcount) * 1000) / 10 : 0;
-  });
+  // --- evolução anual: histórico completo, ignora o filtro de período de propósito, pra
+  // permitir comparar anos. Anos sem ninguém no recorte (headcount médio = 0) não entram —
+  // "sem dados" é diferente de "0%".
+  const anos = new Set<string>();
+  for (const c of colaboradores) anos.add(c.data_admissao.slice(0, 4));
+  for (const d of desligamentosNoRecorte) anos.add(d.data.slice(0, 4));
 
-  const headcountMedio =
-    headcountPorAno.length > 0
-      ? headcountPorAno.reduce((s, v) => s + v, 0) / headcountPorAno.length
-      : 0;
-  const taxaGeral =
-    headcountMedio > 0 ? (desligamentosFiltrados.length / headcountMedio) * 100 : 0;
+  const evolucaoAnual = Array.from(anos)
+    .sort()
+    .map((ano) => {
+      const inicioAno = `${ano}-01-01`;
+      const fimAno = Number(ano) === anoAtual ? hoje : `${ano}-12-31`;
+      const hc1 = headcountEm(colaboradores, desligamentosPorColaborador, inicioAno);
+      const hc2 = headcountEm(colaboradores, desligamentosPorColaborador, fimAno);
+      const headcountMedio = (hc1 + hc2) / 2;
+      const desligamentosDoAno = desligamentosNoRecorte.filter((d) => d.data.startsWith(ano));
+      return {
+        ano,
+        desligamentos: desligamentosDoAno.length,
+        headcountMedio,
+        taxa:
+          headcountMedio > 0
+            ? Math.round((desligamentosDoAno.length / headcountMedio) * 1000) / 10
+            : null,
+        ids: desligamentosDoAno.map((d) => d.id),
+      };
+    })
+    .filter((a) => a.headcountMedio > 0);
+
+  // --- desligamentos por setor, dentro do período selecionado ---
+  const colaboradoresPorSetor = new Map<string, ColaboradorDashboardItem[]>();
+  for (const c of colaboradores) {
+    const chave = c.setor_nome ?? "Sem setor";
+    if (!colaboradoresPorSetor.has(chave)) colaboradoresPorSetor.set(chave, []);
+    colaboradoresPorSetor.get(chave)!.push(c);
+  }
+
+  const porSetor = Array.from(colaboradoresPorSetor.entries())
+    .map(([setor, colaboradoresDoSetor]) => {
+      const hc1 = headcountEm(colaboradoresDoSetor, desligamentosPorColaborador, periodo.inicio);
+      const hc2 = headcountEm(colaboradoresDoSetor, desligamentosPorColaborador, periodo.fim);
+      const headcountMedio = (hc1 + hc2) / 2;
+      const desligamentosDoSetor = desligamentosDoPeriodo.filter(
+        (d) => (d.setor_nome ?? "Sem setor") === setor,
+      );
+      return {
+        setor,
+        desligamentos: desligamentosDoSetor.length,
+        headcountMedio,
+        taxa:
+          headcountMedio > 0
+            ? Math.round((desligamentosDoSetor.length / headcountMedio) * 1000) / 10
+            : null,
+        ids: desligamentosDoSetor.map((d) => d.id),
+      };
+    })
+    .filter((s) => s.desligamentos > 0)
+    .sort((a, b) => b.desligamentos - a.desligamentos);
+
+  // --- tipo e motivo, dentro do período (mudaram de tela: vieram do Dashboard) ---
+  const porTipo = agrupar(
+    desligamentosDoPeriodo.map((d) => ({
+      chave: d.tipo === "voluntario" ? "Voluntário" : "Involuntário",
+      id: d.id,
+    })),
+  );
+  const porMotivo = agrupar(
+    desligamentosDoPeriodo.map((d) => ({ chave: d.motivo_nome ?? "Sem motivo", id: d.id })),
+  ).sort((a, b) => b.valor - a.valor);
 
   return {
-    anosOrdenados,
-    turnoverPorAno,
-    headcountMedio,
-    taxaGeral,
-    totalDesligamentos: desligamentosFiltrados.length,
+    desligamentosNoPeriodo: desligamentosDoPeriodo.length,
+    desligamentosNoPeriodoIds: desligamentosDoPeriodo.map((d) => d.id),
+    headcountInicioPeriodo,
+    headcountFimPeriodo,
+    headcountMedioPeriodo,
+    taxaPeriodo,
+    evolucaoAnual,
+    porSetor,
+    porTipo,
+    porMotivo,
   };
 }

@@ -3,17 +3,21 @@ import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { StatTile } from "@/components/stat-tile";
 import { ChartCard } from "@/components/chart-card";
-import { LineChart } from "@/components/charts/line-chart";
+import { BarChart } from "@/components/charts/bar-chart";
+import { DoughnutChart } from "@/components/charts/doughnut-chart";
 import { InfoBanner } from "@/components/info-banner";
-import { getDesligamentos } from "@/lib/data/desligamentos";
+import { getDesligamentos, getTodosDesligamentosHistorico } from "@/lib/data/desligamentos";
 import { getMotivosDesligamento } from "@/lib/data/catalogos";
 import { getOpcoesFormulario } from "@/lib/data/colaboradores";
 import { getColaboradoresDashboard } from "@/lib/data/dashboard";
-import { calcularTurnoverGeral } from "@/lib/desligamentos-indicadores";
-import { formatarData } from "@/lib/date";
+import { calcularIndicadoresDesligamentos } from "@/lib/desligamentos-indicadores";
+import { formatarData, resolverPeriodo } from "@/lib/date";
 import { DesligamentosFilters } from "./filters";
+import { PeriodoFilter } from "./periodo-filter";
 import { BotaoRemoverDesligamento } from "./botao-remover-desligamento";
 import { EditarDesligamentoDialog } from "./editar-desligamento-dialog";
+import { EvolucaoAnualChart } from "./evolucao-anual-chart";
+import { DesligamentosPorSetorChart } from "./desligamentos-por-setor-chart";
 
 const TIPO_LABEL: Record<string, string> = {
   voluntario: "Voluntário",
@@ -42,29 +46,34 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
     motivoId: primeiro(params.motivo),
   };
 
-  const [desligamentos, motivosDesligamento, opcoes, colaboradoresTodos] = await Promise.all([
-    getDesligamentos(filtros),
-    getMotivosDesligamento(),
-    getOpcoesFormulario(),
-    getColaboradoresDashboard(),
-  ]);
+  const periodo = resolverPeriodo(
+    primeiro(params.periodo),
+    primeiro(params.periodoDe),
+    primeiro(params.periodoAte),
+  );
 
-  const resumoPorMotivo = motivosDesligamento
-    .map((m) => ({
-      motivo: m.motivo,
-      tipo: m.tipo_padrao,
-      ocorrencias: desligamentos.filter((d) => d.motivo_id === m.id).length,
-    }))
-    .filter((r) => r.ocorrencias > 0)
-    .sort((a, b) => b.ocorrencias - a.ocorrencias);
+  const [desligamentos, motivosDesligamento, opcoes, colaboradoresTodos, desligamentosHistorico] =
+    await Promise.all([
+      getDesligamentos(filtros),
+      getMotivosDesligamento(),
+      getOpcoesFormulario(),
+      getColaboradoresDashboard(),
+      getTodosDesligamentosHistorico(),
+    ]);
 
-  const turnoverGeral = calcularTurnoverGeral(colaboradoresTodos, desligamentos, {
-    cargoId: filtros.cargoId,
-    nivelId: filtros.nivelId,
-    eixoId: filtros.eixoId,
-    setorId: filtros.setorId,
-    gestorId: filtros.gestorId,
-  });
+  const indicadores = calcularIndicadoresDesligamentos(
+    colaboradoresTodos,
+    desligamentosHistorico,
+    desligamentos,
+    {
+      cargoId: filtros.cargoId,
+      nivelId: filtros.nivelId,
+      eixoId: filtros.eixoId,
+      setorId: filtros.setorId,
+      gestorId: filtros.gestorId,
+    },
+    periodo,
+  );
 
   return (
     <div className="space-y-6">
@@ -79,61 +88,82 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4">
+        <PeriodoFilter />
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-4">
         <DesligamentosFilters opcoes={opcoes} motivos={motivosDesligamento} />
       </div>
 
       <InfoBanner>
         Estes registros vêm da ação <strong>Desativar</strong>, disponível na
-        tela Colaboradores (ação rápida na linha) e na ficha individual. Ao
-        desativar, o RH escolhe um motivo padronizado, que alimenta o resumo
-        abaixo e os indicadores de turnover do Dashboard, e pode escrever uma
-        descrição livre com o contexto da saída (não entra nos cálculos, é só
-        para consulta).
+        tela Colaboradores (ação rápida na linha) e na ficha individual. Os
+        indicadores e os gráficos abaixo (exceto a evolução anual, que é
+        sempre o histórico completo) respeitam o período selecionado acima.
       </InfoBanner>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatTile
-          label="Taxa de turnover geral"
-          valor={`${turnoverGeral.taxaGeral.toFixed(1)}%`}
-          subtitulo={`${turnoverGeral.totalDesligamentos} desligamento(s) no filtro atual · headcount médio de ${turnoverGeral.headcountMedio.toFixed(0)} pessoas no período`}
+          label="Desligamentos no período"
+          valor={String(indicadores.desligamentosNoPeriodo)}
+          subtitulo={`Período: ${periodo.rotulo}`}
           accent
         />
-        <div className="lg:col-span-2">
-          <ChartCard titulo="Turnover anual (%)">
-            <LineChart
-              labels={turnoverGeral.anosOrdenados}
-              valores={turnoverGeral.turnoverPorAno}
-            />
-          </ChartCard>
-        </div>
+        <StatTile
+          label="Taxa de desligamento no período"
+          valor={indicadores.taxaPeriodo !== null ? `${indicadores.taxaPeriodo.toFixed(1)}%` : "Sem dados"}
+          subtitulo={
+            indicadores.taxaPeriodo !== null
+              ? `${indicadores.desligamentosNoPeriodo} desligamento(s) · HC médio de ${indicadores.headcountMedioPeriodo.toFixed(0)} pessoas`
+              : "Não há colaboradores no recorte atual para calcular a taxa"
+          }
+        />
       </div>
 
-      {resumoPorMotivo.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Motivo padronizado</th>
-                <th className="px-4 py-3 font-medium">Tipo</th>
-                <th className="px-4 py-3 font-medium">Ocorrências</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resumoPorMotivo.map((r) => (
-                <tr key={r.motivo} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium text-foreground">{r.motivo}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge tone={r.tipo === "voluntario" ? "neutral" : "warning"}>
-                      {TIPO_LABEL[r.tipo] ?? r.tipo}
-                    </StatusBadge>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.ocorrencias}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartCard titulo="Evolução anual dos desligamentos">
+          <EvolucaoAnualChart dados={indicadores.evolucaoAnual} />
+        </ChartCard>
+
+        <ChartCard titulo="Desligamentos por setor" altura={Math.max(200, indicadores.porSetor.length * 40)}>
+          {indicadores.porSetor.length > 0 ? (
+            <DesligamentosPorSetorChart dados={indicadores.porSetor} />
+          ) : (
+            <p className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
+              Nenhum desligamento no período selecionado.
+            </p>
+          )}
+        </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartCard titulo="Desligamentos por tipo">
+          {indicadores.porTipo.length > 0 ? (
+            <DoughnutChart
+              labels={indicadores.porTipo.map((g) => g.chave)}
+              valores={indicadores.porTipo.map((g) => g.valor)}
+            />
+          ) : (
+            <p className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
+              Nenhum desligamento no período selecionado.
+            </p>
+          )}
+        </ChartCard>
+
+        <ChartCard titulo="Desligamentos por motivo" altura={Math.max(200, indicadores.porMotivo.length * 36)}>
+          {indicadores.porMotivo.length > 0 ? (
+            <BarChart
+              horizontal
+              labels={indicadores.porMotivo.map((g) => g.chave)}
+              valores={indicadores.porMotivo.map((g) => g.valor)}
+            />
+          ) : (
+            <p className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
+              Nenhum desligamento no período selecionado.
+            </p>
+          )}
+        </ChartCard>
+      </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-left text-sm">

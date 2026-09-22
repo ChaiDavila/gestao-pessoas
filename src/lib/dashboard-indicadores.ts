@@ -210,17 +210,6 @@ export function calcularDashboard(
       (formacaoAtual.find((f) => f.nivel_nome === b.chave)?.ordem ?? 0),
   );
 
-  const desligamentosPorTipo = agrupar(
-    desligamentos.map((d) => ({
-      chave: d.tipo === "voluntario" ? "Voluntário" : "Involuntário",
-      id: d.id,
-    })),
-  );
-
-  const desligamentosPorMotivo = agrupar(
-    desligamentos.map((d) => ({ chave: d.motivo_nome ?? "Sem motivo", id: d.id })),
-  ).sort((a, b) => b.valor - a.valor);
-
   return {
     colaboradoresAtivos,
     totalColaboradoresBase: colaboradoresTodos.length,
@@ -242,8 +231,6 @@ export function calcularDashboard(
     porFaixaEtaria,
     porTempoDeCasa,
     porFormacao,
-    desligamentosPorTipo,
-    desligamentosPorMotivo,
     colaboradoresFiltrados: colaboradores,
     desligamentosFiltrados: desligamentos,
   };

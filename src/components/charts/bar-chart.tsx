@@ -16,6 +16,7 @@ export function BarChart({
   series,
   horizontal = false,
   formatarValor,
+  linhasTooltip,
   aoClicarBarra,
 }: {
   labels: string[];
@@ -23,6 +24,10 @@ export function BarChart({
   series?: Serie[];
   horizontal?: boolean;
   formatarValor?: (v: number) => string;
+  /** Sobrescreve o tooltip inteiro por barra, uma linha por item — pra quando o valor
+   * principal do gráfico (ex.: quantidade) precisa vir acompanhado de outras informações
+   * complementares (ex.: taxa, headcount médio) que não cabem só como um número formatado. */
+  linhasTooltip?: (index: number) => string[];
   aoClicarBarra?: (index: number) => void;
 }) {
   // Arredonda só a ponta "solta" da barra (topo, nas verticais; direita, nas horizontais),
@@ -80,12 +85,14 @@ export function BarChart({
         : OPCOES_BASE.plugins.legend,
       tooltip: {
         ...OPCOES_BASE.plugins.tooltip,
-        callbacks: formatarValor
-          ? {
-              label: (ctx: { parsed: { x: number | null; y: number | null } }) =>
-                formatarValor((horizontal ? ctx.parsed.x : ctx.parsed.y) ?? 0),
-            }
-          : undefined,
+        callbacks: linhasTooltip
+          ? { label: (ctx: { dataIndex: number }) => linhasTooltip(ctx.dataIndex) }
+          : formatarValor
+            ? {
+                label: (ctx: { parsed: { x: number | null; y: number | null } }) =>
+                  formatarValor((horizontal ? ctx.parsed.x : ctx.parsed.y) ?? 0),
+              }
+            : undefined,
       },
     },
     scales: {
