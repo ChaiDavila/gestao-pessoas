@@ -4,6 +4,7 @@ import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { StatusDot } from "@/components/status-dot";
 import { getColaboradores, getOpcoesFormulario } from "@/lib/data/colaboradores";
 import { getMotivosDesligamento } from "@/lib/data/catalogos";
+import { exigirAcessoTela } from "@/lib/auth";
 import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
 import { ColaboradoresFilters } from "./filters";
@@ -21,6 +22,7 @@ function primeiro(valor: string | string[] | undefined) {
 export default async function ColaboradoresPage({
   searchParams,
 }: ColaboradoresPageProps) {
+  await exigirAcessoTela("colaboradores");
   const params = await searchParams;
   const statusParam = primeiro(params.status);
 

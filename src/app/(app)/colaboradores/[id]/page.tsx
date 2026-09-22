@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { exigirAcessoTela } from "@/lib/auth";
 import { FichaColaboradorContent } from "./ficha-content";
 
 export default async function ColaboradorPage({
@@ -9,6 +10,7 @@ export default async function ColaboradorPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ modo?: string }>;
 }) {
+  await exigirAcessoTela("colaboradores");
   const { id } = await params;
   const { modo } = await searchParams;
 

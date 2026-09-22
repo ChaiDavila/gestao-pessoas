@@ -6,9 +6,11 @@ import {
   getConfigNrsCatalogo,
 } from "@/lib/data/treinamentos";
 import { getColaboradoresAtivos } from "@/lib/data/colaboradores";
+import { exigirAcessoTela } from "@/lib/auth";
 import { TreinamentosClient } from "./treinamentos-client";
 
 export default async function TreinamentosPage() {
+  await exigirAcessoTela("treinamentos");
   const [treinamentos, participacoes, nrPorColaborador, categorias, nrsCatalogo, colaboradoresAtivos] =
     await Promise.all([
       getTreinamentos(),

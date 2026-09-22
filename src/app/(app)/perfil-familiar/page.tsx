@@ -4,6 +4,7 @@ import {
   getDependentesFamiliar,
 } from "@/lib/data/perfil-familiar";
 import { InfoBanner } from "@/components/info-banner";
+import { exigirAcessoTela } from "@/lib/auth";
 import { PerfilFamiliarFilters } from "./filters";
 import { PerfilFamiliarClient } from "./perfil-familiar-client";
 
@@ -16,6 +17,7 @@ function primeiro(valor: string | string[] | undefined) {
 }
 
 export default async function PerfilFamiliarPage({ searchParams }: PageProps) {
+  await exigirAcessoTela("perfil-familiar");
   const params = await searchParams;
 
   const filtros = {

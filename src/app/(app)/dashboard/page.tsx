@@ -4,6 +4,7 @@ import {
   getDesligamentosDashboard,
   getFormacaoAtualTodos,
 } from "@/lib/data/dashboard";
+import { exigirAcessoTela } from "@/lib/auth";
 import { DashboardFilters } from "./filters";
 import { DashboardClient } from "./dashboard-client";
 
@@ -16,6 +17,7 @@ function primeiro(valor: string | string[] | undefined) {
 }
 
 export default async function DashboardPage({ searchParams }: PageProps) {
+  await exigirAcessoTela("dashboard");
   const params = await searchParams;
 
   const filtros = {

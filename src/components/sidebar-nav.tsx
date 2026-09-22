@@ -5,16 +5,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, type TelaId } from "@/lib/nav";
 import { logout } from "@/app/login/actions";
 
 type SidebarNavProps = {
+  escopoTelas: TelaId[] | null;
   userEmail: string | null;
   papelLabel: string | null;
 };
 
-export function SidebarNav({ userEmail, papelLabel }: SidebarNavProps) {
+export function SidebarNav({ escopoTelas, userEmail, papelLabel }: SidebarNavProps) {
   const pathname = usePathname();
+  const items = NAV_ITEMS.filter(
+    (item) => item.id === "configuracoes" || !escopoTelas || escopoTelas.includes(item.id),
+  );
 
   return (
     <aside className="hidden md:flex md:w-[232px] md:flex-col bg-sidebar text-sidebar-foreground">
@@ -36,7 +40,7 @@ export function SidebarNav({ userEmail, papelLabel }: SidebarNavProps) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;

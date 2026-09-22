@@ -1,8 +1,10 @@
 import { getOpcoesFormulario } from "@/lib/data/colaboradores";
+import { exigirAcessoTela } from "@/lib/auth";
 import { criarColaborador } from "../actions";
 import { ColaboradorForm } from "../colaborador-form";
 
 export default async function NovoColaboradorPage() {
+  await exigirAcessoTela("colaboradores");
   const opcoes = await getOpcoesFormulario();
 
   return (

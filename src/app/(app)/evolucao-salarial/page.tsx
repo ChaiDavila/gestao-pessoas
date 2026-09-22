@@ -13,6 +13,7 @@ import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
 import { EvolucaoSalarialFilters } from "./filters";
 import { CrescimentoFolhaChart } from "./crescimento-chart";
+import { exigirAcessoTela } from "@/lib/auth";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -33,6 +34,7 @@ function agruparContagem(chaves: string[]) {
 export default async function EvolucaoSalarialPage({
   searchParams,
 }: PageProps) {
+  await exigirAcessoTela("evolucao-salarial");
   const params = await searchParams;
 
   const filtros = {

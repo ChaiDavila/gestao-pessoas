@@ -19,6 +19,7 @@ import { EditarDesligamentoDialog } from "./editar-desligamento-dialog";
 import { EvolucaoAnualChart } from "./evolucao-anual-chart";
 import { TaxaAnualChart } from "./taxa-anual-chart";
 import { DesligamentosPorSetorChart } from "./desligamentos-por-setor-chart";
+import { exigirAcessoTela } from "@/lib/auth";
 
 const TIPO_LABEL: Record<string, string> = {
   voluntario: "Voluntário",
@@ -34,6 +35,7 @@ function primeiro(valor: string | string[] | undefined) {
 }
 
 export default async function DesligamentosPage({ searchParams }: PageProps) {
+  await exigirAcessoTela("desligamentos");
   const params = await searchParams;
 
   const filtros = {

@@ -1,7 +1,9 @@
 import { getColaboradoresAniversario } from "@/lib/data/aniversarios";
+import { exigirAcessoTela } from "@/lib/auth";
 import { AniversariosClient } from "./aniversarios-client";
 
 export default async function AniversariosPage() {
+  await exigirAcessoTela("aniversarios");
   const colaboradores = await getColaboradoresAniversario();
 
   return (

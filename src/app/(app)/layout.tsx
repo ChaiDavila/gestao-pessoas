@@ -18,6 +18,7 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen w-full">
       <SidebarNav
+        escopoTelas={usuario?.escopoTelas ?? null}
         userEmail={usuario?.email ?? null}
         papelLabel={usuario?.papel ? PAPEL_LABEL[usuario.papel] : null}
       />

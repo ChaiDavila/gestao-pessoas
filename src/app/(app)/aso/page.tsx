@@ -1,8 +1,10 @@
 import { getAsoColaboradores, getPgrColaboradores } from "@/lib/data/aso";
 import { getConfigTiposExame } from "@/lib/data/colaborador-detalhe";
+import { exigirAcessoTela } from "@/lib/auth";
 import { AsoClient } from "./aso-client";
 
 export default async function AsoPage() {
+  await exigirAcessoTela("aso");
   const [asoColaboradores, pgrColaboradores, tiposExame] = await Promise.all([
     getAsoColaboradores(),
     getPgrColaboradores(),
