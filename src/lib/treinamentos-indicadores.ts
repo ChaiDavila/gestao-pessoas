@@ -1,9 +1,13 @@
 import type { ParticipacaoItem, TreinamentoItem } from "@/lib/data/treinamentos";
 
-// Horas são somadas por PARTICIPAÇÃO (pessoa-hora: se 10 pessoas fazem um curso de 8h,
-// isso conta como 80h entregues). Investimento é somado por TREINAMENTO único (o custo é
-// da turma/curso como um todo, não por participante — somar por participação infla o gasto
-// real quando um curso tem várias pessoas).
+// Horas: cada participante leva o crédito cheio da carga horária do curso que fez (não é
+// rateado — 10 pessoas num curso de 8h entregam 80h-pessoa de treinamento). Investimento:
+// o custo do treinamento é rateado igualmente entre os participantes REAIS dele (não só os
+// que passam no filtro) — assim, filtrar por função/setor/etc. mostra a fração do gasto
+// atribuível àquele recorte, sem inflar o total quando um curso mistura gente de vários
+// grupos. Somar o custo cheio por treinamento a cada grupo (sem ratear) faria a soma dos
+// grupos passar do investimento total sempre que um curso tiver participantes de mais de
+// um grupo.
 
 export type AgrupamentoValor = { chave: string; valor: number };
 
@@ -22,80 +26,67 @@ function agruparSoma<T>(
     .sort((a, b) => b.valor - a.valor);
 }
 
+const rotuloCategoria = (categoriaNome: string | null, tipo: string) =>
+  categoriaNome ?? (tipo === "NR" ? "NR (Segurança do Trabalho)" : "Sem categoria");
+
 export function calcularIndicadores(
-  treinamentos: TreinamentoItem[],
-  participacoes: ParticipacaoItem[],
-  ano?: string,
+  treinamentosTodos: TreinamentoItem[],
+  participacoesPeriodo: ParticipacaoItem[],
+  participacoesPessoa: ParticipacaoItem[],
 ) {
-  const treinamentosFiltrados = ano
-    ? treinamentos.filter((t) => t.data.startsWith(ano))
-    : treinamentos;
-  const participacoesFiltradas = ano
-    ? participacoes.filter((p) => p.data.startsWith(ano))
-    : participacoes;
-
-  const horasTotais = participacoesFiltradas.reduce(
-    (s, p) => s + Number(p.carga_horaria || 0),
-    0,
+  const totalParticipantesPorTreinamento = new Map(
+    treinamentosTodos.map((t) => [t.id, Math.max(1, t.total_participantes)]),
   );
-  const investimentoTotal = treinamentosFiltrados.reduce(
-    (s, t) => s + Number(t.custo_total || 0),
-    0,
-  );
-  const colaboradoresUnicos = new Set(
-    participacoesFiltradas.map((p) => p.colaborador_id),
-  ).size;
-  const custoMedioPorColaborador =
-    colaboradoresUnicos > 0 ? investimentoTotal / colaboradoresUnicos : 0;
+  const custoRateado = (p: ParticipacaoItem) =>
+    Number(p.custo_total || 0) / (totalParticipantesPorTreinamento.get(p.treinamento_id) ?? 1);
 
-  const rotuloCategoria = (categoriaNome: string | null, tipo: string) =>
-    categoriaNome ?? (tipo === "NR" ? "NR (Segurança do Trabalho)" : "Sem categoria");
+  const horasTotais = participacoesPeriodo.reduce((s, p) => s + Number(p.carga_horaria || 0), 0);
+  const investimentoTotal = participacoesPeriodo.reduce((s, p) => s + custoRateado(p), 0);
+  const colaboradoresUnicos = new Set(participacoesPeriodo.map((p) => p.colaborador_id)).size;
+  const mediaHorasPorColaborador = colaboradoresUnicos > 0 ? horasTotais / colaboradoresUnicos : 0;
+  const treinamentosRealizados = new Set(participacoesPeriodo.map((p) => p.treinamento_id)).size;
 
   const horasPorCategoria = agruparSoma(
-    participacoesFiltradas,
+    participacoesPeriodo,
     (p) => rotuloCategoria(p.categoria_nome, p.tipo),
     (p) => Number(p.carga_horaria || 0),
   );
 
   const investimentoPorCategoria = agruparSoma(
-    treinamentosFiltrados,
-    (t) => rotuloCategoria(t.categoria_nome, t.tipo),
-    (t) => Number(t.custo_total || 0),
+    participacoesPeriodo,
+    (p) => rotuloCategoria(p.categoria_nome, p.tipo),
+    custoRateado,
   );
 
   const horasPorSetor = agruparSoma(
-    participacoesFiltradas,
+    participacoesPeriodo,
     (p) => p.setor_nome ?? "Sem setor",
     (p) => Number(p.carga_horaria || 0),
   );
 
   const rankingColaboradores = agruparSoma(
-    participacoesFiltradas,
+    participacoesPeriodo,
     (p) => p.colaborador_nome,
     (p) => Number(p.carga_horaria || 0),
   ).slice(0, 10);
 
-  // Investimento por ano sempre olha todos os anos, independente do filtro selecionado
-  // (mostra a evolução no tempo, igual à folha salarial do Dashboard).
+  // Investimento por ano ignora o período selecionado de propósito (mostra a evolução no
+  // tempo inteiro, igual à folha salarial do Dashboard) — só respeita os filtros de pessoa.
   const investimentoPorAno = agruparSoma(
-    treinamentos,
-    (t) => t.data.slice(0, 4),
-    (t) => Number(t.custo_total || 0),
+    participacoesPessoa,
+    (p) => p.data.slice(0, 4),
+    custoRateado,
   ).sort((a, b) => a.chave.localeCompare(b.chave));
-
-  const anosDisponiveis = Array.from(
-    new Set(treinamentos.map((t) => t.data.slice(0, 4))),
-  ).sort((a, b) => b.localeCompare(a));
 
   return {
     horasTotais,
     investimentoTotal,
-    custoMedioPorColaborador,
+    mediaHorasPorColaborador,
+    treinamentosRealizados,
     horasPorCategoria,
     investimentoPorCategoria,
     horasPorSetor,
     rankingColaboradores,
     investimentoPorAno,
-    anosDisponiveis,
   };
 }

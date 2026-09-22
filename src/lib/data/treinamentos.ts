@@ -35,6 +35,11 @@ export type ParticipacaoItem = {
   custo_total: number | null;
   instrutor: string | null;
   data_vencimento: string | null;
+  cargo_id: string | null;
+  cargo_nome: string | null;
+  nivel_id: string | null;
+  eixo_id: string | null;
+  gestor_colaborador_id: string | null;
 };
 
 export type NrColaboradorItem = {
@@ -53,6 +58,11 @@ export type NrColaboradorItem = {
   carga_horaria: number;
   custo_total: number | null;
   instrutor: string | null;
+  cargo_id: string | null;
+  cargo_nome: string | null;
+  nivel_id: string | null;
+  eixo_id: string | null;
+  gestor_colaborador_id: string | null;
 };
 
 export async function getTreinamentos() {

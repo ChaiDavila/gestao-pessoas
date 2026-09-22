@@ -8,6 +8,7 @@ import { NativeSelect } from "@/components/native-select";
 import { PainelAdicionar } from "@/components/painel-adicionar";
 import { StatTile } from "@/components/stat-tile";
 import { StatusBadge } from "@/components/status-badge";
+import { InfoBanner } from "@/components/info-banner";
 import { formatarData, hojeISO } from "@/lib/date";
 import { situacaoVencimento } from "@/lib/vencimento";
 import type { NrColaboradorItem } from "@/lib/data/treinamentos";
@@ -18,21 +19,31 @@ import { SelecaoParticipantes } from "./selecao-participantes";
 type Colaborador = { id: string; nome: string; setor_nome: string | null };
 type NrCatalogo = { id: string; nr: string; nome: string; periodicidade_meses: number | null };
 
+function peso(tone: string | undefined) {
+  if (tone === "danger") return 3;
+  if (tone === "warning") return 2;
+  if (tone === "success") return 1;
+  return 0;
+}
+
+function piorSituacaoDoColaborador(entradas: NrColaboradorItem[]) {
+  return entradas
+    .map((e) => ({ item: e, situacao: situacaoVencimento(e.data_vencimento) }))
+    .sort((a, b) => peso(b.situacao?.tone) - peso(a.situacao?.tone))[0];
+}
+
 export function NrTab({
   nrPorColaborador,
   nrsCatalogo,
   colaboradoresAtivos,
+  colaboradoresNoFiltro,
 }: {
   nrPorColaborador: NrColaboradorItem[];
   nrsCatalogo: NrCatalogo[];
   colaboradoresAtivos: Colaborador[];
+  colaboradoresNoFiltro: Colaborador[];
 }) {
   const [visao, setVisao] = useState<"lista" | "linha_do_tempo">("lista");
-
-  const semNrCount = useMemo(() => {
-    const comNr = new Set(nrPorColaborador.map((n) => n.colaborador_id));
-    return colaboradoresAtivos.filter((c) => !comNr.has(c.id)).length;
-  }, [nrPorColaborador, colaboradoresAtivos]);
 
   const porColaborador = useMemo(() => {
     const mapa = new Map<
@@ -54,36 +65,70 @@ export function NrTab({
     );
   }, [nrPorColaborador]);
 
+  const kpis = useMemo(() => {
+    let emDia = 0;
+    let pendente = 0;
+    for (const [, info] of porColaborador) {
+      const pior = piorSituacaoDoColaborador(info.entradas);
+      if (peso(pior?.situacao?.tone) <= 1) emDia++;
+      else pendente++;
+    }
+    const semRegistro = Math.max(0, colaboradoresNoFiltro.length - porColaborador.length);
+    const cursosARenovar = nrPorColaborador.filter((n) => {
+      const s = situacaoVencimento(n.data_vencimento);
+      return s?.tone === "danger" || s?.tone === "warning";
+    }).length;
+    return { emDia, pendente, semRegistro, cursosARenovar };
+  }, [porColaborador, nrPorColaborador, colaboradoresNoFiltro]);
+
   const timeline = useMemo(() => {
     const vencidos: NrColaboradorItem[] = [];
     const porMes = new Map<string, NrColaboradorItem[]>();
     for (const n of nrPorColaborador) {
+      // Cursos sem vencimento cadastrado não entram na linha do tempo (não há prazo pra
+      // acompanhar) — ficam visíveis só na Lista.
+      if (!n.data_vencimento) continue;
       const situacao = situacaoVencimento(n.data_vencimento);
       if (situacao?.tone === "danger") {
         vencidos.push(n);
         continue;
       }
-      const mes = n.data_vencimento ? n.data_vencimento.slice(0, 7) : "sem-vencimento";
+      const mes = n.data_vencimento.slice(0, 7);
       if (!porMes.has(mes)) porMes.set(mes, []);
       porMes.get(mes)!.push(n);
     }
+    vencidos.sort((a, b) => (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? ""));
     const meses = Array.from(porMes.keys()).sort();
+    for (const itensDoMes of porMes.values()) {
+      itensDoMes.sort((a, b) => a.colaborador_nome.localeCompare(b.colaborador_nome));
+    }
     return { vencidos, meses, porMes };
   }, [nrPorColaborador]);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile label="Colaboradores com NR registrada" valor={String(porColaborador.length)} accent />
-        <StatTile label="Sem NR registrada" valor={String(semNrCount)} />
-        <StatTile
-          label="Vencidos"
-          valor={String(nrPorColaborador.filter((n) => situacaoVencimento(n.data_vencimento)?.tone === "danger").length)}
-          accent
-        />
-      </div>
+      <InfoBanner>
+        Controle de validade das NRs, no mesmo modelo da planilha &quot;Controle
+        de validade de NRs&quot; que a COONTROL já usa: uma linha por
+        colaborador, com o status de cada curso calculado automaticamente a
+        partir do registro mais recente de cada NR — o filtro de{" "}
+        <strong>Período</strong> no topo da tela não esconde NRs vencidas
+        antigas, ele só filtra por função/setor/gestor/status etc. A lista de
+        cursos e a periodicidade de cada um são cadastradas em{" "}
+        <strong>Configurações → Treinamentos</strong>.
+      </InfoBanner>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
+        <PainelAdicionar rotulo="+ Registrar treinamento de NR">
+          {(fechar) => (
+            <FormularioRegistroLote
+              nrsCatalogo={nrsCatalogo}
+              colaboradoresAtivos={colaboradoresAtivos}
+              nrPorColaborador={nrPorColaborador}
+              aoSalvar={fechar}
+            />
+          )}
+        </PainelAdicionar>
         <div className="inline-flex rounded-lg border border-border p-1">
           <button
             type="button"
@@ -100,17 +145,31 @@ export function NrTab({
             Linha do tempo
           </button>
         </div>
+      </div>
 
-        <PainelAdicionar rotulo="+ Registrar treinamento de NR">
-          {(fechar) => (
-            <FormularioRegistroLote
-              nrsCatalogo={nrsCatalogo}
-              colaboradoresAtivos={colaboradoresAtivos}
-              nrPorColaborador={nrPorColaborador}
-              aoSalvar={fechar}
-            />
-          )}
-        </PainelAdicionar>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Colaboradores com NR em dia"
+          valor={String(kpis.emDia)}
+          subtitulo={`de ${colaboradoresNoFiltro.length} no filtro atual`}
+          accent
+        />
+        <StatTile
+          label="Colaboradores com NR pendente"
+          valor={String(kpis.pendente)}
+          subtitulo="vencida ou a vencer"
+        />
+        <StatTile
+          label="Sem nenhuma NR registrada"
+          valor={String(kpis.semRegistro)}
+          subtitulo="pode ser lacuna de conformidade"
+        />
+        <StatTile
+          label="Cursos a renovar"
+          valor={String(kpis.cursosARenovar)}
+          subtitulo="vencidos ou a vencer, no total"
+          accent
+        />
       </div>
 
       {visao === "lista" ? (
@@ -134,7 +193,9 @@ export function NrTab({
         <div className="space-y-6">
           {timeline.vencidos.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-danger">Vencidos</h3>
+              <h3 className="mb-2 text-sm font-semibold text-danger">
+                Vencidos ({timeline.vencidos.length})
+              </h3>
               <div className="space-y-1">
                 {timeline.vencidos.map((n) => (
                   <LinhaTimeline key={`${n.colaborador_id}-${n.nr_numero}`} item={n} />
@@ -145,7 +206,7 @@ export function NrTab({
           {timeline.meses.map((mes) => (
             <div key={mes}>
               <h3 className="mb-2 text-sm font-semibold text-foreground">
-                {mes === "sem-vencimento" ? "Sem vencimento" : formatarMes(mes)}
+                {formatarMes(mes)} ({timeline.porMes.get(mes)!.length})
               </h3>
               <div className="space-y-1">
                 {timeline.porMes.get(mes)!.map((n) => (
@@ -154,6 +215,11 @@ export function NrTab({
               </div>
             </div>
           ))}
+          {timeline.vencidos.length === 0 && timeline.meses.length === 0 && (
+            <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
+              Nada a vencer no filtro atual.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -178,9 +244,9 @@ function LinhaColaborador({
   entradas: NrColaboradorItem[];
 }) {
   const [aberto, setAberto] = useState(false);
-  const piorSituacao = entradas
-    .map((e) => situacaoVencimento(e.data_vencimento))
-    .sort((a, b) => peso(b?.tone) - peso(a?.tone))[0];
+  const [renovandoRapido, setRenovandoRapido] = useState(false);
+  const pior = piorSituacaoDoColaborador(entradas);
+  const temPendencia = peso(pior?.situacao?.tone) >= 2;
 
   return (
     <div className="rounded-lg border border-border">
@@ -195,10 +261,28 @@ function LinhaColaborador({
             {setorNome ?? "—"} · {entradas.length} curso(s) de NR
           </p>
         </div>
-        {piorSituacao && (
-          <StatusBadge tone={piorSituacao.tone}>{piorSituacao.texto}</StatusBadge>
+        {pior?.situacao && (
+          <StatusBadge tone={pior.situacao.tone}>{pior.situacao.texto}</StatusBadge>
         )}
       </button>
+
+      {/* Atalho de renovação rápida — não precisa expandir a linha pra agir numa pendência. */}
+      {temPendencia && !aberto && (
+        <div className="border-t border-border px-4 py-2">
+          {renovandoRapido ? (
+            <FormularioRenovar
+              colaboradorId={colaboradorId}
+              nrCatalogoId={pior!.item.nr_numero}
+              aoSalvar={() => setRenovandoRapido(false)}
+            />
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setRenovandoRapido(true)}>
+              ↻ Renovar {pior!.item.nr} agora
+            </Button>
+          )}
+        </div>
+      )}
+
       {aberto && (
         <div className="border-t border-border p-4">
           <table className="w-full text-left text-sm">
@@ -221,13 +305,6 @@ function LinhaColaborador({
       )}
     </div>
   );
-}
-
-function peso(tone: string | undefined) {
-  if (tone === "danger") return 3;
-  if (tone === "warning") return 2;
-  if (tone === "success") return 1;
-  return 0;
 }
 
 function LinhaNr({
@@ -374,7 +451,7 @@ function FormularioRenovar({
       className="grid grid-cols-2 gap-3 rounded-md border border-border bg-muted/30 p-3 sm:grid-cols-4"
     >
       {state && "error" in state && (
-        <p className="col-span-4 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="col-span-4 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
@@ -426,7 +503,7 @@ function FormularioEditarNr({
       className="grid grid-cols-2 gap-3 rounded-md border border-border bg-muted/30 p-3 sm:grid-cols-4"
     >
       {state && "error" in state && (
-        <p className="col-span-4 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="col-span-4 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
@@ -522,7 +599,7 @@ function FormularioRegistroLote({
       className="max-w-3xl space-y-4 rounded-lg border border-border bg-card p-4"
     >
       {state && "error" in state && (
-        <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
