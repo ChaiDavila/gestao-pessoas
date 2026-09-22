@@ -1,7 +1,7 @@
 import { hojeISO, somarMeses } from "@/lib/date";
 
 export type SituacaoVencimento = {
-  tone: "danger" | "warning" | "success";
+  tone: "danger" | "warning" | "success" | "neutral";
   texto: string;
 };
 

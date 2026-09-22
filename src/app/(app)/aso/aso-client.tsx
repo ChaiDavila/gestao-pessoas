@@ -41,10 +41,21 @@ const TIPO_EXAME_LABEL: Record<string, string> = {
 };
 
 function situacaoPgr(item: PgrColaboradorItem): SituacaoVencimento {
-  if (!item.registro_id) return { tone: "danger", texto: "Nunca registrado" };
+  if (!item.registro_id) {
+    // Exame só-na-admissão (sem periodicidade) nunca registrado: falta só lançar o dado,
+    // não tem prazo correndo atrás dele — não é uma pendência de conformidade recorrente
+    // como um exame periódico vencido, então não entra como alerta (fica visível só no
+    // detalhe do colaborador).
+    if (item.periodicidade_meses === null) {
+      return { tone: "neutral", texto: "Pendente de registro" };
+    }
+    return { tone: "danger", texto: "Nunca registrado" };
+  }
   return situacaoVencimento(item.data_vencimento) ?? { tone: "success", texto: "Sem vencimento" };
 }
 
+// "neutral" (exame só-admissão pendente só de registro) pesa igual a "success" — não conta
+// como pendência de conformidade, só aparece no detalhe.
 function peso(tone: string) {
   if (tone === "danger") return 3;
   if (tone === "warning") return 2;
@@ -211,6 +222,9 @@ export function AsoClient({
       }
       for (const p of g.pgrItens) {
         const s = situacaoPgr(p);
+        // Exame só-admissão nunca registrado não tem vencimento correndo — não faz sentido
+        // aparecer na linha do tempo (nem em "sem vencimento"), só no detalhe do colaborador.
+        if (s.tone === "neutral") continue;
         itens.push({
           chave: `pgr-${p.colaborador_id}-${p.exame_id}`,
           colaboradorId: g.colaboradorId,
@@ -255,6 +269,9 @@ export function AsoClient({
         em <strong>Configurações → ASO e PGR → Exames exigidos por função (PGR)</strong>.
         Clique num colaborador para ver o detalhe; o histórico completo de exames
         antigos fica na ficha do colaborador, aba &quot;Exames ocupacionais&quot;.
+        Quem tem um tipo de contrato marcado como isento (ex.: PJ, Estágio) nem
+        aparece aqui — ajuste em <strong>Configurações → ASO e PGR → Exigência de
+        ASO/PGR por tipo de contrato</strong>.
       </InfoBanner>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

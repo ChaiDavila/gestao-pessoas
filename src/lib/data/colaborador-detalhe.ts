@@ -130,6 +130,27 @@ export async function getConfigTiposExame() {
   return data ?? [];
 }
 
+export type ExigenciaAsoItem = {
+  id: string;
+  tipo_contrato: string;
+  exige_aso: boolean;
+};
+
+// Nem todo tipo de contrato entra no acompanhamento de ASO/PGR (ex.: PJ e Estágio, por
+// padrão) — configurável em Configurações → ASO e PGR.
+export async function getExigenciaAso() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("rh")
+    .from("config_exigencia_aso")
+    .select("id, tipo_contrato, exige_aso")
+    .eq("ativo", true)
+    .order("tipo_contrato");
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ExigenciaAsoItem[];
+}
+
 export async function getMotivosEvolucaoSalarial() {
   const supabase = await createClient();
   const { data, error } = await supabase

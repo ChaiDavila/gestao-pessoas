@@ -15,6 +15,7 @@ export type ColaboradorDashboardItem = {
   data_nascimento: string | null;
   data_admissao: string;
   salario_atual: number | null;
+  tipo_contrato: string;
 };
 
 export type DesligamentoDashboardItem = {
@@ -39,7 +40,7 @@ export async function getColaboradoresDashboard() {
     .schema("rh")
     .from("vw_colaboradores")
     .select(
-      "id, nome, cargo_id, cargo_nome, setor_id, setor_nome, nivel_id, eixo_id, gestor_colaborador_id, status_rh, sexo, data_nascimento, data_admissao, salario_atual",
+      "id, nome, cargo_id, cargo_nome, setor_id, setor_nome, nivel_id, eixo_id, gestor_colaborador_id, status_rh, sexo, data_nascimento, data_admissao, salario_atual, tipo_contrato",
     );
 
   if (error) throw new Error(error.message);

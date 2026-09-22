@@ -5,9 +5,11 @@ import { InfoBanner } from "@/components/info-banner";
 import { TabelaCatalogo, type ColunaCatalogo } from "./tabela-catalogo";
 import { PgrTab } from "./pgr-tab";
 import { UsuariosTab } from "./usuarios-tab";
+import { ExigenciaAsoTab } from "./exigencia-aso-tab";
 import type { PgrItem } from "@/lib/data/catalogos";
 import type { getTodosCatalogos } from "@/lib/data/catalogos";
 import type { UsuarioArea } from "./usuarios-actions";
+import type { ExigenciaAsoItem } from "@/lib/data/colaborador-detalhe";
 
 const COL_NOME: ColunaCatalogo[] = [
   { chave: "nome", rotulo: "Nome", tipo: "text", obrigatorio: true },
@@ -60,12 +62,14 @@ export function ConfiguracoesClient({
   usuarios,
   souAdmin,
   usuarioAtualId,
+  exigenciaAso,
 }: {
   catalogos: Catalogos;
   pgrItens: PgrItem[];
   usuarios: UsuarioArea[];
   souAdmin: boolean;
   usuarioAtualId: string | null;
+  exigenciaAso: ExigenciaAsoItem[];
 }) {
   const cargosOpcoes = catalogos.cargos.map((c) => ({
     id: String(c.id),
@@ -163,6 +167,17 @@ export function ConfiguracoesClient({
       </TabsContent>
 
       <TabsContent value="aso" className="space-y-6 pt-4">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="mb-1 text-sm font-semibold text-foreground">
+            Exigência de ASO/PGR por tipo de contrato
+          </h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Quem tem um tipo de contrato marcado como &quot;Não&quot; nem aparece na
+            tela de ASO — usado hoje pra deixar PJ e Estágio de fora do
+            acompanhamento de saúde ocupacional.
+          </p>
+          <ExigenciaAsoTab itens={exigenciaAso} />
+        </div>
         <TabelaCatalogo
           titulo="Tipos de exame complementar"
           descricao="A periodicidade já vale automaticamente ao vincular o exame a uma função no PGR abaixo."
