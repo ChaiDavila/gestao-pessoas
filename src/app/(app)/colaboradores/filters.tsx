@@ -90,7 +90,7 @@ export function ColaboradoresFilters({ opcoes }: ColaboradoresFiltersProps) {
         paramKey="gestor"
         searchParams={searchParams}
         onChange={atualizarFiltroMultiplo}
-        options={opcoes.gestores}
+        options={opcoes.gestoresComEquipe}
       />
 
       <div className="w-40 space-y-1">

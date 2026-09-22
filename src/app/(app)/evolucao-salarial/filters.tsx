@@ -98,7 +98,7 @@ export function EvolucaoSalarialFilters({
         paramKey="gestor"
         searchParams={searchParams}
         onChange={atualizarFiltroMultiplo}
-        options={opcoes.gestores}
+        options={opcoes.gestoresComEquipe}
       />
 
       <div className="w-40 space-y-1">

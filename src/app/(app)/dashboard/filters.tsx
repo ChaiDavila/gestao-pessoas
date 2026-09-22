@@ -46,7 +46,7 @@ export function DashboardFilters({ opcoes }: { opcoes: OpcoesFormulario }) {
       <SelecaoMultipla label="Nível" paramKey="nivel" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.niveis} />
       <SelecaoMultipla label="Eixo" paramKey="eixo" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.eixos} />
       <SelecaoMultipla label="Setor" paramKey="setor" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.setores} />
-      <SelecaoMultipla label="Gestor" paramKey="gestor" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.gestores} />
+      <SelecaoMultipla label="Gestor" paramKey="gestor" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.gestoresComEquipe} />
       <div className="w-40 space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Status</label>
         <NativeSelect value={searchParams.get("status") ?? ""} onChange={(e) => atualizarFiltro("status", e.target.value)}>

@@ -133,7 +133,13 @@ export type OpcoesFormulario = {
   setores: { id: string; nome: string }[];
   niveis: { id: string; nome: string }[];
   eixos: { id: string; nome: string }[];
+  // Todo colaborador ativo — usado no campo "Gestor direto" do cadastro (qualquer um pode
+  // virar gestor de alguém pela primeira vez).
   gestores: { id: string; nome: string }[];
+  // Só quem já é gestor de pelo menos um colaborador hoje — usado no filtro "Gestor" das
+  // telas de listagem, pra não listar todo mundo (a maioria nunca aparece como gestor de
+  // ninguém).
+  gestoresComEquipe: { id: string; nome: string }[];
 };
 
 export async function getOpcoesFormulario(
@@ -141,7 +147,7 @@ export async function getOpcoesFormulario(
 ): Promise<OpcoesFormulario> {
   const supabase = await createClient();
 
-  const [cargos, setores, niveis, eixos, gestores] = await Promise.all([
+  const [cargos, setores, niveis, eixos, gestores, gestoresEmUso] = await Promise.all([
     supabase.schema("rh").from("config_cargos").select("id, nome, cbo").eq("ativo", true).order("nome"),
     supabase.schema("rh").from("config_setores").select("id, nome").eq("ativo", true).order("nome"),
     supabase.schema("rh").from("config_niveis").select("id, nome").eq("ativo", true).order("ordem"),
@@ -152,17 +158,28 @@ export async function getOpcoesFormulario(
       .select("id, nome")
       .eq("status_rh", "ativo")
       .order("nome"),
+    supabase
+      .schema("rh")
+      .from("vw_colaboradores")
+      .select("gestor_colaborador_id")
+      .not("gestor_colaborador_id", "is", null),
   ]);
 
-  for (const r of [cargos, setores, niveis, eixos, gestores]) {
+  for (const r of [cargos, setores, niveis, eixos, gestores, gestoresEmUso]) {
     if (r.error) throw new Error(r.error.message);
   }
+
+  const listaGestores = (gestores.data ?? []).filter((g) => g.id !== excluirColaboradorId);
+  const idsComEquipe = new Set(
+    (gestoresEmUso.data ?? []).map((g) => g.gestor_colaborador_id as string),
+  );
 
   return {
     cargos: cargos.data ?? [],
     setores: setores.data ?? [],
     niveis: niveis.data ?? [],
     eixos: eixos.data ?? [],
-    gestores: (gestores.data ?? []).filter((g) => g.id !== excluirColaboradorId),
+    gestores: listaGestores,
+    gestoresComEquipe: listaGestores.filter((g) => idsComEquipe.has(g.id)),
   };
 }
