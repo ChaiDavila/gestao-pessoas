@@ -55,3 +55,24 @@ export async function getDesligamentos(filtros: DesligamentosFiltros = {}) {
   if (error) throw new Error(error.message);
   return (data ?? []) as DesligamentoItem[];
 }
+
+export type DesligamentoHistoricoItem = {
+  colaborador_id: string;
+  data: string;
+  data_reativacao: string | null;
+};
+
+// Histórico bruto de TODOS os desligamentos, sem nenhum filtro de tela — usado só pra
+// reconstruir quem estava ativo em datas passadas (headcount histórico, pra taxa de
+// turnover anual). Não confundir com getDesligamentos(), que respeita os filtros da tela.
+export async function getTodosDesligamentosHistorico() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("rh")
+    .from("desligamentos")
+    .select("colaborador_id, data, data_reativacao")
+    .eq("ativo", true);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as DesligamentoHistoricoItem[];
+}

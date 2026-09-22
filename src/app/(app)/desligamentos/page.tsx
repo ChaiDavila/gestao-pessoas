@@ -6,9 +6,10 @@ import { ChartCard } from "@/components/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
 import { DoughnutChart } from "@/components/charts/doughnut-chart";
 import { InfoBanner } from "@/components/info-banner";
-import { getDesligamentos } from "@/lib/data/desligamentos";
+import { getDesligamentos, getTodosDesligamentosHistorico } from "@/lib/data/desligamentos";
 import { getMotivosDesligamento } from "@/lib/data/catalogos";
 import { getOpcoesFormulario } from "@/lib/data/colaboradores";
+import { getColaboradoresDashboard } from "@/lib/data/dashboard";
 import { calcularIndicadoresDesligamentos } from "@/lib/desligamentos-indicadores";
 import { formatarData, resolverPeriodo } from "@/lib/date";
 import { DesligamentosFilters } from "./filters";
@@ -16,6 +17,7 @@ import { PeriodoFilter } from "./periodo-filter";
 import { BotaoRemoverDesligamento } from "./botao-remover-desligamento";
 import { EditarDesligamentoDialog } from "./editar-desligamento-dialog";
 import { EvolucaoAnualChart } from "./evolucao-anual-chart";
+import { TaxaAnualChart } from "./taxa-anual-chart";
 import { DesligamentosPorSetorChart } from "./desligamentos-por-setor-chart";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -45,15 +47,30 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
     motivoId: primeiro(params.motivo),
   };
 
-  const [desligamentos, motivosDesligamento, opcoes] = await Promise.all([
-    getDesligamentos(filtros),
-    getMotivosDesligamento(),
-    getOpcoesFormulario(),
-  ]);
+  const [desligamentos, motivosDesligamento, opcoes, colaboradoresTodos, desligamentosHistorico] =
+    await Promise.all([
+      getDesligamentos(filtros),
+      getMotivosDesligamento(),
+      getOpcoesFormulario(),
+      getColaboradoresDashboard(),
+      getTodosDesligamentosHistorico(),
+    ]);
 
   const modoPeriodo = primeiro(params.periodo) ?? "atual";
   const periodo = resolverPeriodo(modoPeriodo, primeiro(params.periodoDe), primeiro(params.periodoAte));
-  const indicadores = calcularIndicadoresDesligamentos(desligamentos, periodo);
+  const indicadores = calcularIndicadoresDesligamentos(
+    colaboradoresTodos,
+    desligamentosHistorico,
+    desligamentos,
+    {
+      cargoId: filtros.cargoId,
+      nivelId: filtros.nivelId,
+      eixoId: filtros.eixoId,
+      setorId: filtros.setorId,
+      gestorId: filtros.gestorId,
+    },
+    periodo,
+  );
 
   const idsNoPeriodo = new Set(indicadores.desligamentosNoPeriodoIds);
   const desligamentosTabela = desligamentos.filter((d) => idsNoPeriodo.has(d.id));
@@ -82,7 +99,8 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
         Estes registros vêm da ação <strong>Desativar</strong>, disponível na
         tela Colaboradores (ação rápida na linha) e na ficha individual. Os
         cards, o gráfico por setor e a tabela abaixo respeitam o período
-        selecionado acima — a evolução anual é sempre o histórico completo.
+        selecionado acima. Os dois gráficos de evolução por ano (quantidade e
+        taxa de turnover) são sempre o histórico completo.
       </InfoBanner>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -116,6 +134,12 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
           <EvolucaoAnualChart dados={indicadores.evolucaoAnual} />
         </ChartCard>
 
+        <ChartCard titulo="Taxa de turnover anual (%)">
+          <TaxaAnualChart dados={indicadores.taxaAnual} />
+        </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard titulo="Distribuição dos desligamentos por setor" altura={Math.max(200, indicadores.porSetor.length * 40)}>
           {indicadores.porSetor.length > 0 ? (
             <DesligamentosPorSetorChart dados={indicadores.porSetor} />

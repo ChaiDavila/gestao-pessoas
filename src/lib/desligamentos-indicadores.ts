@@ -1,5 +1,24 @@
-import type { DesligamentoItem } from "@/lib/data/desligamentos";
-import type { PeriodoResolvido } from "@/lib/date";
+import type { ColaboradorDashboardItem } from "@/lib/data/dashboard";
+import type { DesligamentoItem, DesligamentoHistoricoItem } from "@/lib/data/desligamentos";
+import { hojeISO, type PeriodoResolvido } from "@/lib/date";
+import { agruparDesligamentosPorColaborador, headcountEm } from "@/lib/headcount";
+
+export type TurnoverFiltrosBase = {
+  cargoId?: string;
+  nivelId?: string;
+  eixoId?: string;
+  setorId?: string;
+  gestorId?: string;
+};
+
+function aplicaFiltrosBase(c: ColaboradorDashboardItem, f: TurnoverFiltrosBase) {
+  if (f.cargoId && c.cargo_id !== f.cargoId) return false;
+  if (f.nivelId && c.nivel_id !== f.nivelId) return false;
+  if (f.eixoId && c.eixo_id !== f.eixoId) return false;
+  if (f.setorId && c.setor_id !== f.setorId) return false;
+  if (f.gestorId && c.gestor_colaborador_id !== f.gestorId) return false;
+  return true;
+}
 
 function agrupar(itens: { chave: string; id: string }[]) {
   const mapa = new Map<string, string[]>();
@@ -11,19 +30,26 @@ function agrupar(itens: { chave: string; id: string }[]) {
 }
 
 /**
- * Indicadores da tela Desligamentos. Todos contam registros — nenhum usa headcount nem
- * taxa relativa ao tamanho do quadro (decisão deliberada: numa empresa pequena com poucos
- * desligamentos, uma taxa sobre headcount some ou distorce fácil; a quantidade é a
- * informação principal em todos os cards e gráficos).
+ * Indicadores da tela Desligamentos. Cards, distribuição por setor e tabela contam
+ * registros (decisão deliberada: numa empresa pequena com poucos desligamentos, uma taxa
+ * sobre headcount distorce fácil). A única exceção é a taxa de turnover ANUAL (gráfico de
+ * linha à parte, complementar ao de quantidade) — aí sim o headcount do ano importa, e é
+ * reconstruído a partir de admissão + histórico real de desligamento/reativação (ver
+ * src/lib/headcount.ts), nunca a partir do headcount atual.
  *
  * `desligamentosNoRecorte`: já filtrado por cargo/nível/eixo/setor/gestor/tipo/motivo (mas
  * não por período) — é o universo de onde tudo aqui é calculado.
  */
 export function calcularIndicadoresDesligamentos(
+  colaboradoresTodos: ColaboradorDashboardItem[],
+  desligamentosHistorico: DesligamentoHistoricoItem[],
   desligamentosNoRecorte: DesligamentoItem[],
+  filtrosBase: TurnoverFiltrosBase,
   periodo: PeriodoResolvido,
 ) {
   const anoAtual = new Date().getFullYear();
+  const colaboradores = colaboradoresTodos.filter((c) => aplicaFiltrosBase(c, filtrosBase));
+  const desligamentosPorColaborador = agruparDesligamentosPorColaborador(desligamentosHistorico);
 
   const desligamentosDoPeriodo = desligamentosNoRecorte.filter(
     (d) => d.data >= periodo.inicio && d.data <= periodo.fim,
@@ -48,9 +74,21 @@ export function calcularIndicadoresDesligamentos(
   // permitir comparar anos). Só entram os anos a partir do primeiro desligamento — anos
   // anteriores não têm o que mostrar e não devem aparecer como zero.
   const evolucaoAnual: { ano: string; desligamentos: number; ids: string[] }[] = [];
+  const taxaAnual: { ano: string; taxa: number | null; headcountMedio: number }[] = [];
   for (let ano = primeiroAno; ano <= anoAtual; ano++) {
     const doAno = desligamentosNoRecorte.filter((d) => d.data.startsWith(String(ano)));
     evolucaoAnual.push({ ano: String(ano), desligamentos: doAno.length, ids: doAno.map((d) => d.id) });
+
+    const inicioAno = `${ano}-01-01`;
+    const fimAno = ano === anoAtual ? hojeISO() : `${ano}-12-31`;
+    const hc1 = headcountEm(colaboradores, desligamentosPorColaborador, inicioAno);
+    const hc2 = headcountEm(colaboradores, desligamentosPorColaborador, fimAno);
+    const headcountMedio = (hc1 + hc2) / 2;
+    taxaAnual.push({
+      ano: String(ano),
+      headcountMedio,
+      taxa: headcountMedio > 0 ? Math.round((doAno.length / headcountMedio) * 1000) / 10 : null,
+    });
   }
 
   // Distribuição por setor, dentro do período selecionado — percentual é a fatia do
@@ -89,6 +127,7 @@ export function calcularIndicadoresDesligamentos(
     anoAtual,
     desligamentosAnoAtual: desligamentosAnoAtual.length,
     evolucaoAnual,
+    taxaAnual,
     porSetor,
     porTipo,
     porMotivo,
