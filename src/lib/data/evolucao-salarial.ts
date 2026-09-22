@@ -14,12 +14,12 @@ export type EvolucaoSalarialItem = {
 
 export type EvolucaoSalarialFiltros = {
   busca?: string;
-  colaboradorId?: string;
-  cargoId?: string;
-  nivelId?: string;
-  eixoId?: string;
-  setorId?: string;
-  gestorId?: string;
+  colaboradorId?: string[];
+  cargoId?: string[];
+  nivelId?: string[];
+  eixoId?: string[];
+  setorId?: string[];
+  gestorId?: string[];
   status?: string;
   de?: string;
   ate?: string;
@@ -37,12 +37,12 @@ export async function getEvolucaoSalarial(filtros: EvolucaoSalarialFiltros) {
     .order("data", { ascending: false });
 
   if (filtros.busca) query = query.ilike("colaborador_nome", `%${filtros.busca}%`);
-  if (filtros.colaboradorId) query = query.eq("colaborador_id", filtros.colaboradorId);
-  if (filtros.cargoId) query = query.eq("cargo_id", filtros.cargoId);
-  if (filtros.nivelId) query = query.eq("nivel_id", filtros.nivelId);
-  if (filtros.eixoId) query = query.eq("eixo_id", filtros.eixoId);
-  if (filtros.setorId) query = query.eq("setor_id", filtros.setorId);
-  if (filtros.gestorId) query = query.eq("gestor_colaborador_id", filtros.gestorId);
+  if (filtros.colaboradorId?.length) query = query.in("colaborador_id", filtros.colaboradorId);
+  if (filtros.cargoId?.length) query = query.in("cargo_id", filtros.cargoId);
+  if (filtros.nivelId?.length) query = query.in("nivel_id", filtros.nivelId);
+  if (filtros.eixoId?.length) query = query.in("eixo_id", filtros.eixoId);
+  if (filtros.setorId?.length) query = query.in("setor_id", filtros.setorId);
+  if (filtros.gestorId?.length) query = query.in("gestor_colaborador_id", filtros.gestorId);
   if (filtros.status) query = query.eq("status_rh", filtros.status);
   if (filtros.de) query = query.gte("data", filtros.de);
   if (filtros.ate) query = query.lte("data", filtros.ate);

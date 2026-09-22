@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
+import { MultiSelect } from "@/components/multi-select";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { OpcoesFormulario } from "@/lib/data/colaboradores";
 import { STATUS_RH, STATUS_RH_LABEL, ESTADOS_CIVIS } from "@/lib/constants/rh";
@@ -19,6 +20,15 @@ export function PerfilFamiliarFilters({ opcoes }: { opcoes: OpcoesFormulario }) 
     const params = new URLSearchParams(searchParams.toString());
     if (valor) params.set(chave, valor);
     else params.delete(chave);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  }
+
+  function atualizarFiltroMultiplo(chave: string, valores: string[]) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete(chave);
+    for (const v of valores) params.append(chave, v);
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`);
     });
@@ -40,11 +50,11 @@ export function PerfilFamiliarFilters({ opcoes }: { opcoes: OpcoesFormulario }) 
           placeholder="Ex.: Maria..."
         />
       </div>
-      <Selecao label="Função" paramKey="cargo" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.cargos} />
-      <Selecao label="Nível" paramKey="nivel" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.niveis} />
-      <Selecao label="Eixo" paramKey="eixo" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.eixos} />
-      <Selecao label="Setor" paramKey="setor" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.setores} />
-      <Selecao label="Gestor" paramKey="gestor" searchParams={searchParams} onChange={atualizarFiltro} options={opcoes.gestores} />
+      <SelecaoMultipla label="Função" paramKey="cargo" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.cargos} />
+      <SelecaoMultipla label="Nível" paramKey="nivel" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.niveis} />
+      <SelecaoMultipla label="Eixo" paramKey="eixo" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.eixos} />
+      <SelecaoMultipla label="Setor" paramKey="setor" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.setores} />
+      <SelecaoMultipla label="Gestor" paramKey="gestor" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.gestores} />
       <div className="w-44 space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Status</label>
         <NativeSelect
@@ -63,17 +73,11 @@ export function PerfilFamiliarFilters({ opcoes }: { opcoes: OpcoesFormulario }) 
         <label className="text-xs font-medium text-muted-foreground">
           Estado civil
         </label>
-        <NativeSelect
-          value={searchParams.get("estadoCivil") ?? ""}
-          onChange={(e) => atualizarFiltro("estadoCivil", e.target.value)}
-        >
-          <option value="">Todos</option>
-          {ESTADOS_CIVIS.map((e) => (
-            <option key={e} value={e}>
-              {e}
-            </option>
-          ))}
-        </NativeSelect>
+        <MultiSelect
+          opcoes={ESTADOS_CIVIS.map((e) => ({ value: e, label: e }))}
+          selecionados={searchParams.getAll("estadoCivil")}
+          onChange={(valores) => atualizarFiltroMultiplo("estadoCivil", valores)}
+        />
       </div>
       <label className="flex items-center gap-2 pb-1.5 text-sm">
         <Checkbox
@@ -86,7 +90,7 @@ export function PerfilFamiliarFilters({ opcoes }: { opcoes: OpcoesFormulario }) 
   );
 }
 
-function Selecao({
+function SelecaoMultipla({
   label,
   paramKey,
   searchParams,
@@ -96,23 +100,17 @@ function Selecao({
   label: string;
   paramKey: string;
   searchParams: URLSearchParams;
-  onChange: (chave: string, valor: string) => void;
+  onChange: (chave: string, valores: string[]) => void;
   options: { id: string; nome: string }[];
 }) {
   return (
     <div className="w-44 space-y-1">
       <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      <NativeSelect
-        value={searchParams.get(paramKey) ?? ""}
-        onChange={(e) => onChange(paramKey, e.target.value)}
-      >
-        <option value="">Todos</option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.nome}
-          </option>
-        ))}
-      </NativeSelect>
+      <MultiSelect
+        opcoes={options.map((o) => ({ value: o.id, label: o.nome }))}
+        selecionados={searchParams.getAll(paramKey)}
+        onChange={(valores) => onChange(paramKey, valores)}
+      />
     </div>
   );
 }

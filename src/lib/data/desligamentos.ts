@@ -21,14 +21,14 @@ export type DesligamentoItem = {
 };
 
 export type DesligamentosFiltros = {
-  cargoId?: string;
-  nivelId?: string;
-  eixoId?: string;
-  setorId?: string;
-  gestorId?: string;
+  cargoId?: string[];
+  nivelId?: string[];
+  eixoId?: string[];
+  setorId?: string[];
+  gestorId?: string[];
   status?: string;
   tipo?: string;
-  motivoId?: string;
+  motivoId?: string[];
 };
 
 export async function getDesligamentos(filtros: DesligamentosFiltros = {}) {
@@ -42,14 +42,14 @@ export async function getDesligamentos(filtros: DesligamentosFiltros = {}) {
     .eq("ativo", true)
     .order("data", { ascending: false });
 
-  if (filtros.cargoId) query = query.eq("cargo_id", filtros.cargoId);
-  if (filtros.nivelId) query = query.eq("nivel_id", filtros.nivelId);
-  if (filtros.eixoId) query = query.eq("eixo_id", filtros.eixoId);
-  if (filtros.setorId) query = query.eq("setor_id", filtros.setorId);
-  if (filtros.gestorId) query = query.eq("gestor_colaborador_id", filtros.gestorId);
+  if (filtros.cargoId?.length) query = query.in("cargo_id", filtros.cargoId);
+  if (filtros.nivelId?.length) query = query.in("nivel_id", filtros.nivelId);
+  if (filtros.eixoId?.length) query = query.in("eixo_id", filtros.eixoId);
+  if (filtros.setorId?.length) query = query.in("setor_id", filtros.setorId);
+  if (filtros.gestorId?.length) query = query.in("gestor_colaborador_id", filtros.gestorId);
   if (filtros.status) query = query.eq("status_rh", filtros.status);
   if (filtros.tipo) query = query.eq("tipo", filtros.tipo);
-  if (filtros.motivoId) query = query.eq("motivo_id", filtros.motivoId);
+  if (filtros.motivoId?.length) query = query.in("motivo_id", filtros.motivoId);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

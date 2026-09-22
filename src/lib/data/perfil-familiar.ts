@@ -32,13 +32,13 @@ export type DependenteFamiliarItem = {
 
 export type PerfilFamiliarFiltros = {
   busca?: string;
-  cargoId?: string;
-  nivelId?: string;
-  eixoId?: string;
-  setorId?: string;
-  gestorId?: string;
+  cargoId?: string[];
+  nivelId?: string[];
+  eixoId?: string[];
+  setorId?: string[];
+  gestorId?: string[];
   status?: string;
-  estadoCivil?: string;
+  estadoCivil?: string[];
   somenteComFilhos?: boolean;
 };
 
@@ -53,13 +53,13 @@ export async function getColaboradoresFamiliar(filtros: PerfilFamiliarFiltros) {
     .order("nome");
 
   if (filtros.busca) query = query.ilike("nome", `%${filtros.busca}%`);
-  if (filtros.cargoId) query = query.eq("cargo_id", filtros.cargoId);
-  if (filtros.nivelId) query = query.eq("nivel_id", filtros.nivelId);
-  if (filtros.eixoId) query = query.eq("eixo_id", filtros.eixoId);
-  if (filtros.setorId) query = query.eq("setor_id", filtros.setorId);
-  if (filtros.gestorId) query = query.eq("gestor_colaborador_id", filtros.gestorId);
+  if (filtros.cargoId?.length) query = query.in("cargo_id", filtros.cargoId);
+  if (filtros.nivelId?.length) query = query.in("nivel_id", filtros.nivelId);
+  if (filtros.eixoId?.length) query = query.in("eixo_id", filtros.eixoId);
+  if (filtros.setorId?.length) query = query.in("setor_id", filtros.setorId);
+  if (filtros.gestorId?.length) query = query.in("gestor_colaborador_id", filtros.gestorId);
   if (filtros.status) query = query.eq("status_rh", filtros.status);
-  if (filtros.estadoCivil) query = query.eq("estado_civil", filtros.estadoCivil);
+  if (filtros.estadoCivil?.length) query = query.in("estado_civil", filtros.estadoCivil);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

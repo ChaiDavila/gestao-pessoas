@@ -21,11 +21,11 @@ export type ColaboradorListItem = {
 
 export type ColaboradoresFiltros = {
   busca?: string;
-  cargoId?: string;
-  nivelId?: string;
-  eixoId?: string;
-  setorId?: string;
-  gestorId?: string;
+  cargoId?: string[];
+  nivelId?: string[];
+  eixoId?: string[];
+  setorId?: string[];
+  gestorId?: string[];
   status?: string;
 };
 
@@ -45,11 +45,11 @@ export async function getColaboradores(filtros: ColaboradoresFiltros) {
       `nome.ilike.%${filtros.busca}%,matricula.ilike.%${filtros.busca}%`,
     );
   }
-  if (filtros.cargoId) query = query.eq("cargo_id", filtros.cargoId);
-  if (filtros.nivelId) query = query.eq("nivel_id", filtros.nivelId);
-  if (filtros.eixoId) query = query.eq("eixo_id", filtros.eixoId);
-  if (filtros.setorId) query = query.eq("setor_id", filtros.setorId);
-  if (filtros.gestorId) query = query.eq("gestor_colaborador_id", filtros.gestorId);
+  if (filtros.cargoId?.length) query = query.in("cargo_id", filtros.cargoId);
+  if (filtros.nivelId?.length) query = query.in("nivel_id", filtros.nivelId);
+  if (filtros.eixoId?.length) query = query.in("eixo_id", filtros.eixoId);
+  if (filtros.setorId?.length) query = query.in("setor_id", filtros.setorId);
+  if (filtros.gestorId?.length) query = query.in("gestor_colaborador_id", filtros.gestorId);
   if (filtros.status) query = query.eq("status_rh", filtros.status);
 
   const { data, error } = await query;
@@ -78,11 +78,11 @@ export async function getColaboradoresRelatorio(filtros: ColaboradoresFiltros) {
       `nome.ilike.%${filtros.busca}%,matricula.ilike.%${filtros.busca}%`,
     );
   }
-  if (filtros.cargoId) query = query.eq("cargo_id", filtros.cargoId);
-  if (filtros.nivelId) query = query.eq("nivel_id", filtros.nivelId);
-  if (filtros.eixoId) query = query.eq("eixo_id", filtros.eixoId);
-  if (filtros.setorId) query = query.eq("setor_id", filtros.setorId);
-  if (filtros.gestorId) query = query.eq("gestor_colaborador_id", filtros.gestorId);
+  if (filtros.cargoId?.length) query = query.in("cargo_id", filtros.cargoId);
+  if (filtros.nivelId?.length) query = query.in("nivel_id", filtros.nivelId);
+  if (filtros.eixoId?.length) query = query.in("eixo_id", filtros.eixoId);
+  if (filtros.setorId?.length) query = query.in("setor_id", filtros.setorId);
+  if (filtros.gestorId?.length) query = query.in("gestor_colaborador_id", filtros.gestorId);
   if (filtros.status) query = query.eq("status_rh", filtros.status);
 
   const { data, error } = await query;

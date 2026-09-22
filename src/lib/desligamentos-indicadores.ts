@@ -4,19 +4,19 @@ import { hojeISO, type PeriodoResolvido } from "@/lib/date";
 import { agruparDesligamentosPorColaborador, headcountEm } from "@/lib/headcount";
 
 export type TurnoverFiltrosBase = {
-  cargoId?: string;
-  nivelId?: string;
-  eixoId?: string;
-  setorId?: string;
-  gestorId?: string;
+  cargoId?: string[];
+  nivelId?: string[];
+  eixoId?: string[];
+  setorId?: string[];
+  gestorId?: string[];
 };
 
 function aplicaFiltrosBase(c: ColaboradorDashboardItem, f: TurnoverFiltrosBase) {
-  if (f.cargoId && c.cargo_id !== f.cargoId) return false;
-  if (f.nivelId && c.nivel_id !== f.nivelId) return false;
-  if (f.eixoId && c.eixo_id !== f.eixoId) return false;
-  if (f.setorId && c.setor_id !== f.setorId) return false;
-  if (f.gestorId && c.gestor_colaborador_id !== f.gestorId) return false;
+  if (f.cargoId?.length && !f.cargoId.includes(c.cargo_id ?? "")) return false;
+  if (f.nivelId?.length && !f.nivelId.includes(c.nivel_id ?? "")) return false;
+  if (f.eixoId?.length && !f.eixoId.includes(c.eixo_id ?? "")) return false;
+  if (f.setorId?.length && !f.setorId.includes(c.setor_id ?? "")) return false;
+  if (f.gestorId?.length && !f.gestorId.includes(c.gestor_colaborador_id ?? "")) return false;
   return true;
 }
 

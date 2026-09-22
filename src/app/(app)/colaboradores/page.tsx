@@ -19,6 +19,11 @@ function primeiro(valor: string | string[] | undefined) {
   return Array.isArray(valor) ? valor[0] : valor;
 }
 
+function todos(valor: string | string[] | undefined) {
+  if (valor === undefined) return [];
+  return Array.isArray(valor) ? valor : [valor];
+}
+
 export default async function ColaboradoresPage({
   searchParams,
 }: ColaboradoresPageProps) {
@@ -28,11 +33,11 @@ export default async function ColaboradoresPage({
 
   const filtros = {
     busca: primeiro(params.busca),
-    cargoId: primeiro(params.cargo),
-    nivelId: primeiro(params.nivel),
-    eixoId: primeiro(params.eixo),
-    setorId: primeiro(params.setor),
-    gestorId: primeiro(params.gestor),
+    cargoId: todos(params.cargo),
+    nivelId: todos(params.nivel),
+    eixoId: todos(params.eixo),
+    setorId: todos(params.setor),
+    gestorId: todos(params.gestor),
     // Ao entrar na tela sem mexer no filtro, mostra só quem está ativo — desligados só
     // aparecem se a pessoa escolher "Desligado" ou "Todos" no filtro de status.
     status: statusParam === "todos" ? undefined : (statusParam ?? "ativo"),

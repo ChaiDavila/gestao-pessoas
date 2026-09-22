@@ -23,6 +23,11 @@ function primeiro(valor: string | string[] | undefined) {
   return Array.isArray(valor) ? valor[0] : valor;
 }
 
+function todos(valor: string | string[] | undefined) {
+  if (valor === undefined) return [];
+  return Array.isArray(valor) ? valor : [valor];
+}
+
 function agruparContagem(chaves: string[]) {
   const mapa = new Map<string, number>();
   for (const c of chaves) mapa.set(c, (mapa.get(c) ?? 0) + 1);
@@ -39,12 +44,12 @@ export default async function EvolucaoSalarialPage({
 
   const filtros = {
     busca: primeiro(params.busca),
-    colaboradorId: primeiro(params.colaborador),
-    cargoId: primeiro(params.cargo),
-    nivelId: primeiro(params.nivel),
-    eixoId: primeiro(params.eixo),
-    setorId: primeiro(params.setor),
-    gestorId: primeiro(params.gestor),
+    colaboradorId: todos(params.colaborador),
+    cargoId: todos(params.cargo),
+    nivelId: todos(params.nivel),
+    eixoId: todos(params.eixo),
+    setorId: todos(params.setor),
+    gestorId: todos(params.gestor),
     status: primeiro(params.status),
     de: primeiro(params.de),
     ate: primeiro(params.ate),

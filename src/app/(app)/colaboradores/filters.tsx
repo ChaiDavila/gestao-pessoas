@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
+import { MultiSelect } from "@/components/multi-select";
 import type { OpcoesFormulario } from "@/lib/data/colaboradores";
 import { STATUS_RH, STATUS_RH_LABEL } from "@/lib/constants/rh";
 
@@ -30,6 +31,15 @@ export function ColaboradoresFilters({ opcoes }: ColaboradoresFiltersProps) {
     });
   }
 
+  function atualizarFiltroMultiplo(chave: string, valores: string[]) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete(chave);
+    for (const v of valores) params.append(chave, v);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  }
+
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="w-56 space-y-1">
@@ -47,39 +57,39 @@ export function ColaboradoresFilters({ opcoes }: ColaboradoresFiltersProps) {
         />
       </div>
 
-      <FiltroSelect
+      <FiltroMultiSelect
         label="Função"
         paramKey="cargo"
         searchParams={searchParams}
-        onChange={atualizarFiltro}
+        onChange={atualizarFiltroMultiplo}
         options={opcoes.cargos}
       />
-      <FiltroSelect
+      <FiltroMultiSelect
         label="Nível"
         paramKey="nivel"
         searchParams={searchParams}
-        onChange={atualizarFiltro}
+        onChange={atualizarFiltroMultiplo}
         options={opcoes.niveis}
       />
-      <FiltroSelect
+      <FiltroMultiSelect
         label="Eixo"
         paramKey="eixo"
         searchParams={searchParams}
-        onChange={atualizarFiltro}
+        onChange={atualizarFiltroMultiplo}
         options={opcoes.eixos}
       />
-      <FiltroSelect
+      <FiltroMultiSelect
         label="Setor"
         paramKey="setor"
         searchParams={searchParams}
-        onChange={atualizarFiltro}
+        onChange={atualizarFiltroMultiplo}
         options={opcoes.setores}
       />
-      <FiltroSelect
+      <FiltroMultiSelect
         label="Gestor"
         paramKey="gestor"
         searchParams={searchParams}
-        onChange={atualizarFiltro}
+        onChange={atualizarFiltroMultiplo}
         options={opcoes.gestores}
       />
 
@@ -103,7 +113,7 @@ export function ColaboradoresFilters({ opcoes }: ColaboradoresFiltersProps) {
   );
 }
 
-function FiltroSelect({
+function FiltroMultiSelect({
   label,
   paramKey,
   searchParams,
@@ -113,7 +123,7 @@ function FiltroSelect({
   label: string;
   paramKey: string;
   searchParams: URLSearchParams;
-  onChange: (chave: string, valor: string) => void;
+  onChange: (chave: string, valores: string[]) => void;
   options: { id: string; nome: string }[];
 }) {
   return (
@@ -121,17 +131,11 @@ function FiltroSelect({
       <label className="text-xs font-medium text-muted-foreground">
         {label}
       </label>
-      <NativeSelect
-        value={searchParams.get(paramKey) ?? ""}
-        onChange={(e) => onChange(paramKey, e.target.value)}
-      >
-        <option value="">Todos</option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.nome}
-          </option>
-        ))}
-      </NativeSelect>
+      <MultiSelect
+        opcoes={options.map((o) => ({ value: o.id, label: o.nome }))}
+        selecionados={searchParams.getAll(paramKey)}
+        onChange={(valores) => onChange(paramKey, valores)}
+      />
     </div>
   );
 }
