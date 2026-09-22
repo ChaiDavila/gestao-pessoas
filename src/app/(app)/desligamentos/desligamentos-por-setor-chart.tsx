@@ -5,8 +5,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 type ItemPorSetor = {
   setor: string;
   desligamentos: number;
-  headcountMedio: number;
-  taxa: number | null;
+  percentualDoPeriodo: number;
 };
 
 export function DesligamentosPorSetorChart({ dados }: { dados: ItemPorSetor[] }) {
@@ -18,9 +17,8 @@ export function DesligamentosPorSetorChart({ dados }: { dados: ItemPorSetor[] })
       linhasTooltip={(i) => {
         const s = dados[i];
         return [
-          `Desligamentos: ${s.desligamentos}`,
-          `HC médio do setor: ${s.headcountMedio.toFixed(0)}`,
-          `Taxa: ${s.taxa !== null ? `${s.taxa.toFixed(1)}%` : "sem dados"}`,
+          `${s.desligamentos} desligamento${s.desligamentos === 1 ? "" : "s"}`,
+          `${s.percentualDoPeriodo}% dos desligamentos do período`,
         ];
       }}
     />

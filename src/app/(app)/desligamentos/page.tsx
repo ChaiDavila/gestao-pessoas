@@ -6,10 +6,9 @@ import { ChartCard } from "@/components/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
 import { DoughnutChart } from "@/components/charts/doughnut-chart";
 import { InfoBanner } from "@/components/info-banner";
-import { getDesligamentos, getTodosDesligamentosHistorico } from "@/lib/data/desligamentos";
+import { getDesligamentos } from "@/lib/data/desligamentos";
 import { getMotivosDesligamento } from "@/lib/data/catalogos";
 import { getOpcoesFormulario } from "@/lib/data/colaboradores";
-import { getColaboradoresDashboard } from "@/lib/data/dashboard";
 import { calcularIndicadoresDesligamentos } from "@/lib/desligamentos-indicadores";
 import { formatarData, resolverPeriodo } from "@/lib/date";
 import { DesligamentosFilters } from "./filters";
@@ -46,40 +45,18 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
     motivoId: primeiro(params.motivo),
   };
 
-  const [desligamentos, motivosDesligamento, opcoes, colaboradoresTodos, desligamentosHistorico] =
-    await Promise.all([
-      getDesligamentos(filtros),
-      getMotivosDesligamento(),
-      getOpcoesFormulario(),
-      getColaboradoresDashboard(),
-      getTodosDesligamentosHistorico(),
-    ]);
+  const [desligamentos, motivosDesligamento, opcoes] = await Promise.all([
+    getDesligamentos(filtros),
+    getMotivosDesligamento(),
+    getOpcoesFormulario(),
+  ]);
 
-  const primeiraDataAdmissao = colaboradoresTodos.reduce(
-    (min, c) => (c.data_admissao < min ? c.data_admissao : min),
-    colaboradoresTodos[0]?.data_admissao ?? new Date().toISOString().slice(0, 10),
-  );
+  const modoPeriodo = primeiro(params.periodo) ?? "atual";
+  const periodo = resolverPeriodo(modoPeriodo, primeiro(params.periodoDe), primeiro(params.periodoAte));
+  const indicadores = calcularIndicadoresDesligamentos(desligamentos, periodo);
 
-  const periodo = resolverPeriodo(
-    primeiro(params.periodo),
-    primeiro(params.periodoDe),
-    primeiro(params.periodoAte),
-    primeiraDataAdmissao,
-  );
-
-  const indicadores = calcularIndicadoresDesligamentos(
-    colaboradoresTodos,
-    desligamentosHistorico,
-    desligamentos,
-    {
-      cargoId: filtros.cargoId,
-      nivelId: filtros.nivelId,
-      eixoId: filtros.eixoId,
-      setorId: filtros.setorId,
-      gestorId: filtros.gestorId,
-    },
-    periodo,
-  );
+  const idsNoPeriodo = new Set(indicadores.desligamentosNoPeriodoIds);
+  const desligamentosTabela = desligamentos.filter((d) => idsNoPeriodo.has(d.id));
 
   return (
     <div className="space-y-6">
@@ -104,26 +81,34 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
       <InfoBanner>
         Estes registros vêm da ação <strong>Desativar</strong>, disponível na
         tela Colaboradores (ação rápida na linha) e na ficha individual. Os
-        indicadores e os gráficos abaixo (exceto a evolução anual, que é
-        sempre o histórico completo) respeitam o período selecionado acima.
+        cards, o gráfico por setor e a tabela abaixo respeitam o período
+        selecionado acima — a evolução anual é sempre o histórico completo.
       </InfoBanner>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatTile
-          label="Desligamentos no período"
+          label="Desligamentos"
           valor={String(indicadores.desligamentosNoPeriodo)}
-          subtitulo={`Período: ${periodo.rotulo}`}
+          subtitulo={
+            modoPeriodo === "todo"
+              ? `registrados · desde ${indicadores.primeiroAno}`
+              : modoPeriodo === "personalizado"
+                ? `no período · ${periodo.rotulo}`
+                : `em ${periodo.rotulo}`
+          }
           accent
         />
-        <StatTile
-          label="Taxa de desligamento no período"
-          valor={indicadores.taxaPeriodo !== null ? `${indicadores.taxaPeriodo.toFixed(1)}%` : "Sem dados"}
-          subtitulo={
-            indicadores.taxaPeriodo !== null
-              ? `${indicadores.desligamentosNoPeriodo} desligamento(s) · HC médio de ${indicadores.headcountMedioPeriodo.toFixed(0)} pessoas`
-              : "Não há colaboradores no recorte atual para calcular a taxa"
-          }
-        />
+        {modoPeriodo === "todo" && (
+          <StatTile
+            label={`No ano atual (${indicadores.anoAtual})`}
+            valor={String(indicadores.desligamentosAnoAtual)}
+            subtitulo={
+              indicadores.desligamentosAnoAtual > 0
+                ? `Último desligamento: ${formatarData(indicadores.ultimoDesligamento)}`
+                : "Nenhum desligamento registrado no ano"
+            }
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -131,7 +116,7 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
           <EvolucaoAnualChart dados={indicadores.evolucaoAnual} />
         </ChartCard>
 
-        <ChartCard titulo="Desligamentos por setor" altura={Math.max(200, indicadores.porSetor.length * 40)}>
+        <ChartCard titulo="Distribuição dos desligamentos por setor" altura={Math.max(200, indicadores.porSetor.length * 40)}>
           {indicadores.porSetor.length > 0 ? (
             <DesligamentosPorSetorChart dados={indicadores.porSetor} />
           ) : (
@@ -186,7 +171,7 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
             </tr>
           </thead>
           <tbody>
-            {desligamentos.map((d) => (
+            {desligamentosTabela.map((d) => (
               <tr
                 key={d.id}
                 className="border-b border-border last:border-0 hover:bg-muted/30"
@@ -250,7 +235,7 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
                 </td>
               </tr>
             ))}
-            {desligamentos.length === 0 && (
+            {desligamentosTabela.length === 0 && (
               <tr>
                 <td
                   colSpan={8}
