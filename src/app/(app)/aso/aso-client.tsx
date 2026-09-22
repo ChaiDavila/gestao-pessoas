@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,16 @@ import { NativeSelect } from "@/components/native-select";
 import { PainelAdicionar } from "@/components/painel-adicionar";
 import { BotaoRemover } from "@/components/botao-remover";
 import { StatusBadge } from "@/components/status-badge";
+import { StatTile } from "@/components/stat-tile";
+import { InfoBanner } from "@/components/info-banner";
+import { ColaboradorAvatar } from "@/components/colaborador-avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { formatarData, hojeISO } from "@/lib/date";
 import { situacaoVencimento, type SituacaoVencimento } from "@/lib/vencimento";
 import type { AsoColaboradorItem, PgrColaboradorItem } from "@/lib/data/aso";
@@ -50,53 +61,121 @@ type Grupo = {
   pgrItens: PgrColaboradorItem[];
 };
 
+type LinhaResumo = {
+  nome: string;
+  data: string | null;
+  dataVencimento: string | null;
+  situacao: SituacaoVencimento;
+};
+
+// Toda pessoa entra com pelo menos a linha "ASO" (mesmo sem nenhum registro — nesse caso
+// entra como "Nunca registrado", já que ASO admissional é obrigatório pra todo CLT), então
+// o "pior" nunca fica indefinido e a situação geral sempre reflete a real pendência, mesmo
+// de quem não tem nenhum exame complementar exigido pelo PGR.
+function linhasResumoDoGrupo(g: Grupo): LinhaResumo[] {
+  const linhas: LinhaResumo[] = [];
+  const a = g.asoItens[0] ?? null;
+  linhas.push({
+    nome: a ? `ASO — ${TIPO_EXAME_LABEL[a.tipo_exame] ?? a.tipo_exame}` : "ASO",
+    data: a?.data ?? null,
+    dataVencimento: a?.data_vencimento ?? null,
+    situacao: a
+      ? (situacaoVencimento(a.data_vencimento) ?? { tone: "success", texto: "Sem vencimento" })
+      : { tone: "danger", texto: "Nunca registrado" },
+  });
+  for (const p of g.pgrItens) {
+    linhas.push({
+      nome: p.exame_nome,
+      data: p.data,
+      dataVencimento: p.data_vencimento,
+      situacao: situacaoPgr(p),
+    });
+  }
+  return linhas;
+}
+
+function piorLinha(linhas: LinhaResumo[]): LinhaResumo {
+  return linhas.reduce((pior, l) => (peso(l.situacao.tone) > peso(pior.situacao.tone) ? l : pior), linhas[0]);
+}
+
 export function AsoClient({
   asoColaboradores,
   pgrColaboradores,
   tiposExame,
+  colaboradoresNoFiltro,
 }: {
   asoColaboradores: AsoColaboradorItem[];
   pgrColaboradores: PgrColaboradorItem[];
   tiposExame: { id: string; nome: string; periodicidade_meses: number | null }[];
+  colaboradoresNoFiltro: { id: string; nome: string; setor_nome: string | null; cargo_nome: string | null }[];
 }) {
-  const [busca, setBusca] = useState("");
+  const searchParams = useSearchParams();
+  const situacaoFiltro = searchParams.get("situacao") ?? ""; // "", "pendente", "valido"
   const [visao, setVisao] = useState<"lista" | "linha_do_tempo">("lista");
 
+  // Base = todo colaborador que passou nos filtros da tela (não só quem já tem ASO/PGR
+  // registrado) — assim quem nunca teve nenhum exame lançado também aparece, com a
+  // pendência real (em vez de simplesmente sumir da lista).
   const grupos = useMemo(() => {
     const mapa = new Map<string, Grupo>();
+    for (const c of colaboradoresNoFiltro) {
+      mapa.set(c.id, {
+        colaboradorId: c.id,
+        nome: c.nome,
+        cargoNome: c.cargo_nome,
+        setorNome: c.setor_nome,
+        asoItens: [],
+        pgrItens: [],
+      });
+    }
     for (const a of asoColaboradores) {
-      if (!mapa.has(a.colaborador_id)) {
-        mapa.set(a.colaborador_id, {
-          colaboradorId: a.colaborador_id,
-          nome: a.colaborador_nome,
-          cargoNome: a.cargo_nome,
-          setorNome: a.setor_nome,
-          asoItens: [],
-          pgrItens: [],
-        });
-      }
-      mapa.get(a.colaborador_id)!.asoItens.push(a);
+      const g = mapa.get(a.colaborador_id);
+      if (!g) continue;
+      g.asoItens.push(a);
     }
     for (const p of pgrColaboradores) {
-      if (!mapa.has(p.colaborador_id)) {
-        mapa.set(p.colaborador_id, {
-          colaboradorId: p.colaborador_id,
-          nome: p.colaborador_nome,
-          cargoNome: p.cargo_nome,
-          setorNome: p.setor_nome,
-          asoItens: [],
-          pgrItens: [],
-        });
+      const g = mapa.get(p.colaborador_id);
+      if (!g) continue;
+      g.pgrItens.push(p);
+    }
+    return Array.from(mapa.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [asoColaboradores, pgrColaboradores, colaboradoresNoFiltro]);
+
+  // KPIs refletem o filtro de entidade/status/busca da tela, mas não o de Situação — do
+  // contrário não daria pra ver "9 colaboradores com pendência" depois de já ter
+  // escolhido "Situação: tudo em dia" (mesma regra do resto do app: filtro de recorte não
+  // esconde a pendência real).
+  const kpis = useMemo(() => {
+    let emDia = 0;
+    let comPendencia = 0;
+    let nuncaRealizados = 0;
+    let pendentesNotificacao = 0;
+    for (const g of grupos) {
+      const linhas = linhasResumoDoGrupo(g);
+      const pior = piorLinha(linhas);
+      if (peso(pior.situacao.tone) <= 1) emDia++;
+      else comPendencia++;
+      for (const l of linhas) {
+        if (l.situacao.texto === "Nunca registrado") nuncaRealizados++;
+        if (peso(l.situacao.tone) >= 2) pendentesNotificacao++;
       }
-      mapa.get(p.colaborador_id)!.pgrItens.push(p);
     }
-    let lista = Array.from(mapa.values());
-    if (busca.trim()) {
-      const b = busca.trim().toLowerCase();
-      lista = lista.filter((g) => g.nome.toLowerCase().includes(b));
-    }
-    return lista.sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [asoColaboradores, pgrColaboradores, busca]);
+    return { total: grupos.length, emDia, comPendencia, nuncaRealizados, pendentesNotificacao };
+  }, [grupos]);
+
+  const gruposComPior = useMemo(
+    () => grupos.map((g) => ({ grupo: g, linhas: linhasResumoDoGrupo(g), pior: piorLinha(linhasResumoDoGrupo(g)) })),
+    [grupos],
+  );
+
+  const listaFinal = useMemo(() => {
+    let lista = gruposComPior;
+    if (situacaoFiltro === "pendente") lista = lista.filter((x) => peso(x.pior.situacao.tone) >= 2);
+    if (situacaoFiltro === "valido") lista = lista.filter((x) => peso(x.pior.situacao.tone) <= 1);
+    return lista
+      .slice()
+      .sort((a, b) => peso(b.pior.situacao.tone) - peso(a.pior.situacao.tone) || a.grupo.nome.localeCompare(b.grupo.nome));
+  }, [gruposComPior, situacaoFiltro]);
 
   const timeline = useMemo(() => {
     type ItemTimeline = {
@@ -106,8 +185,6 @@ export function AsoClient({
       rotulo: string;
       dataVencimento: string | null;
       situacao: SituacaoVencimento;
-      exameId?: string;
-      periodicidadeMeses?: number | null;
     };
     const itens: ItemTimeline[] = [];
     for (const g of grupos) {
@@ -132,8 +209,6 @@ export function AsoClient({
           rotulo: p.exame_nome,
           dataVencimento: p.data_vencimento,
           situacao: s,
-          exameId: p.exame_id,
-          periodicidadeMeses: p.periodicidade_meses,
         });
       }
     }
@@ -150,14 +225,22 @@ export function AsoClient({
   }, [grupos]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Colaboradores em dia" valor={String(kpis.emDia)} subtitulo={`de ${kpis.total} no filtro atual`} accent />
+        <StatTile label="Colaboradores com pendência" valor={String(kpis.comPendencia)} subtitulo="algum exame a vencer, vencido ou nunca feito" />
+        <StatTile label="Exames nunca realizados" valor={String(kpis.nuncaRealizados)} subtitulo="exigidos pelo PGR (ou ASO), sem nenhum registro" />
+        <StatTile label="Exames a vencer ou vencidos" valor={String(kpis.pendentesNotificacao)} subtitulo="soma de todos os exames pendentes, de todo mundo" />
+      </div>
+
+      <InfoBanner>
+        A lista de qual exame cada função exige, e com que periodicidade, é definida
+        em <strong>Configurações → ASO e PGR → Exames exigidos por função (PGR)</strong>.
+        Clique num colaborador para ver o detalhe; o histórico completo de exames
+        antigos fica na ficha do colaborador, aba &quot;Exames ocupacionais&quot;.
+      </InfoBanner>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Input
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar por nome do colaborador..."
-          className="w-64"
-        />
         <div className="inline-flex rounded-lg border border-border p-1">
           <button
             type="button"
@@ -174,18 +257,40 @@ export function AsoClient({
             Linha do tempo
           </button>
         </div>
+        <RegistrarExameDialog colaboradores={colaboradoresNoFiltro} tiposExame={tiposExame} />
       </div>
 
       {visao === "lista" ? (
-        <div className="space-y-2">
-          {grupos.map((g) => (
-            <LinhaColaborador key={g.colaboradorId} grupo={g} tiposExame={tiposExame} />
-          ))}
-          {grupos.length === 0 && (
-            <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
-              Nenhum colaborador encontrado.
-            </p>
-          )}
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-border text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="w-8 px-3 py-3" />
+                <th className="px-3 py-3 font-medium">Colaborador</th>
+                <th className="px-3 py-3 font-medium">Setor</th>
+                <th className="px-3 py-3 font-medium">Situação geral</th>
+                <th className="px-3 py-3 font-medium">Próxima pendência</th>
+                <th className="px-3 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {listaFinal.map(({ grupo, pior }) => (
+                <LinhaColaborador
+                  key={grupo.colaboradorId}
+                  grupo={grupo}
+                  pior={pior}
+                  tiposExame={tiposExame}
+                />
+              ))}
+              {listaFinal.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    Nenhum colaborador encontrado com os filtros atuais.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="space-y-6">
@@ -241,6 +346,11 @@ export function AsoClient({
               </div>
             </div>
           ))}
+          {timeline.vencidos.length === 0 && timeline.meses.length === 0 && (
+            <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
+              Nada a vencer no filtro atual.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -255,108 +365,205 @@ function formatarMes(mesIso: string) {
 
 function LinhaColaborador({
   grupo,
+  pior,
   tiposExame,
 }: {
   grupo: Grupo;
+  pior: LinhaResumo;
   tiposExame: { id: string; nome: string; periodicidade_meses: number | null }[];
 }) {
   const [aberto, setAberto] = useState(false);
-
-  const situacoes = [
-    ...grupo.asoItens.map((a) => situacaoVencimento(a.data_vencimento)).filter(Boolean),
-    ...grupo.pgrItens.map((p) => situacaoPgr(p)),
-  ] as SituacaoVencimento[];
-  const pior = situacoes.sort((a, b) => peso(b.tone) - peso(a.tone))[0];
+  const emDia = peso(pior.situacao.tone) <= 1;
+  const proximaPendenciaTexto = emDia
+    ? "—"
+    : `${pior.nome}${
+        pior.dataVencimento
+          ? ` · vence ${formatarData(pior.dataVencimento)}`
+          : pior.situacao.texto === "Nunca registrado"
+            ? " · nunca realizado"
+            : ""
+      }`;
 
   return (
-    <div className="rounded-lg border border-border">
-      <button
-        type="button"
-        onClick={() => setAberto(!aberto)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
+    <>
+      <tr
+        className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30"
+        onClick={() => setAberto((v) => !v)}
       >
-        <div>
-          <p className="font-medium text-foreground">{grupo.nome}</p>
-          <p className="text-xs text-muted-foreground">
-            {grupo.cargoNome ?? "—"} · {grupo.setorNome ?? "—"}
-          </p>
-        </div>
-        {pior && <StatusBadge tone={pior.tone}>{pior.texto}</StatusBadge>}
-      </button>
+        <td className="px-3 py-3 text-center text-muted-foreground">{aberto ? "▾" : "▸"}</td>
+        <td className="px-3 py-3">
+          <div className="flex items-center gap-3">
+            <ColaboradorAvatar nome={grupo.nome} size="sm" />
+            <div>
+              <p className="font-medium text-foreground">{grupo.nome}</p>
+              <p className="text-xs text-muted-foreground">{grupo.cargoNome ?? "—"}</p>
+            </div>
+          </div>
+        </td>
+        <td className="px-3 py-3 text-muted-foreground">{grupo.setorNome ?? "—"}</td>
+        <td className="px-3 py-3">
+          {emDia ? (
+            <StatusBadge tone="success">Em dia</StatusBadge>
+          ) : (
+            <StatusBadge tone={pior.situacao.tone}>{pior.situacao.texto}</StatusBadge>
+          )}
+        </td>
+        <td className="px-3 py-3 text-muted-foreground">{proximaPendenciaTexto}</td>
+        <td className="px-3 py-3 text-right">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAberto(true);
+            }}
+          >
+            + Registrar
+          </Button>
+        </td>
+      </tr>
       {aberto && (
-        <div className="space-y-6 border-t border-border p-4">
-          <div>
-            <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-              ASO
-            </h4>
-            <table className="w-full text-left text-sm">
-              <tbody>
-                {grupo.asoItens.map((a) => (
-                  <LinhaAsoRegistro key={a.registro_id} item={a} />
-                ))}
-                {grupo.asoItens.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-2 text-muted-foreground">
-                      Nenhum ASO registrado.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            <div className="mt-2">
-              <PainelAdicionar rotulo="+ Registrar ASO">
-                {(fechar) => (
-                  <FormularioAso colaboradorId={grupo.colaboradorId} aoSalvar={fechar} />
-                )}
-              </PainelAdicionar>
+        <tr className="border-b border-border bg-muted/20 last:border-0">
+          <td />
+          <td colSpan={5} className="space-y-6 p-4">
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+                ASO
+              </h4>
+              <table className="w-full text-left text-sm">
+                <tbody>
+                  {grupo.asoItens.map((a) => (
+                    <LinhaAsoRegistro key={a.registro_id} item={a} />
+                  ))}
+                  {grupo.asoItens.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-2 text-muted-foreground">
+                        Nenhum ASO registrado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              <div className="mt-2">
+                <PainelAdicionar rotulo="+ Registrar ASO">
+                  {(fechar) => (
+                    <FormularioAso colaboradorId={grupo.colaboradorId} aoSalvar={fechar} />
+                  )}
+                </PainelAdicionar>
+              </div>
             </div>
-          </div>
 
-          <div>
-            <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-              Exames complementares (PGR)
-            </h4>
-            <table className="w-full text-left text-sm">
-              <tbody>
-                {grupo.pgrItens
-                  .slice()
-                  .sort((a, b) => peso(situacaoPgr(b).tone) - peso(situacaoPgr(a).tone))
-                  .map((p) => {
-                    const s = situacaoPgr(p);
-                    return (
-                      <LinhaPgr
-                        key={p.exame_id}
-                        item={p}
-                        situacao={s}
-                        colaboradorId={grupo.colaboradorId}
-                      />
-                    );
-                  })}
-                {grupo.pgrItens.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-2 text-muted-foreground">
-                      Nenhum exame complementar exigido para esta função (PGR não
-                      cadastrado).
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            <div className="mt-2">
-              <PainelAdicionar rotulo="+ Registrar exame complementar">
-                {(fechar) => (
-                  <FormularioExameComplementar
-                    colaboradorId={grupo.colaboradorId}
-                    tiposExame={tiposExame}
-                    aoSalvar={fechar}
-                  />
-                )}
-              </PainelAdicionar>
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+                Exames complementares (PGR)
+              </h4>
+              <table className="w-full text-left text-sm">
+                <tbody>
+                  {grupo.pgrItens
+                    .slice()
+                    .sort((a, b) => peso(situacaoPgr(b).tone) - peso(situacaoPgr(a).tone))
+                    .map((p) => {
+                      const s = situacaoPgr(p);
+                      return (
+                        <LinhaPgr
+                          key={p.exame_id}
+                          item={p}
+                          situacao={s}
+                          colaboradorId={grupo.colaboradorId}
+                        />
+                      );
+                    })}
+                  {grupo.pgrItens.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-2 text-muted-foreground">
+                        Nenhum exame complementar exigido para esta função (PGR não
+                        cadastrado).
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              <div className="mt-2">
+                <PainelAdicionar rotulo="+ Registrar exame complementar">
+                  {(fechar) => (
+                    <FormularioExameComplementar
+                      colaboradorId={grupo.colaboradorId}
+                      tiposExame={tiposExame}
+                      aoSalvar={fechar}
+                    />
+                  )}
+                </PainelAdicionar>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function RegistrarExameDialog({
+  colaboradores,
+  tiposExame,
+}: {
+  colaboradores: { id: string; nome: string; setor_nome: string | null }[];
+  tiposExame: { id: string; nome: string; periodicidade_meses: number | null }[];
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [colaboradorId, setColaboradorId] = useState("");
+
+  return (
+    <Dialog
+      open={aberto}
+      onOpenChange={(v) => {
+        setAberto(v);
+        if (!v) setColaboradorId("");
+      }}
+    >
+      <DialogTrigger render={<Button>+ Registrar exame</Button>} />
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Registrar exame</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="reg_colaborador">Colaborador</Label>
+          <NativeSelect
+            id="reg_colaborador"
+            value={colaboradorId}
+            onChange={(e) => setColaboradorId(e.target.value)}
+          >
+            <option value="">Selecione...</option>
+            {colaboradores.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome}
+                {c.setor_nome ? ` · ${c.setor_nome}` : ""}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+        {colaboradorId && (
+          <div className="space-y-4">
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+                ASO
+              </h4>
+              <FormularioAso colaboradorId={colaboradorId} aoSalvar={() => setAberto(false)} />
+            </div>
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+                Exame complementar
+              </h4>
+              <FormularioExameComplementar
+                colaboradorId={colaboradorId}
+                tiposExame={tiposExame}
+                aoSalvar={() => setAberto(false)}
+              />
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -420,7 +627,7 @@ function FormularioEditarAso({
       className="grid max-w-xl grid-cols-2 gap-3 rounded-md border border-border bg-muted/30 p-3"
     >
       {state && "error" in state && (
-        <p className="col-span-2 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="col-span-2 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
@@ -575,7 +782,7 @@ function FormularioEditarExameComplementar({
       className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/30 p-3"
     >
       {state && "error" in state && (
-        <p className="w-full rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="w-full rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
@@ -622,7 +829,7 @@ function FormularioAso({
       className="grid max-w-xl grid-cols-2 gap-3 rounded-md border border-border bg-muted/30 p-3"
     >
       {state && "error" in state && (
-        <p className="col-span-2 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="col-span-2 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
@@ -696,7 +903,7 @@ function FormularioExameComplementar({
       className="grid max-w-xl grid-cols-2 gap-3 rounded-md border border-border bg-muted/30 p-3"
     >
       {state && "error" in state && (
-        <p className="col-span-2 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="col-span-2 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
@@ -757,7 +964,7 @@ function FormularioExameComplementarRapido({
       className="flex items-end gap-3 rounded-md border border-border bg-muted/30 p-3"
     >
       {state && "error" in state && (
-        <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>
+        <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">{state.error}</p>
       )}
       <input type="hidden" name="periodicidade_meses" value={periodicidadeMeses ?? ""} />
       <div className="space-y-1">
