@@ -13,6 +13,7 @@ import { BITRIX_USUARIOS, TIPO_EVENTO_LABEL } from "@/lib/constants/bitrix-usuar
 import type { RegraBitrix } from "@/lib/data/bitrix-regras";
 import {
   criarRegraBitrix,
+  atualizarRegraBitrix,
   atualizarRegraBitrixAtiva,
   type BitrixFormState,
 } from "./bitrix-actions";
@@ -41,7 +42,7 @@ export function BitrixTab({ regras }: { regras: RegraBitrix[] }) {
         </div>
 
         <PainelAdicionar rotulo="+ Nova regra">
-          {(fechar) => <FormularioNovaRegra aoSalvar={fechar} />}
+          {(fechar) => <FormularioRegra aoSalvar={fechar} />}
         </PainelAdicionar>
 
         <div className="mt-3 overflow-x-auto rounded-md border border-border">
@@ -53,6 +54,7 @@ export function BitrixTab({ regras }: { regras: RegraBitrix[] }) {
                 <th className="px-3 py-2 font-medium">Responsável</th>
                 <th className="px-3 py-2 font-medium">Corresponsáveis</th>
                 <th className="px-3 py-2 font-medium">Ativa</th>
+                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -61,7 +63,7 @@ export function BitrixTab({ regras }: { regras: RegraBitrix[] }) {
               ))}
               {regras.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                     Nenhuma regra cadastrada ainda.
                   </td>
                 </tr>
@@ -76,44 +78,74 @@ export function BitrixTab({ regras }: { regras: RegraBitrix[] }) {
 
 function LinhaRegra({ regra }: { regra: RegraBitrix }) {
   const [ativo, setAtivo] = useState(regra.ativo);
+  const [editando, setEditando] = useState(false);
   const [pending, startTransition] = useTransition();
 
   return (
-    <tr className="border-b border-border last:border-0">
-      <td className="px-3 py-2 text-foreground">
-        {TIPO_EVENTO_LABEL[regra.tipo_evento] ?? regra.tipo_evento}
-        <p className="text-xs text-muted-foreground">{regra.titulo_template}</p>
-      </td>
-      <td className="px-3 py-2 text-muted-foreground">
-        {regra.dias_antecedencia === 0 ? "No dia" : `${regra.dias_antecedencia} dia(s) antes`}
-      </td>
-      <td className="px-3 py-2 text-foreground">{regra.responsavel_bitrix_nome}</td>
-      <td className="px-3 py-2 text-muted-foreground">
-        {regra.corresponsaveis_bitrix_nomes?.join(", ") || "—"}
-      </td>
-      <td className="px-3 py-2">
-        <Checkbox
-          checked={ativo}
-          disabled={pending}
-          onCheckedChange={(v) => {
-            const novo = !!v;
-            setAtivo(novo);
-            startTransition(() => {
-              atualizarRegraBitrixAtiva(regra.id, novo);
-            });
-          }}
-        />
-      </td>
-    </tr>
+    <>
+      <tr className="border-b border-border last:border-0">
+        <td className="px-3 py-2 text-foreground">
+          {TIPO_EVENTO_LABEL[regra.tipo_evento] ?? regra.tipo_evento}
+          <p className="text-xs text-muted-foreground">{regra.titulo_template}</p>
+        </td>
+        <td className="px-3 py-2 text-muted-foreground">
+          {regra.dias_antecedencia === 0 ? "No dia" : `${regra.dias_antecedencia} dia(s) antes`}
+        </td>
+        <td className="px-3 py-2 text-foreground">{regra.responsavel_bitrix_nome}</td>
+        <td className="px-3 py-2 text-muted-foreground">
+          {regra.corresponsaveis_bitrix_nomes?.join(", ") || "—"}
+        </td>
+        <td className="px-3 py-2">
+          <Checkbox
+            checked={ativo}
+            disabled={pending}
+            onCheckedChange={(v) => {
+              const novo = !!v;
+              setAtivo(novo);
+              startTransition(() => {
+                atualizarRegraBitrixAtiva(regra.id, novo);
+              });
+            }}
+          />
+        </td>
+        <td className="px-3 py-2 text-right">
+          <Button variant="ghost" size="sm" onClick={() => setEditando((v) => !v)}>
+            Editar
+          </Button>
+        </td>
+      </tr>
+      {editando && (
+        <tr className="border-b border-border bg-muted/20 last:border-0">
+          <td colSpan={6} className="p-3">
+            <FormularioRegra
+              regra={regra}
+              aoSalvar={() => setEditando(false)}
+              aoCancelar={() => setEditando(false)}
+            />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
-function FormularioNovaRegra({ aoSalvar }: { aoSalvar: () => void }) {
+function FormularioRegra({
+  regra,
+  aoSalvar,
+  aoCancelar,
+}: {
+  regra?: RegraBitrix;
+  aoSalvar: () => void;
+  aoCancelar?: () => void;
+}) {
+  const action = regra ? atualizarRegraBitrix.bind(null, regra.id) : criarRegraBitrix;
   const [state, formAction, pending] = useActionState<BitrixFormState, FormData>(
-    criarRegraBitrix,
+    action,
     undefined,
   );
-  const [corresponsaveis, setCorresponsaveis] = useState<Set<number>>(new Set());
+  const [corresponsaveis, setCorresponsaveis] = useState<Set<number>>(
+    new Set(regra?.corresponsaveis_bitrix_ids ?? []),
+  );
 
   useEffect(() => {
     if (state && "ok" in state) aoSalvar();
@@ -133,7 +165,12 @@ function FormularioNovaRegra({ aoSalvar }: { aoSalvar: () => void }) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="br_tipo">Evento</Label>
-          <NativeSelect id="br_tipo" name="tipo_evento" required defaultValue="">
+          <NativeSelect
+            id="br_tipo"
+            name="tipo_evento"
+            required
+            defaultValue={regra?.tipo_evento ?? ""}
+          >
             <option value="" disabled>
               Selecione...
             </option>
@@ -152,12 +189,17 @@ function FormularioNovaRegra({ aoSalvar }: { aoSalvar: () => void }) {
             type="number"
             min={0}
             required
-            defaultValue={0}
+            defaultValue={regra?.dias_antecedencia ?? 0}
           />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="br_responsavel">Responsável</Label>
-          <NativeSelect id="br_responsavel" name="responsavel_bitrix_id" required defaultValue="">
+          <NativeSelect
+            id="br_responsavel"
+            name="responsavel_bitrix_id"
+            required
+            defaultValue={regra?.responsavel_bitrix_id ?? ""}
+          >
             <option value="" disabled>
               Selecione...
             </option>
@@ -199,20 +241,31 @@ function FormularioNovaRegra({ aoSalvar }: { aoSalvar: () => void }) {
           id="br_titulo"
           name="titulo_template"
           required
+          defaultValue={regra?.titulo_template ?? ""}
           placeholder="Ex.: Aniversário de {{nome}} em {{data}}"
         />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="br_descricao">Descrição (opcional)</Label>
-        <Textarea id="br_descricao" name="descricao_template" rows={2} />
+        <Textarea
+          id="br_descricao"
+          name="descricao_template"
+          rows={2}
+          defaultValue={regra?.descricao_template ?? ""}
+        />
         <p className="text-xs text-muted-foreground">
           Pode usar {"{{nome}}"} e {"{{data}}"} no título/descrição — a rotina
           troca pelos dados reais de cada colaborador.
         </p>
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {aoCancelar && (
+          <Button type="button" variant="ghost" onClick={aoCancelar}>
+            Cancelar
+          </Button>
+        )}
         <Button type="submit" disabled={pending}>
-          {pending ? "Salvando..." : "Criar regra"}
+          {pending ? "Salvando..." : regra ? "Salvar alterações" : "Criar regra"}
         </Button>
       </div>
     </form>
