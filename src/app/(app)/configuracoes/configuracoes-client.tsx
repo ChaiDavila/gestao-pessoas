@@ -6,10 +6,12 @@ import { TabelaCatalogo, type ColunaCatalogo } from "./tabela-catalogo";
 import { PgrTab } from "./pgr-tab";
 import { UsuariosTab } from "./usuarios-tab";
 import { ExigenciaAsoTab } from "./exigencia-aso-tab";
+import { BitrixTab } from "./bitrix-tab";
 import type { PgrItem } from "@/lib/data/catalogos";
 import type { getTodosCatalogos } from "@/lib/data/catalogos";
 import type { UsuarioArea } from "./usuarios-actions";
 import type { ExigenciaAsoItem } from "@/lib/data/colaborador-detalhe";
+import type { RegraBitrix } from "@/lib/data/bitrix-regras";
 
 const COL_NOME: ColunaCatalogo[] = [
   { chave: "nome", rotulo: "Nome", tipo: "text", obrigatorio: true },
@@ -63,6 +65,7 @@ export function ConfiguracoesClient({
   souAdmin,
   usuarioAtualId,
   exigenciaAso,
+  regrasBitrix,
 }: {
   catalogos: Catalogos;
   pgrItens: PgrItem[];
@@ -70,6 +73,7 @@ export function ConfiguracoesClient({
   souAdmin: boolean;
   usuarioAtualId: string | null;
   exigenciaAso: ExigenciaAsoItem[];
+  regrasBitrix: RegraBitrix[];
 }) {
   const cargosOpcoes = catalogos.cargos.map((c) => ({
     id: String(c.id),
@@ -87,6 +91,7 @@ export function ConfiguracoesClient({
         <TabsTrigger value="geral">Geral</TabsTrigger>
         <TabsTrigger value="treinamentos">Treinamentos</TabsTrigger>
         <TabsTrigger value="aso">ASO e PGR</TabsTrigger>
+        <TabsTrigger value="bitrix">Integrações</TabsTrigger>
         {souAdmin && <TabsTrigger value="usuarios">Usuários</TabsTrigger>}
       </TabsList>
 
@@ -195,6 +200,10 @@ export function ConfiguracoesClient({
             tiposExame={tiposExameOpcoes}
           />
         </div>
+      </TabsContent>
+
+      <TabsContent value="bitrix" className="pt-4">
+        <BitrixTab regras={regrasBitrix} />
       </TabsContent>
 
       {souAdmin && (

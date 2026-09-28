@@ -1,5 +1,6 @@
 import { getTodosCatalogos, getPgrCompleto } from "@/lib/data/catalogos";
 import { getExigenciaAso } from "@/lib/data/colaborador-detalhe";
+import { getRegrasBitrix } from "@/lib/data/bitrix-regras";
 import { getUsuarioAtual } from "@/lib/auth";
 import { listarUsuarios } from "./usuarios-actions";
 import { ConfiguracoesClient } from "./configuracoes-client";
@@ -8,11 +9,12 @@ export default async function ConfiguracoesPage() {
   const usuarioAtual = await getUsuarioAtual();
   const souAdmin = usuarioAtual?.papel === "admin";
 
-  const [catalogos, pgrItens, usuarios, exigenciaAso] = await Promise.all([
+  const [catalogos, pgrItens, usuarios, exigenciaAso, regrasBitrix] = await Promise.all([
     getTodosCatalogos(),
     getPgrCompleto(),
     souAdmin ? listarUsuarios() : Promise.resolve([]),
     getExigenciaAso(),
+    getRegrasBitrix(),
   ]);
 
   return (
@@ -35,6 +37,7 @@ export default async function ConfiguracoesPage() {
         souAdmin={souAdmin}
         usuarioAtualId={usuarioAtual?.id ?? null}
         exigenciaAso={exigenciaAso}
+        regrasBitrix={regrasBitrix}
       />
     </div>
   );
