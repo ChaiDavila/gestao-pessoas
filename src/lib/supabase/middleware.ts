@@ -1,7 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login"];
+// Redireciona pro dashboard se a pessoa já estiver logada e tentar acessar de novo.
+const PUBLIC_ONLY_PATHS = ["/login", "/esqueci-senha"];
+// Acessível independente de já ter sessão ou não — /redefinir-senha precisa disso porque
+// o link de recuperação já cria uma sessão (de recuperação) antes de chegar lá; se
+// entrasse na regra de PUBLIC_ONLY_PATHS, seria redirecionada pro dashboard antes de
+// conseguir trocar a senha.
+const ALWAYS_ACCESSIBLE_PATHS = ["/redefinir-senha", "/auth/confirmar-recuperacao"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -31,17 +37,20 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isPublicPath = PUBLIC_PATHS.some((path) =>
+  const isPublicOnly = PUBLIC_ONLY_PATHS.some((path) =>
+    request.nextUrl.pathname.startsWith(path),
+  );
+  const isAlwaysAccessible = ALWAYS_ACCESSIBLE_PATHS.some((path) =>
     request.nextUrl.pathname.startsWith(path),
   );
 
-  if (!user && !isPublicPath) {
+  if (!user && !isPublicOnly && !isAlwaysAccessible) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && isPublicPath) {
+  if (user && isPublicOnly) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

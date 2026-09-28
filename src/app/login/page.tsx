@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { Suspense, useActionState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +12,16 @@ import { login, type LoginState } from "./actions";
 const initialState: LoginState = undefined;
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const senhaRedefinida = searchParams.get("senha_redefinida") === "1";
   const [state, formAction, pending] = useActionState(login, initialState);
 
   return (
@@ -30,6 +42,12 @@ export default function LoginPage() {
           Gestão de Pessoas
         </p>
 
+        {senhaRedefinida && (
+          <p className="mt-4 rounded-md bg-success-bg px-3 py-2 text-center text-sm text-success">
+            Senha atualizada! Faça login com a nova senha.
+          </p>
+        )}
+
         <form action={formAction} className="mt-6 space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="email">E-mail</Label>
@@ -42,7 +60,15 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="password">Senha</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Senha</Label>
+              <Link
+                href="/esqueci-senha"
+                className="text-xs text-primary hover:underline"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
             <Input
               id="password"
               name="password"
