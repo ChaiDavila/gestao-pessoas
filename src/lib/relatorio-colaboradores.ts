@@ -1,4 +1,7 @@
-import { montarCsv } from "@/lib/csv";
+import ExcelJS from "exceljs";
+
+const COONTROL_LARANJA = "E84E0F";
+const COONTROL_CINZA = "434342";
 
 export type CampoRelatorio = {
   chave: string;
@@ -49,13 +52,61 @@ export const CAMPOS_RELATORIO: CampoRelatorio[] = [
   { chave: "status_rh", rotulo: "Status", grupo: "Outros", valor: (c) => (c.status_rh === "ativo" ? "Ativo" : "Desligado") },
 ];
 
-export function gerarCsv(
+export async function gerarXlsx(
   linhas: Record<string, unknown>[],
   chavesSelecionadas: string[],
 ) {
   const campos = CAMPOS_RELATORIO.filter((c) => chavesSelecionadas.includes(c.chave));
-  return montarCsv(
-    campos.map((c) => ({ rotulo: c.rotulo, valor: c.valor })),
-    linhas,
-  );
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "COONTROL — Gestão de Pessoas";
+  workbook.created = new Date();
+
+  const planilha = workbook.addWorksheet("Colaboradores", {
+    views: [{ state: "frozen", ySplit: 4 }],
+  });
+
+  const ultimaColuna = String.fromCharCode(64 + campos.length); // A, B, C...
+
+  planilha.mergeCells(`A1:${ultimaColuna}1`);
+  const tituloCelula = planilha.getCell("A1");
+  tituloCelula.value = "COONTROL — Relatório de Colaboradores";
+  tituloCelula.font = { bold: true, size: 14, color: { argb: `FF${COONTROL_CINZA}` } };
+  tituloCelula.alignment = { vertical: "middle" };
+
+  planilha.mergeCells(`A2:${ultimaColuna}2`);
+  const subtituloCelula = planilha.getCell("A2");
+  subtituloCelula.value = `Gerado em ${new Date().toLocaleString("pt-BR")} · ${linhas.length} colaborador(es)`;
+  subtituloCelula.font = { italic: true, size: 10, color: { argb: `FF${COONTROL_CINZA}` } };
+
+  planilha.getRow(1).height = 22;
+
+  const linhaCabecalho = planilha.getRow(4);
+  campos.forEach((c, i) => {
+    const celula = linhaCabecalho.getCell(i + 1);
+    celula.value = c.rotulo;
+    celula.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    celula.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${COONTROL_LARANJA}` } };
+    celula.alignment = { vertical: "middle" };
+  });
+  linhaCabecalho.height = 20;
+
+  for (const linha of linhas) {
+    const valores = campos.map((c) => c.valor(linha));
+    const row = planilha.addRow(valores);
+    row.eachCell((celula) => {
+      celula.alignment = { vertical: "middle" };
+    });
+  }
+
+  campos.forEach((c, i) => {
+    const larguraConteudo = Math.max(
+      c.rotulo.length,
+      ...linhas.map((linha) => c.valor(linha).length),
+    );
+    planilha.getColumn(i + 1).width = Math.min(40, Math.max(12, larguraConteudo + 2));
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer).toString("base64");
 }
