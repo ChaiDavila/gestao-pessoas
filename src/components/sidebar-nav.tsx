@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, type TelaId } from "@/lib/nav";
 import { logout } from "@/app/login/actions";
+import { AlterarSenhaDialog } from "@/components/alterar-senha-dialog";
 
 type SidebarNavProps = {
   escopoTelas: TelaId[] | null;
@@ -70,15 +71,18 @@ export function SidebarNav({ escopoTelas, userEmail, papelLabel }: SidebarNavPro
               <p className="text-sidebar-foreground/60">{papelLabel}</p>
             )}
           </div>
-          <form action={logout} className="mt-2">
-            <button
-              type="submit"
-              className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/[.07] hover:text-white"
-            >
-              <LogOut className="h-4 w-4 shrink-0" />
-              Sair
-            </button>
-          </form>
+          <div className="mt-2 space-y-1">
+            <AlterarSenhaDialog />
+            <form action={logout}>
+              <button
+                type="submit"
+                className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/[.07] hover:text-white"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                Sair
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </aside>

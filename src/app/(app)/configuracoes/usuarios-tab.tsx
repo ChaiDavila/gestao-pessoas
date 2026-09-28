@@ -17,6 +17,7 @@ import {
   criarUsuario,
   atualizarPapelUsuario,
   atualizarEscopoUsuario,
+  redefinirSenhaUsuario,
   removerAcessoUsuario,
 } from "./usuarios-actions";
 
@@ -152,6 +153,17 @@ function SeletorTelas({
 
 function LinhaUsuario({ usuario, souEu }: { usuario: UsuarioArea; souEu: boolean }) {
   const [editando, setEditando] = useState(false);
+  const [alterandoSenha, setAlterandoSenha] = useState(false);
+
+  function alternarEditar() {
+    setEditando((v) => !v);
+    setAlterandoSenha(false);
+  }
+
+  function alternarSenha() {
+    setAlterandoSenha((v) => !v);
+    setEditando(false);
+  }
 
   return (
     <>
@@ -169,8 +181,11 @@ function LinhaUsuario({ usuario, souEu }: { usuario: UsuarioArea; souEu: boolean
         </td>
         <td className="px-3 py-2 text-right">
           <div className="flex justify-end gap-1">
-            <Button variant="ghost" size="sm" onClick={() => setEditando((v) => !v)}>
+            <Button variant="ghost" size="sm" onClick={alternarEditar}>
               Editar
+            </Button>
+            <Button variant="ghost" size="sm" onClick={alternarSenha}>
+              Senha
             </Button>
             <BotaoRemover
               action={() => removerAcessoUsuario(usuario.usuarioId)}
@@ -191,7 +206,110 @@ function LinhaUsuario({ usuario, souEu }: { usuario: UsuarioArea; souEu: boolean
           </td>
         </tr>
       )}
+      {alterandoSenha && (
+        <tr className="border-b border-border bg-muted/20 last:border-0">
+          <td colSpan={5} className="p-3">
+            <FormularioAlterarSenha
+              usuario={usuario}
+              aoFechar={() => setAlterandoSenha(false)}
+            />
+          </td>
+        </tr>
+      )}
     </>
+  );
+}
+
+function gerarSenhaAleatoria() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+  const bytes = new Uint8Array(14);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+}
+
+function FormularioAlterarSenha({
+  usuario,
+  aoFechar,
+}: {
+  usuario: UsuarioArea;
+  aoFechar: () => void;
+}) {
+  const [senha, setSenha] = useState("");
+  const [mostrar, setMostrar] = useState(true);
+  const [state, formAction, pending] = useActionState<UsuarioFormState, FormData>(
+    redefinirSenhaUsuario.bind(null, usuario.usuarioId),
+    undefined,
+  );
+
+  const salva = state && "ok" in state;
+
+  return (
+    <div className="max-w-md space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Define uma senha nova pra <strong>{usuario.email}</strong> na hora,
+        sem precisar de e-mail. Compartilhe com a pessoa por um canal seguro
+        e peça pra ela trocar assim que entrar.
+      </p>
+      {salva ? (
+        <div className="space-y-3">
+          <p className="rounded-md bg-success-bg px-3 py-2 text-sm text-success">
+            Senha alterada com sucesso.
+          </p>
+          <Button type="button" size="sm" variant="ghost" onClick={aoFechar}>
+            Fechar
+          </Button>
+        </div>
+      ) : (
+        <form action={formAction} className="space-y-3">
+          {state && "error" in state && (
+            <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
+              {state.error}
+            </p>
+          )}
+          <div className="flex items-end gap-2">
+            <div className="flex-1 space-y-1.5">
+              <Label htmlFor={`senha_${usuario.usuarioId}`}>Nova senha</Label>
+              <Input
+                id={`senha_${usuario.usuarioId}`}
+                name="novaSenha"
+                type={mostrar ? "text" : "password"}
+                minLength={6}
+                required
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSenha(gerarSenhaAleatoria());
+                setMostrar(true);
+              }}
+            >
+              Gerar
+            </Button>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={mostrar}
+              onChange={(e) => setMostrar(e.target.checked)}
+            />
+            Mostrar senha
+          </label>
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" disabled={pending || senha.length < 6}>
+              {pending ? "Salvando..." : "Salvar nova senha"}
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={aoFechar}>
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
 

@@ -146,6 +146,31 @@ export async function atualizarEscopoUsuario(usuarioId: string, telas: TelaId[] 
   revalidatePath("/configuracoes");
 }
 
+// Admin define a senha de outro usuário diretamente (sem passar por e-mail) — útil pra
+// destravar alguém na hora, sem depender do fluxo de "esqueci minha senha" por e-mail.
+export async function redefinirSenhaUsuario(
+  usuarioId: string,
+  _prevState: UsuarioFormState,
+  formData: FormData,
+): Promise<UsuarioFormState> {
+  try {
+    await exigirAdmin();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
+  const novaSenha = formData.get("novaSenha") as string;
+  if (!novaSenha || novaSenha.length < 6) {
+    return { error: "A senha deve ter pelo menos 6 caracteres." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(usuarioId, { password: novaSenha });
+  if (error) return { error: error.message };
+
+  return { ok: true };
+}
+
 // Remove só o vínculo com a área RH (revoga o acesso ao sistema); a conta em si no
 // Supabase Auth continua existindo, já que pode ser reaproveitada por outra área no
 // futuro (Portal Central).
