@@ -9,6 +9,7 @@ import { PainelAdicionar } from "@/components/painel-adicionar";
 import { StatTile } from "@/components/stat-tile";
 import { StatusBadge } from "@/components/status-badge";
 import { InfoBanner } from "@/components/info-banner";
+import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { formatarData, hojeISO } from "@/lib/date";
 import { situacaoVencimento } from "@/lib/vencimento";
 import type { NrColaboradorItem } from "@/lib/data/treinamentos";
@@ -48,12 +49,18 @@ export function NrTab({
   const porColaborador = useMemo(() => {
     const mapa = new Map<
       string,
-      { nome: string; setor_nome: string | null; entradas: NrColaboradorItem[] }
+      {
+        nome: string;
+        cargo_nome: string | null;
+        setor_nome: string | null;
+        entradas: NrColaboradorItem[];
+      }
     >();
     for (const n of nrPorColaborador) {
       if (!mapa.has(n.colaborador_id)) {
         mapa.set(n.colaborador_id, {
           nome: n.colaborador_nome,
+          cargo_nome: n.cargo_nome,
           setor_nome: n.setor_nome,
           entradas: [],
         });
@@ -173,47 +180,54 @@ export function NrTab({
       </div>
 
       {visao === "lista" ? (
-        <div className="space-y-2">
-          {porColaborador.map(([colaboradorId, info]) => (
-            <LinhaColaborador
-              key={colaboradorId}
-              colaboradorId={colaboradorId}
-              nome={info.nome}
-              setorNome={info.setor_nome}
-              entradas={info.entradas}
-            />
-          ))}
-          {porColaborador.length === 0 && (
-            <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
-              Nenhum colaborador com NR registrada.
-            </p>
-          )}
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-border text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="w-8 px-3 py-3" />
+                <th className="px-3 py-3 font-medium">Colaborador</th>
+                <th className="px-3 py-3 font-medium">Setor</th>
+                <th className="px-3 py-3 font-medium">Situação geral</th>
+                <th className="px-3 py-3 font-medium">Próxima pendência</th>
+                <th className="px-3 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {porColaborador.map(([colaboradorId, info]) => (
+                <LinhaColaborador
+                  key={colaboradorId}
+                  colaboradorId={colaboradorId}
+                  nome={info.nome}
+                  cargoNome={info.cargo_nome}
+                  setorNome={info.setor_nome}
+                  entradas={info.entradas}
+                />
+              ))}
+              {porColaborador.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    Nenhum colaborador com NR registrada.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="space-y-6">
           {timeline.vencidos.length > 0 && (
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-danger">
-                Vencidos ({timeline.vencidos.length})
-              </h3>
-              <div className="space-y-1">
-                {timeline.vencidos.map((n) => (
-                  <LinhaTimeline key={`${n.colaborador_id}-${n.nr_numero}`} item={n} />
-                ))}
-              </div>
-            </div>
+            <TabelaTimeline
+              titulo={`Vencidos (${timeline.vencidos.length})`}
+              tituloTone="danger"
+              itens={timeline.vencidos}
+            />
           )}
           {timeline.meses.map((mes) => (
-            <div key={mes}>
-              <h3 className="mb-2 text-sm font-semibold text-foreground">
-                {formatarMes(mes)} ({timeline.porMes.get(mes)!.length})
-              </h3>
-              <div className="space-y-1">
-                {timeline.porMes.get(mes)!.map((n) => (
-                  <LinhaTimeline key={`${n.colaborador_id}-${n.nr_numero}`} item={n} />
-                ))}
-              </div>
-            </div>
+            <TabelaTimeline
+              key={mes}
+              titulo={`${formatarMes(mes)} (${timeline.porMes.get(mes)!.length})`}
+              itens={timeline.porMes.get(mes)!}
+            />
           ))}
           {timeline.vencidos.length === 0 && timeline.meses.length === 0 && (
             <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
@@ -235,11 +249,13 @@ function formatarMes(mesIso: string) {
 function LinhaColaborador({
   colaboradorId,
   nome,
+  cargoNome,
   setorNome,
   entradas,
 }: {
   colaboradorId: string;
   nome: string;
+  cargoNome: string | null;
   setorNome: string | null;
   entradas: NrColaboradorItem[];
 }) {
@@ -247,63 +263,92 @@ function LinhaColaborador({
   const [renovandoRapido, setRenovandoRapido] = useState(false);
   const pior = piorSituacaoDoColaborador(entradas);
   const temPendencia = peso(pior?.situacao?.tone) >= 2;
+  const proximaPendenciaTexto = pior?.situacao
+    ? `${pior.item.nr} — ${pior.item.nr_nome}${
+        pior.item.data_vencimento ? ` · vence ${formatarData(pior.item.data_vencimento)}` : ""
+      }`
+    : "—";
 
   return (
-    <div className="rounded-lg border border-border">
-      <button
-        type="button"
-        onClick={() => setAberto(!aberto)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
+    <>
+      <tr
+        className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30"
+        onClick={() => setAberto((v) => !v)}
       >
-        <div>
-          <p className="font-medium text-foreground">{nome}</p>
-          <p className="text-xs text-muted-foreground">
-            {setorNome ?? "—"} · {entradas.length} curso(s) de NR
-          </p>
-        </div>
-        {pior?.situacao && (
-          <StatusBadge tone={pior.situacao.tone}>{pior.situacao.texto}</StatusBadge>
-        )}
-      </button>
+        <td className="px-3 py-3 text-center text-muted-foreground">{aberto ? "▾" : "▸"}</td>
+        <td className="px-3 py-3">
+          <div className="flex items-center gap-3">
+            <ColaboradorAvatar nome={nome} size="sm" />
+            <div>
+              <p className="font-medium text-foreground">{nome}</p>
+              <p className="text-xs text-muted-foreground">{cargoNome ?? "—"}</p>
+            </div>
+          </div>
+        </td>
+        <td className="px-3 py-3 text-muted-foreground">{setorNome ?? "—"}</td>
+        <td className="px-3 py-3">
+          {pior?.situacao ? (
+            <StatusBadge tone={pior.situacao.tone}>{pior.situacao.texto}</StatusBadge>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
+        <td className="px-3 py-3 text-muted-foreground">{proximaPendenciaTexto}</td>
+        <td className="px-3 py-3 text-right">
+          {temPendencia && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenovandoRapido((v) => !v);
+              }}
+            >
+              ↻ Renovar
+            </Button>
+          )}
+        </td>
+      </tr>
 
       {/* Atalho de renovação rápida — não precisa expandir a linha pra agir numa pendência. */}
-      {temPendencia && !aberto && (
-        <div className="border-t border-border px-4 py-2">
-          {renovandoRapido ? (
+      {renovandoRapido && (
+        <tr className="border-b border-border bg-muted/20 last:border-0">
+          <td />
+          <td colSpan={5} className="p-3">
             <FormularioRenovar
               colaboradorId={colaboradorId}
               nrCatalogoId={pior!.item.nr_numero}
               aoSalvar={() => setRenovandoRapido(false)}
             />
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => setRenovandoRapido(true)}>
-              ↻ Renovar {pior!.item.nr} agora
-            </Button>
-          )}
-        </div>
+          </td>
+        </tr>
       )}
 
       {aberto && (
-        <div className="border-t border-border p-4">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="py-1 font-medium">Curso</th>
-                <th className="py-1 font-medium">Última data</th>
-                <th className="py-1 font-medium">Vencimento</th>
-                <th className="py-1 font-medium">Status</th>
-                <th className="py-1" />
-              </tr>
-            </thead>
-            <tbody>
-              {entradas.map((e) => (
-                <LinhaNr key={e.nr_numero} item={e} colaboradorId={colaboradorId} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <tr className="border-b border-border bg-muted/20 last:border-0">
+          <td />
+          <td colSpan={5} className="p-4">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="py-1 font-medium">Curso</th>
+                  <th className="py-1 font-medium">Última data</th>
+                  <th className="py-1 font-medium">Vencimento</th>
+                  <th className="py-1 font-medium">Status</th>
+                  <th className="py-1" />
+                </tr>
+              </thead>
+              <tbody>
+                {entradas.map((e) => (
+                  <LinhaNr key={e.nr_numero} item={e} colaboradorId={colaboradorId} />
+                ))}
+              </tbody>
+            </table>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
@@ -371,57 +416,105 @@ function LinhaNr({
   );
 }
 
+function TabelaTimeline({
+  titulo,
+  tituloTone,
+  itens,
+}: {
+  titulo: string;
+  tituloTone?: "danger";
+  itens: NrColaboradorItem[];
+}) {
+  return (
+    <div>
+      <h3 className={`mb-2 text-sm font-semibold ${tituloTone === "danger" ? "text-danger" : "text-foreground"}`}>
+        {titulo}
+      </h3>
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-border text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 font-medium">Colaborador</th>
+              <th className="px-3 py-2 font-medium">Setor</th>
+              <th className="px-3 py-2 font-medium">Curso</th>
+              <th className="px-3 py-2 font-medium">Vencimento</th>
+              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {itens.map((n) => (
+              <LinhaTimeline key={`${n.colaborador_id}-${n.nr_numero}`} item={n} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function LinhaTimeline({ item }: { item: NrColaboradorItem }) {
   const [modo, setModo] = useState<"nenhum" | "editando" | "renovando">("nenhum");
   const situacao = situacaoVencimento(item.data_vencimento);
 
   return (
-    <div className="rounded-lg border border-border p-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-foreground">
-            {item.colaborador_nome}{" "}
-            <span className="font-normal text-muted-foreground">
-              · {item.nr} — {item.nr_nome}
-            </span>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Vencimento: {formatarData(item.data_vencimento)}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <>
+      <tr className="border-b border-border last:border-0 hover:bg-muted/30">
+        <td className="px-3 py-2">
+          <div className="flex items-center gap-3">
+            <ColaboradorAvatar nome={item.colaborador_nome} size="sm" />
+            <div>
+              <p className="font-medium text-foreground">{item.colaborador_nome}</p>
+              <p className="text-xs text-muted-foreground">{item.cargo_nome ?? "—"}</p>
+            </div>
+          </div>
+        </td>
+        <td className="px-3 py-2 text-muted-foreground">{item.setor_nome ?? "—"}</td>
+        <td className="px-3 py-2">
+          {item.nr} — {item.nr_nome}
+        </td>
+        <td className="px-3 py-2 text-muted-foreground">{formatarData(item.data_vencimento)}</td>
+        <td className="px-3 py-2">
           {situacao && <StatusBadge tone={situacao.tone}>{situacao.texto}</StatusBadge>}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setModo(modo === "editando" ? "nenhum" : "editando")}
-          >
-            Editar
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setModo(modo === "renovando" ? "nenhum" : "renovando")}
-          >
-            Renovar
-          </Button>
-        </div>
-      </div>
+        </td>
+        <td className="px-3 py-2 text-right">
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setModo(modo === "editando" ? "nenhum" : "editando")}
+            >
+              Editar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModo(modo === "renovando" ? "nenhum" : "renovando")}
+            >
+              Renovar
+            </Button>
+          </div>
+        </td>
+      </tr>
       {modo === "editando" && (
-        <div className="mt-3">
-          <FormularioEditarNr item={item} aoSalvar={() => setModo("nenhum")} />
-        </div>
+        <tr>
+          <td colSpan={6} className="p-3">
+            <FormularioEditarNr item={item} aoSalvar={() => setModo("nenhum")} />
+          </td>
+        </tr>
       )}
       {modo === "renovando" && (
-        <div className="mt-3">
-          <FormularioRenovar
-            colaboradorId={item.colaborador_id}
-            nrCatalogoId={item.nr_numero}
-            aoSalvar={() => setModo("nenhum")}
-          />
-        </div>
+        <tr>
+          <td colSpan={6} className="p-3">
+            <FormularioRenovar
+              colaboradorId={item.colaborador_id}
+              nrCatalogoId={item.nr_numero}
+              aoSalvar={() => setModo("nenhum")}
+            />
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
