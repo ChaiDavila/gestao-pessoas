@@ -10,6 +10,9 @@ export type NovaTarefaBitrix = {
   descricao?: string;
   responsavelBitrixId: number;
   corresponsaveisBitrixIds?: number[];
+  // Data (YYYY-MM-DD) do próprio evento (aniversário, vencimento de ASO/NR) — vira o prazo
+  // da tarefa no Bitrix, sempre às 18h no horário de Brasília (fixo, sem horário de verão).
+  prazoData?: string;
 };
 
 export async function criarTarefaBitrix(tarefa: NovaTarefaBitrix): Promise<number> {
@@ -20,6 +23,7 @@ export async function criarTarefaBitrix(tarefa: NovaTarefaBitrix): Promise<numbe
   params.append("fields[TITLE]", tarefa.titulo);
   params.append("fields[RESPONSIBLE_ID]", String(tarefa.responsavelBitrixId));
   if (tarefa.descricao) params.append("fields[DESCRIPTION]", tarefa.descricao);
+  if (tarefa.prazoData) params.append("fields[DEADLINE]", `${tarefa.prazoData}T18:00:00-03:00`);
   tarefa.corresponsaveisBitrixIds?.forEach((id, i) => {
     params.append(`fields[ACCOMPLICES][${i}]`, String(id));
   });

@@ -215,6 +215,7 @@ export async function GET(request: NextRequest) {
         descricao,
         responsavelBitrixId: candidato.regra.responsavel_bitrix_id,
         corresponsaveisBitrixIds: candidato.regra.corresponsaveis_bitrix_ids ?? undefined,
+        prazoData: candidato.dataEvento,
       });
 
       const { error: logError } = await supabase
