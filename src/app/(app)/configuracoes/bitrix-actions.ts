@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioAtual } from "@/lib/auth";
+import { getUnidadeIdPadrao } from "@/lib/data/unidades";
 import { BITRIX_USUARIOS } from "@/lib/constants/bitrix-usuarios";
 
 export type BitrixFormState = { error: string } | { ok: true } | undefined;
@@ -80,7 +81,11 @@ export async function criarRegraBitrix(
   if (!lido.ok) return { error: lido.erro };
 
   const supabase = await createClient();
-  const { error } = await supabase.schema("rh").from("config_bitrix_regras").insert(lido.campos);
+  const unidadeId = await getUnidadeIdPadrao();
+  const { error } = await supabase
+    .schema("rh")
+    .from("config_bitrix_regras")
+    .insert({ ...lido.campos, unidade_id: unidadeId });
 
   if (error) return { error: error.message };
 

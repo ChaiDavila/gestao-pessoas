@@ -56,6 +56,20 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
   const hoje = hojeISO();
 
+  const { data: unidade, error: unidadeError } = await supabase
+    .schema("core")
+    .from("unidades")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+  if (unidadeError || !unidade) {
+    return NextResponse.json(
+      { ok: false, error: unidadeError?.message ?? "Nenhuma unidade cadastrada em core.unidades." },
+      { status: 500 },
+    );
+  }
+  const unidadeId = unidade.id as string;
+
   const [{ data: colaboradores }, { data: regrasTodas }] = await Promise.all([
     supabase
       .schema("rh")
@@ -203,12 +217,17 @@ export async function GET(request: NextRequest) {
         corresponsaveisBitrixIds: candidato.regra.corresponsaveis_bitrix_ids ?? undefined,
       });
 
-      await supabase.schema("rh").from("bitrix_notificacoes_enviadas").insert({
-        regra_id: candidato.regra.id,
-        colaborador_id: candidato.colaboradorId,
-        referencia_evento: candidato.referenciaEvento,
-        bitrix_task_id: taskId,
-      });
+      const { error: logError } = await supabase
+        .schema("rh")
+        .from("bitrix_notificacoes_enviadas")
+        .insert({
+          unidade_id: unidadeId,
+          regra_id: candidato.regra.id,
+          colaborador_id: candidato.colaboradorId,
+          referencia_evento: candidato.referenciaEvento,
+          bitrix_task_id: taskId,
+        });
+      if (logError) throw new Error(`Tarefa criada no Bitrix mas log falhou: ${logError.message}`);
 
       tarefasCriadas++;
     } catch (e) {
