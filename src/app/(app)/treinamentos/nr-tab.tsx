@@ -581,7 +581,7 @@ function FormularioEditarNr({
   aoSalvar: () => void;
 }) {
   const [state, formAction, pending] = useActionState<TreinamentoFormState, FormData>(
-    atualizarRegistroNr.bind(null, item.treinamento_id),
+    atualizarRegistroNr.bind(null, item.treinamento_id, item.colaborador_id),
     undefined,
   );
 

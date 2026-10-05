@@ -254,8 +254,15 @@ export async function atualizarTreinamentoGeral(
 
 // Corrige um registro de NR já existente (data, carga horária, custo, instrutor, vencimento) —
 // diferente de "Renovar", que sempre cria um registro novo de propósito (histórico preservado).
+//
+// Um curso de NR registrado em lote (turma) é UM único registro em rh.treinamentos
+// compartilhado por vários colaboradores (rh.treinamento_participantes). Editar a partir da
+// ficha de uma pessoa não pode alterar o curso de quem mais participou da mesma turma — por
+// isso, se o registro tiver mais de um participante, a edição "separa" só esta pessoa pra um
+// registro novo (histórico/dados dela), preservando o registro original intacto pros demais.
 export async function atualizarRegistroNr(
   treinamentoId: string,
+  colaboradorId: string,
   _prevState: TreinamentoFormState,
   formData: FormData,
 ): Promise<TreinamentoFormState> {
@@ -270,19 +277,71 @@ export async function atualizarRegistroNr(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+
+  const camposEditados = {
+    data,
+    carga_horaria: Number(cargaHoraria),
+    custo_total: custoTotal ? Number(custoTotal) : null,
+    instrutor,
+    data_vencimento: dataVencimento,
+  };
+
+  const { data: participantes, error: participantesError } = await supabase
+    .schema("rh")
+    .from("treinamento_participantes")
+    .select("id, colaborador_id")
+    .eq("treinamento_id", treinamentoId);
+
+  if (participantesError) return { error: participantesError.message };
+
+  if ((participantes ?? []).length <= 1) {
+    const { error } = await supabase
+      .schema("rh")
+      .from("treinamentos")
+      .update(camposEditados)
+      .eq("id", treinamentoId);
+
+    if (error) return { error: error.message };
+    revalidar();
+    return { ok: true };
+  }
+
+  const participante = participantes!.find((p) => p.colaborador_id === colaboradorId);
+  if (!participante) return { error: "Participação não encontrada." };
+
+  const { data: original, error: originalError } = await supabase
     .schema("rh")
     .from("treinamentos")
-    .update({
-      data,
-      carga_horaria: Number(cargaHoraria),
-      custo_total: custoTotal ? Number(custoTotal) : null,
-      instrutor,
-      data_vencimento: dataVencimento,
-    })
-    .eq("id", treinamentoId);
+    .select("unidade_id, nome, tipo, nr_numero, categoria_id")
+    .eq("id", treinamentoId)
+    .single();
 
-  if (error) return { error: error.message };
+  if (originalError || !original) {
+    return { error: originalError?.message ?? "Curso original não encontrado." };
+  }
+
+  const { data: novoTreinamento, error: novoError } = await supabase
+    .schema("rh")
+    .from("treinamentos")
+    .insert({ ...original, ...camposEditados })
+    .select("id")
+    .single();
+
+  if (novoError || !novoTreinamento) {
+    return { error: novoError?.message ?? "Erro ao separar o registro desta pessoa." };
+  }
+
+  const { error: moverError } = await supabase
+    .schema("rh")
+    .from("treinamento_participantes")
+    .update({ treinamento_id: novoTreinamento.id })
+    .eq("id", participante.id);
+
+  if (moverError) {
+    await supabase.schema("rh").from("treinamentos").delete().eq("id", novoTreinamento.id);
+    return { error: moverError.message };
+  }
+
   revalidar();
   return { ok: true };
 }
