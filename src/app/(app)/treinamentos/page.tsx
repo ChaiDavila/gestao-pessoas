@@ -6,9 +6,10 @@ import {
   getConfigNrsCatalogo,
 } from "@/lib/data/treinamentos";
 import { getColaboradoresAtivos, getOpcoesFormulario } from "@/lib/data/colaboradores";
-import { getColaboradoresDashboard } from "@/lib/data/dashboard";
+import { getColaboradoresDashboard, getDesligamentosDashboard } from "@/lib/data/dashboard";
 import { exigirAcessoTela } from "@/lib/auth";
 import { resolverPeriodo } from "@/lib/date";
+import { agruparDesligamentosPorColaborador, estevaAtivoEmAlgumMomento } from "@/lib/headcount";
 import { PeriodoFilter } from "./periodo-filter";
 import { TreinamentosFilters } from "./filters";
 import { TreinamentosClient } from "./treinamentos-client";
@@ -51,6 +52,7 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
     categorias,
     nrsCatalogo,
     colaboradoresTodos,
+    desligamentosTodos,
     colaboradoresAtivos,
     opcoes,
   ] = await Promise.all([
@@ -60,22 +62,24 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
     getConfigCategoriasTreinamento(),
     getConfigNrsCatalogo(),
     getColaboradoresDashboard(),
+    getDesligamentosDashboard(),
     getColaboradoresAtivos(),
     getOpcoesFormulario(),
   ]);
 
+  function bateFiltrosEstrutura(c: (typeof colaboradoresTodos)[number]) {
+    if (filtros.cargoId.length && !filtros.cargoId.includes(c.cargo_id ?? "")) return false;
+    if (filtros.nivelId.length && !filtros.nivelId.includes(c.nivel_id ?? "")) return false;
+    if (filtros.eixoId.length && !filtros.eixoId.includes(c.eixo_id ?? "")) return false;
+    if (filtros.setorId.length && !filtros.setorId.includes(c.setor_id ?? "")) return false;
+    if (filtros.gestorId.length && !filtros.gestorId.includes(c.gestor_colaborador_id ?? "")) return false;
+    if (filtros.busca && !c.nome.toLowerCase().includes(filtros.busca)) return false;
+    return true;
+  }
+
   const idsPermitidos = new Set(
     colaboradoresTodos
-      .filter((c) => {
-        if (filtros.cargoId.length && !filtros.cargoId.includes(c.cargo_id ?? "")) return false;
-        if (filtros.nivelId.length && !filtros.nivelId.includes(c.nivel_id ?? "")) return false;
-        if (filtros.eixoId.length && !filtros.eixoId.includes(c.eixo_id ?? "")) return false;
-        if (filtros.setorId.length && !filtros.setorId.includes(c.setor_id ?? "")) return false;
-        if (filtros.gestorId.length && !filtros.gestorId.includes(c.gestor_colaborador_id ?? "")) return false;
-        if (filtros.status && c.status_rh !== filtros.status) return false;
-        if (filtros.busca && !c.nome.toLowerCase().includes(filtros.busca)) return false;
-        return true;
-      })
+      .filter((c) => bateFiltrosEstrutura(c) && (!filtros.status || c.status_rh === filtros.status))
       .map((c) => c.id),
   );
 
@@ -83,6 +87,25 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
   const participacoesPeriodo = participacoesPessoa.filter(
     (p) => p.data >= periodo.inicio && p.data <= periodo.fim,
   );
+
+  // População elegível para os INDICADORES (aba "Indicadores" apenas — as demais abas,
+  // focadas em conformidade de hoje, continuam usando `idsPermitidos`/status_rh atual
+  // acima): todo mundo que bate função/nível/eixo/setor/gestor/busca E teve vínculo ativo em
+  // ALGUM momento do período selecionado, reconstruído do histórico real de admissão e
+  // desligamento — não o status_rh atual. Isso inclui quem foi desligado no meio do período
+  // (sem isso, as horas/participação dessa pessoa somem tanto do numerador quanto do
+  // denominador da média, mesmo que ela tenha treinado normalmente enquanto esteve ativa).
+  const idsEstrutura = new Set(colaboradoresTodos.filter(bateFiltrosEstrutura).map((c) => c.id));
+  const desligamentosPorColaborador = agruparDesligamentosPorColaborador(desligamentosTodos);
+  const colaboradoresElegiveisNoPeriodo = colaboradoresTodos.filter(
+    (c) =>
+      idsEstrutura.has(c.id) &&
+      estevaAtivoEmAlgumMomento(c, desligamentosPorColaborador.get(c.id) ?? [], periodo.inicio, periodo.fim),
+  );
+  const participacoesIndicadoresPeriodo = participacoesTodas.filter(
+    (p) => idsEstrutura.has(p.colaborador_id) && p.data >= periodo.inicio && p.data <= periodo.fim,
+  );
+  const participacoesIndicadoresPessoa = participacoesTodas.filter((p) => idsEstrutura.has(p.colaborador_id));
 
   // Treinamentos obrigatórios (NR) nunca respeitam o filtro de período: a situação de
   // conformidade de cada pessoa sempre olha o curso mais recente dela, não o recorte
@@ -119,7 +142,9 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
         treinamentosTodos={treinamentosTodos}
         treinamentosGerais={treinamentosGerais}
         participacoesPeriodo={participacoesPeriodo}
-        participacoesPessoa={participacoesPessoa}
+        participacoesIndicadoresPeriodo={participacoesIndicadoresPeriodo}
+        participacoesIndicadoresPessoa={participacoesIndicadoresPessoa}
+        colaboradoresElegiveisNoPeriodo={colaboradoresElegiveisNoPeriodo}
         nrPorColaboradorPessoa={nrPorColaboradorPessoa}
         categorias={categorias}
         nrsCatalogo={nrsCatalogo}

@@ -70,3 +70,43 @@ export function headcountMedioNoPeriodo<C extends ColaboradorParaHeadcount>(
   const h2 = headcountEm(colaboradores, desligamentosPorColaborador, fim);
   return (h1 + h2) / 2;
 }
+
+type IntervaloAtivo = { inicio: string; fim: string | null };
+
+/** Reconstrói os intervalos [início, fim) em que o colaborador esteve ativo, cobrindo
+ * múltiplos ciclos de desligamento/reativação. `fim: null` = ainda ativo (sem desligamento
+ * posterior, ou desligamento sem reativação é o fim do último intervalo). */
+function intervalosAtivos(
+  colaborador: ColaboradorParaHeadcount,
+  desligamentosDoColaborador: DesligamentoParaHeadcount[],
+): IntervaloAtivo[] {
+  const eventos = [...desligamentosDoColaborador].sort((a, b) => a.data.localeCompare(b.data));
+  const intervalos: IntervaloAtivo[] = [];
+  let inicioAtual: string | null = colaborador.data_admissao;
+
+  for (const d of eventos) {
+    if (inicioAtual === null) break; // já tinha saído sem reativação — eventos depois disso não se aplicam
+    intervalos.push({ inicio: inicioAtual, fim: d.data });
+    inicioAtual = d.data_reativacao ?? null;
+  }
+  if (inicioAtual !== null) intervalos.push({ inicio: inicioAtual, fim: null });
+
+  return intervalos;
+}
+
+/**
+ * Esteve ativo em ALGUM momento dentro de [inicio, fim] (ambos inclusive)? Diferente de
+ * `estavaAtivoEm`, que checa um único instante — usado para elegibilidade num período (ex.:
+ * alguém desligado no meio do ano ainda deve entrar na base de um indicador daquele ano).
+ */
+export function estevaAtivoEmAlgumMomento(
+  colaborador: ColaboradorParaHeadcount,
+  desligamentosDoColaborador: DesligamentoParaHeadcount[],
+  inicio: string,
+  fim: string,
+): boolean {
+  return intervalosAtivos(colaborador, desligamentosDoColaborador).some((intervalo) => {
+    const fimIntervalo = intervalo.fim ?? "9999-12-31";
+    return intervalo.inicio <= fim && inicio < fimIntervalo;
+  });
+}

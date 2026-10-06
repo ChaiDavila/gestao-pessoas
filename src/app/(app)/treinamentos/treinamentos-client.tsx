@@ -17,7 +17,9 @@ export function TreinamentosClient({
   treinamentosTodos,
   treinamentosGerais,
   participacoesPeriodo,
-  participacoesPessoa,
+  participacoesIndicadoresPeriodo,
+  participacoesIndicadoresPessoa,
+  colaboradoresElegiveisNoPeriodo,
   nrPorColaboradorPessoa,
   categorias,
   nrsCatalogo,
@@ -28,7 +30,9 @@ export function TreinamentosClient({
   treinamentosTodos: TreinamentoItem[];
   treinamentosGerais: TreinamentoItem[];
   participacoesPeriodo: ParticipacaoItem[];
-  participacoesPessoa: ParticipacaoItem[];
+  participacoesIndicadoresPeriodo: ParticipacaoItem[];
+  participacoesIndicadoresPessoa: ParticipacaoItem[];
+  colaboradoresElegiveisNoPeriodo: { id: string }[];
   nrPorColaboradorPessoa: NrColaboradorItem[];
   categorias: { id: string; nome: string }[];
   nrsCatalogo: { id: string; nr: string; nome: string; periodicidade_meses: number | null }[];
@@ -48,9 +52,9 @@ export function TreinamentosClient({
       <TabsContent value="indicadores" className="pt-4">
         <IndicadoresTab
           treinamentosTodos={treinamentosTodos}
-          participacoesPeriodo={participacoesPeriodo}
-          participacoesPessoa={participacoesPessoa}
-          totalColaboradoresNoFiltro={colaboradoresNoFiltro.length}
+          participacoesPeriodo={participacoesIndicadoresPeriodo}
+          participacoesPessoa={participacoesIndicadoresPessoa}
+          colaboradoresElegiveisNoPeriodo={colaboradoresElegiveisNoPeriodo}
           periodoRotulo={periodoRotulo}
         />
       </TabsContent>

@@ -3,7 +3,13 @@ import type {
   DesligamentoDashboardItem,
   FormacaoAtualItem,
 } from "@/lib/data/dashboard";
-import { agruparDesligamentosPorColaborador, headcountEm } from "@/lib/headcount";
+import {
+  agruparDesligamentosPorColaborador,
+  estavaAtivoEm,
+  headcountEm,
+} from "@/lib/headcount";
+import { formatarData } from "@/lib/date";
+import { formatarMoeda } from "@/lib/formatacao";
 
 export type DashboardFiltros = {
   cargoId?: string[];
@@ -45,6 +51,23 @@ function aplicaFiltrosBase(
   if (f.status && c.status_rh !== f.status) return false;
   if (f.de && c.data_admissao < f.de) return false;
   if (f.ate && c.data_admissao > f.ate) return false;
+  return true;
+}
+
+// Filtro só de estrutura organizacional (função/nível/eixo/setor/gestor), sem status nem
+// data de admissão — usado pelos 4 KPIs de headcount/folha, que reconstroem quem estava
+// ativo numa DATA DE REFERÊNCIA (ver `estavaAtivoEm`) em vez de olhar o status_rh atual ou
+// filtrar por quando a pessoa foi admitida. Isso é o que permite alguém desligado hoje ainda
+// contar como ativo (e entrar na folha) numa data de referência no passado.
+function aplicaFiltrosEstrutura(
+  c: ColaboradorDashboardItem,
+  f: DashboardFiltros,
+) {
+  if (f.cargoId?.length && !f.cargoId.includes(c.cargo_id ?? "")) return false;
+  if (f.nivelId?.length && !f.nivelId.includes(c.nivel_id ?? "")) return false;
+  if (f.eixoId?.length && !f.eixoId.includes(c.eixo_id ?? "")) return false;
+  if (f.setorId?.length && !f.setorId.includes(c.setor_id ?? "")) return false;
+  if (f.gestorId?.length && !f.gestorId.includes(c.gestor_colaborador_id ?? "")) return false;
   return true;
 }
 
@@ -124,9 +147,46 @@ export function calcularDashboard(
 
   const ativos = colaboradores.filter((c) => c.status_rh === "ativo");
 
-  // KPIs
-  const colaboradoresAtivos = ativos.length;
-  const folhaSalarial = ativos.reduce((s, c) => s + Number(c.salario_atual || 0), 0);
+  // --- 4 KPIs de headcount/folha (colaboradores ativos, folha salarial, salário médio,
+  // tempo médio de casa) ---
+  //
+  // Esses 4 cards usam uma base PRÓPRIA, separada de `ativos` acima: filtram só por
+  // estrutura organizacional (função/nível/eixo/setor/gestor) e reconstroem quem estava
+  // ativo numa DATA DE REFERÊNCIA — hoje, se nenhum período foi selecionado, ou a data
+  // final do período (`ate`), se foi. Isso é diferente de `ativos` (que reflete o status_rh
+  // ATUAL e, se um período foi selecionado, filtra por quando a pessoa foi ADMITIDA) — essa
+  // segunda base continua intacta e é usada pelos demais gráficos (setor, sexo, faixa
+  // etária, formação etc.), que são deliberadamente um retrato de hoje.
+  const colaboradoresEstrutura = colaboradoresTodos.filter((c) => aplicaFiltrosEstrutura(c, filtros));
+  const dataReferencia = filtros.ate && filtros.ate <= hojeISO ? filtros.ate : hojeISO;
+  const ativosNaReferencia = colaboradoresEstrutura.filter((c) =>
+    estavaAtivoEm(c, desligamentosPorColaborador.get(c.id) ?? [], dataReferencia),
+  );
+
+  const colaboradoresAtivos = ativosNaReferencia.length;
+
+  // Folha salarial: soma de `salario_atual` (salário vigente cadastrado, sem encargos nem
+  // benefícios) dos ativos na data de referência. Salário ausente (null) conta 0 na soma,
+  // mas é sinalizado separadamente (`colaboradoresSemSalario`) em vez de silenciosamente
+  // virar zero sem explicação.
+  const colaboradoresComSalario = ativosNaReferencia.filter(
+    (c) => c.salario_atual !== null && c.salario_atual !== undefined,
+  );
+  const colaboradoresSemSalario = ativosNaReferencia.length - colaboradoresComSalario.length;
+  const folhaSalarial = ativosNaReferencia.reduce((s, c) => s + Number(c.salario_atual || 0), 0);
+  // Denominador = só quem tem salário válido no recorte (não o total de ativos) — null =
+  // sem base para cálculo (ninguém com salário cadastrado), não "zero".
+  const salarioMedio =
+    colaboradoresComSalario.length > 0 ? folhaSalarial / colaboradoresComSalario.length : null;
+
+  // Tempo médio de casa: sempre da admissão até HOJE (não até a data de referência), sobre
+  // quem está ativo na data de referência — null = sem base (ninguém ativo no recorte).
+  const tempoMedioDeCasa =
+    ativosNaReferencia.length > 0
+      ? ativosNaReferencia.reduce((s, c) => s + tempoDeCasaFracionario(c.data_admissao, hoje), 0) /
+        ativosNaReferencia.length
+      : null;
+
   const anoAtual = hoje.getFullYear();
   const desligamentosAnoAtualLista = desligamentosTodos.filter(
     (d) => idsPermitidos.has(d.colaborador_id) && d.data.startsWith(String(anoAtual)),
@@ -134,15 +194,13 @@ export function calcularDashboard(
   const desligamentosAnoAtual = desligamentosAnoAtualLista.length;
   // Turnover do ano corrente = desligamentos do ano ÷ headcount médio do ano (início do
   // ano + hoje, ÷ 2) — headcount reconstruído do histórico real, não o headcount de hoje.
+  // null = sem base para cálculo (headcount médio zero), não "0%" (que seria indistinguível
+  // de "ninguém saiu").
   const headcountInicioAnoAtual = headcountEm(colaboradores, desligamentosPorColaborador, `${anoAtual}-01-01`);
   const headcountHoje = headcountEm(colaboradores, desligamentosPorColaborador, hojeISO);
   const headcountMedioAnoAtual = (headcountInicioAnoAtual + headcountHoje) / 2;
-  const turnoverAnoAtual =
-    headcountMedioAnoAtual > 0 ? (desligamentosAnoAtual / headcountMedioAnoAtual) * 100 : 0;
-  const tempoMedioDeCasa =
-    ativos.length > 0
-      ? ativos.reduce((s, c) => s + tempoDeCasaFracionario(c.data_admissao, hoje), 0) / ativos.length
-      : 0;
+  const turnoverAnoAtual: number | null =
+    headcountMedioAnoAtual > 0 ? (desligamentosAnoAtual / headcountMedioAnoAtual) * 100 : null;
 
   // Admissões x desligamentos por ano (todos os anos, ignora período — igual ao padrão
   // já usado em Treinamentos/Evolução Salarial para gráficos de tendência).
@@ -177,13 +235,33 @@ export function calcularDashboard(
     return headcountMedio > 0 ? Math.round((desligadosNoAno / headcountMedio) * 1000) / 10 : 0;
   });
 
-  // Evolução da folha salarial total por ano: aproximação usando o salário ATUAL de quem
-  // já estava ativo/admitido naquele ano (não reconstrói o salário histórico exato).
-  const folhaPorAno = anosOrdenados.map((ano) =>
-    ativos
-      .filter((c) => c.data_admissao <= `${ano}-12-31`)
-      .reduce((s, c) => s + Number(c.salario_atual || 0), 0),
-  );
+  // Evolução da folha salarial total por ano: cada ponto soma o salário ATUAL cadastrado
+  // de quem estava com vínculo ativo naquele ano (reconstruído via admissão + histórico real
+  // de desligamento/reativação — a mesma base de `ativosNaReferencia` acima, só que repetida
+  // pra cada fim de ano). É uma aproximação deliberada (usa o salário de HOJE de cada
+  // pessoa, não reconstrói o salário que ela tinha de fato naquele ano — isso exigiria um
+  // indicador novo de reajustes, fora de escopo aqui) — mas diferente da versão antiga, já
+  // não exclui quem foi desligado depois: alguém que estava ativo em 2022 e saiu em 2024
+  // ainda entra no ponto de 2022 e 2023.
+  const folhaPorAno = anosOrdenados.map((ano) => {
+    const fimAno = ano === String(anoAtual) ? hojeISO : `${ano}-12-31`;
+    return colaboradoresEstrutura
+      .filter((c) => estavaAtivoEm(c, desligamentosPorColaborador.get(c.id) ?? [], fimAno))
+      .reduce((s, c) => s + Number(c.salario_atual || 0), 0);
+  });
+
+  // Variação em R$ e % em relação ao ponto anterior — null no primeiro ano (não há anterior)
+  // ou quando o ponto anterior é zero (sem base pra calcular variação percentual).
+  const folhaPorAnoVariacaoTexto = folhaPorAno.map((valorAtual, i) => {
+    if (i === 0) return null;
+    const anterior = folhaPorAno[i - 1];
+    if (anterior === 0) return null;
+    const diferenca = valorAtual - anterior;
+    const percentual = (diferenca / anterior) * 100;
+    const sinal = diferenca >= 0 ? "+" : "";
+    const verbo = diferenca >= 0 ? "aumentou" : "diminuiu";
+    return `No período, a folha ${verbo} ${formatarMoeda(Math.abs(diferenca))} (${sinal}${percentual.toFixed(1)}%)`;
+  });
 
   const porSetor = agrupar(
     ativos.map((c) => ({ chave: c.setor_nome ?? "Sem setor", id: c.id })),
@@ -229,12 +307,22 @@ export function calcularDashboard(
   return {
     colaboradoresAtivos,
     totalColaboradoresBase: colaboradoresTodos.length,
+    dataReferencia,
+    dataReferenciaRotulo:
+      dataReferencia === hojeISO ? "hoje" : `em ${formatarData(dataReferencia)}`,
     folhaSalarial,
-    salarioMedio: colaboradoresAtivos > 0 ? folhaSalarial / colaboradoresAtivos : 0,
+    salarioMedio,
+    colaboradoresSemSalario,
     turnoverAnoAtual,
     desligamentosAnoAtual,
     desligamentosAnoAtualIds: desligamentosAnoAtualLista.map((d) => d.id),
     tempoMedioDeCasa,
+    // Base dos 4 KPIs acima (headcount/folha/tempo de casa) — ativos NA DATA DE REFERÊNCIA,
+    // não necessariamente quem está ativo hoje. Usada pelos diálogos de detalhe desses 3
+    // cards. `ativos`/`ativosIds` (status_rh atual) continuam existindo à parte, abaixo, só
+    // para os demais gráficos (setor, sexo, faixa etária, tempo de empresa, formação).
+    ativosNaReferenciaIds: ativosNaReferencia.map((c) => c.id),
+    ativosNaReferencia,
     ativosIds: ativos.map((c) => c.id),
     ativos,
     anosOrdenados,
@@ -242,6 +330,7 @@ export function calcularDashboard(
     desligamentosPorAno,
     turnoverPorAno,
     folhaPorAno,
+    folhaPorAnoVariacaoTexto,
     porSetor,
     porSexo,
     porFaixaEtaria,

@@ -33,6 +33,11 @@ export function calcularIndicadores(
   treinamentosTodos: TreinamentoItem[],
   participacoesPeriodo: ParticipacaoItem[],
   participacoesPessoa: ParticipacaoItem[],
+  // População elegível no período: todo mundo que bate os filtros de estrutura (função/
+  // nível/eixo/setor/gestor) E teve vínculo ativo em algum momento do período selecionado —
+  // incluindo quem foi desligado no meio do período, e incluindo quem nunca participou de
+  // nenhum treinamento (denominador da média, não só quem apareceu em `participacoesPeriodo`).
+  colaboradoresElegiveisNoPeriodo: { id: string }[],
 ) {
   const totalParticipantesPorTreinamento = new Map(
     treinamentosTodos.map((t) => [t.id, Math.max(1, t.total_participantes)]),
@@ -42,8 +47,13 @@ export function calcularIndicadores(
 
   const horasTotais = participacoesPeriodo.reduce((s, p) => s + Number(p.carga_horaria || 0), 0);
   const investimentoTotal = participacoesPeriodo.reduce((s, p) => s + custoRateado(p), 0);
-  const colaboradoresUnicos = new Set(participacoesPeriodo.map((p) => p.colaborador_id)).size;
-  const mediaHorasPorColaborador = colaboradoresUnicos > 0 ? horasTotais / colaboradoresUnicos : 0;
+  const colaboradoresParticiparam = new Set(participacoesPeriodo.map((p) => p.colaborador_id)).size;
+  const colaboradoresElegiveis = colaboradoresElegiveisNoPeriodo.length;
+  // null = sem base pra calcular (nenhum colaborador elegível no recorte atual) — não "0h".
+  const mediaHorasPorColaborador =
+    colaboradoresElegiveis > 0 ? horasTotais / colaboradoresElegiveis : null;
+  const percentualParticipacao =
+    colaboradoresElegiveis > 0 ? (colaboradoresParticiparam / colaboradoresElegiveis) * 100 : null;
   const treinamentosRealizados = new Set(participacoesPeriodo.map((p) => p.treinamento_id)).size;
 
   const horasPorCategoria = agruparSoma(
@@ -82,6 +92,9 @@ export function calcularIndicadores(
     horasTotais,
     investimentoTotal,
     mediaHorasPorColaborador,
+    colaboradoresElegiveis,
+    colaboradoresParticiparam,
+    percentualParticipacao,
     treinamentosRealizados,
     horasPorCategoria,
     investimentoPorCategoria,

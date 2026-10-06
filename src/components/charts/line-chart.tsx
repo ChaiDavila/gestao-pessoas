@@ -18,11 +18,16 @@ export function LineChart({
   labels,
   valores,
   formatarValor,
+  linhaExtraTooltip,
   aoClicarPonto,
 }: {
   labels: string[];
   valores: number[];
   formatarValor?: (v: number) => string;
+  // Segunda linha do tooltip por ponto (ex.: variação % em relação ao ponto anterior) —
+  // retorna null quando não houver o que mostrar naquele ponto (ex.: primeiro ponto, sem
+  // anterior pra comparar).
+  linhaExtraTooltip?: (index: number) => string | null;
   aoClicarPonto?: (index: number) => void;
 }) {
   const data = {
@@ -64,8 +69,12 @@ export function LineChart({
         ...OPCOES_BASE.plugins.tooltip,
         callbacks: formatarValor
           ? {
-              label: (ctx: { parsed: { y: number | null } }) =>
-                formatarValor(ctx.parsed.y ?? 0),
+              label: (ctx: { parsed: { y: number | null }; dataIndex: number }) => {
+                const linhas = [formatarValor(ctx.parsed.y ?? 0)];
+                const extra = linhaExtraTooltip?.(ctx.dataIndex);
+                if (extra) linhas.push(extra);
+                return linhas;
+              },
             }
           : undefined,
       },
