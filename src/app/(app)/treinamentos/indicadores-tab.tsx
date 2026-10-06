@@ -41,7 +41,7 @@ export function IndicadoresTab({
           label="Horas de treinamento"
           valor={`${indicadores.horasTotais.toLocaleString("pt-BR")}h`}
           subtitulo={`no ${periodoRotulo} · soma por participante (não é curso único)`}
-          explicacao="Soma da carga horária de cada curso, uma vez por participante — um curso de 4h com 5 participantes entra como 20 horas-pessoa, não 4h. População: todas as participações de colaboradores elegíveis (função/nível/eixo/setor/gestor filtrados) no período selecionado."
+          explicacao="Soma da carga horária por participante (não por curso único)."
           accent
         />
         <StatTile
@@ -51,19 +51,19 @@ export function IndicadoresTab({
             (v) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h`,
           )}
           subtitulo={`no ${periodoRotulo} · ${indicadores.colaboradoresElegiveis} colaborador(es) elegível(is)`}
-          explicacao="Horas-pessoa do período ÷ todos os colaboradores elegíveis no recorte, incluindo quem não participou de nenhum treinamento — elegível = vínculo ativo em algum momento do período (mesmo quem foi desligado no meio dele), não só quem está ativo hoje."
+          explicacao="Horas-pessoa ÷ todos os elegíveis no período, incluindo quem não participou."
         />
         <StatTile
           label="Participação em treinamentos"
           valor={`${indicadores.colaboradoresParticiparam} de ${indicadores.colaboradoresElegiveis}`}
           subtitulo={formatarPercentual(indicadores.percentualParticipacao)}
-          explicacao="Quantos colaboradores elegíveis (vínculo ativo em algum momento do período, respeitando os filtros) participaram de ao menos um treinamento — cada pessoa é contada uma única vez, mesmo tendo feito vários cursos."
+          explicacao="Colaboradores elegíveis que fizeram ao menos 1 treinamento, cada um contado uma vez."
         />
         <StatTile
           label="Investimento total"
           valor={formatarMoeda(indicadores.investimentoTotal) ?? "R$ 0,00"}
           subtitulo={`no ${periodoRotulo} · custo rateado entre participantes`}
-          explicacao="Custo de cada treinamento é rateado igualmente entre os participantes reais dele (não só quem passa no filtro) — a soma das parcelas sempre fecha com o custo total cadastrado. Filtrar por setor/pessoa mostra a fração do gasto atribuível àquele recorte."
+          explicacao="Custo rateado entre os participantes reais de cada curso."
         />
         <StatTile
           label="Treinamentos realizados"

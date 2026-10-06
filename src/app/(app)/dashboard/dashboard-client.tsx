@@ -86,7 +86,7 @@ export function DashboardClient({
           label="Colaboradores ativos"
           valor={String(dados.colaboradoresAtivos)}
           subtitulo={`Vínculos ativos ${dados.dataReferenciaRotulo} · ${dados.totalColaboradoresBase} na base total`}
-          explicacao="População: colaboradores que batem os filtros de função/nível/eixo/setor/gestor selecionados. Conta quem tinha vínculo ativo (admitido e ainda não desligado, ou já reativado) na data de referência — reconstruído a partir do histórico de admissão e desligamento, não apenas o status atual."
+          explicacao="Vínculos ativos na data de referência, reconstruído pelo histórico de admissão/desligamento (não só o status atual)."
           onClick={() => abrirColaboradores("Colaboradores ativos", dados.ativosNaReferenciaIds)}
           accent
         />
@@ -96,7 +96,7 @@ export function DashboardClient({
           subtitulo={`${dados.dataReferenciaRotulo === "hoje" ? "Hoje" : dados.dataReferenciaRotulo[0].toUpperCase() + dados.dataReferenciaRotulo.slice(1)} · Salário médio: ${
             dados.salarioMedio === null ? "Sem base para cálculo" : (formatarMoeda(dados.salarioMedio) ?? "—")
           }${dados.colaboradoresSemSalario > 0 ? ` · ${dados.colaboradoresSemSalario} sem salário cadastrado` : ""}`}
-          explicacao="Soma do salário vigente (cadastrado) dos colaboradores ativos na data de referência, respeitando os filtros — representa só os salários lançados no sistema, sem encargos nem benefícios. Salário médio = essa soma ÷ quantidade de ativos com salário cadastrado (quem não tem salário lançado é sinalizado à parte, não vira zero silenciosamente)."
+          explicacao="Soma dos salários cadastrados dos ativos na data de referência — sem encargos nem benefícios."
           onClick={() =>
             abrirColaboradores(
               "Folha salarial",
@@ -110,7 +110,7 @@ export function DashboardClient({
           label="Turnover do ano corrente"
           valor={formatarPercentual(dados.turnoverAnoAtual)}
           subtitulo={`${dados.desligamentosAnoAtual} desligamento(s) no ano`}
-          explicacao="Desligamentos do ano corrente ÷ headcount médio do ano (headcount no início do ano + headcount hoje, ÷ 2) — headcount reconstruído do histórico real de admissão/desligamento/reativação. Sem colaboradores na base, mostra 'Sem base para cálculo' em vez de 0%."
+          explicacao="Desligamentos do ano ÷ headcount médio do ano (reconstruído pelo histórico real)."
           onClick={() =>
             abrirDesligamentos("Desligamentos no ano corrente", dados.desligamentosAnoAtualIds)
           }
@@ -119,7 +119,7 @@ export function DashboardClient({
           label="Tempo médio de casa"
           valor={dados.tempoMedioDeCasa === null ? "Sem base para cálculo" : `${dados.tempoMedioDeCasa.toFixed(1)} anos`}
           subtitulo={`Colaboradores ativos ${dados.dataReferenciaRotulo}`}
-          explicacao="Média, em anos, do tempo entre a admissão e hoje, para os colaboradores ativos na data de referência (respeitando os filtros) — a duração é sempre contada até hoje, mesmo que a data de referência seja no passado."
+          explicacao="Média de admissão até hoje, para os ativos na data de referência."
           onClick={() =>
             abrirColaboradores(
               "Tempo médio de casa",
