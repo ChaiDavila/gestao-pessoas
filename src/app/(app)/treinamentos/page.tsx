@@ -10,6 +10,7 @@ import { getColaboradoresDashboard, getDesligamentosDashboard } from "@/lib/data
 import { exigirAcessoTela } from "@/lib/auth";
 import { resolverPeriodo } from "@/lib/date";
 import { agruparDesligamentosPorColaborador, estevaAtivoEmAlgumMomento } from "@/lib/headcount";
+import { InfoBanner } from "@/components/info-banner";
 import { PeriodoFilter } from "./periodo-filter";
 import { TreinamentosFilters } from "./filters";
 import { TreinamentosClient } from "./treinamentos-client";
@@ -83,18 +84,38 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
       .map((c) => c.id),
   );
 
-  const participacoesPessoa = participacoesTodas.filter((p) => idsPermitidos.has(p.colaborador_id));
+  // Treinamentos realizados (Gerais, Indicadores, Por colaborador) filtram por função/
+  // nível/eixo/setor/gestor VIGENTES NA DATA DO TREINAMENTO, não a estrutura atual do
+  // colaborador — ex.: quem treinou em Produção e depois mudou pra Serviço continua
+  // aparecendo em "Produção" ao filtrar aquele treinamento, não em "Serviço". A view
+  // `vw_treinamento_participantes` já resolve isso (ver migration
+  // rh_historico_estrutura); aqui só aplicamos o filtro em cima do cargo_id/setor_id/etc.
+  // que ela devolve por participação. NR (conformidade) fica de fora de propósito — ver
+  // abaixo — e continua usando a estrutura ATUAL via `idsPermitidos`.
+  function bateEstruturaParticipacao(p: (typeof participacoesTodas)[number]) {
+    if (filtros.cargoId.length && !filtros.cargoId.includes(p.cargo_id ?? "")) return false;
+    if (filtros.nivelId.length && !filtros.nivelId.includes(p.nivel_id ?? "")) return false;
+    if (filtros.eixoId.length && !filtros.eixoId.includes(p.eixo_id ?? "")) return false;
+    if (filtros.setorId.length && !filtros.setorId.includes(p.setor_id ?? "")) return false;
+    if (filtros.gestorId.length && !filtros.gestorId.includes(p.gestor_colaborador_id ?? "")) return false;
+    if (filtros.busca && !p.colaborador_nome.toLowerCase().includes(filtros.busca)) return false;
+    return true;
+  }
+
+  const participacoesPessoa = participacoesTodas.filter(
+    (p) => bateEstruturaParticipacao(p) && (!filtros.status || p.status_rh === filtros.status),
+  );
   const participacoesPeriodo = participacoesPessoa.filter(
     (p) => p.data >= periodo.inicio && p.data <= periodo.fim,
   );
 
-  // População elegível para os INDICADORES (aba "Indicadores" apenas — as demais abas,
-  // focadas em conformidade de hoje, continuam usando `idsPermitidos`/status_rh atual
-  // acima): todo mundo que bate função/nível/eixo/setor/gestor/busca E teve vínculo ativo em
-  // ALGUM momento do período selecionado, reconstruído do histórico real de admissão e
-  // desligamento — não o status_rh atual. Isso inclui quem foi desligado no meio do período
-  // (sem isso, as horas/participação dessa pessoa somem tanto do numerador quanto do
-  // denominador da média, mesmo que ela tenha treinado normalmente enquanto esteve ativa).
+  // População elegível para o DENOMINADOR dos indicadores (aba "Indicadores" apenas): todo
+  // mundo que bate função/nível/eixo/setor/gestor/busca (estrutura ATUAL — não há uma única
+  // "estrutura histórica" válida pra uma pessoa ao longo de um período inteiro) E teve
+  // vínculo ativo em ALGUM momento do período selecionado, reconstruído do histórico real
+  // de admissão e desligamento — não o status_rh atual. Isso inclui quem foi desligado no
+  // meio do período (sem isso, a participação dessa pessoa some do denominador da média,
+  // mesmo que ela tenha treinado normalmente enquanto esteve ativa).
   const idsEstrutura = new Set(colaboradoresTodos.filter(bateFiltrosEstrutura).map((c) => c.id));
   const desligamentosPorColaborador = agruparDesligamentosPorColaborador(desligamentosTodos);
   const colaboradoresElegiveisNoPeriodo = colaboradoresTodos.filter(
@@ -102,14 +123,17 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
       idsEstrutura.has(c.id) &&
       estevaAtivoEmAlgumMomento(c, desligamentosPorColaborador.get(c.id) ?? [], periodo.inicio, periodo.fim),
   );
-  const participacoesIndicadoresPeriodo = participacoesTodas.filter(
-    (p) => idsEstrutura.has(p.colaborador_id) && p.data >= periodo.inicio && p.data <= periodo.fim,
+  // Numerador dos indicadores: mesma estrutura histórica por participação acima, mas sem o
+  // filtro de status (igual ao denominador, pra não sumir com quem foi desligado no meio
+  // do período).
+  const participacoesIndicadoresPessoa = participacoesTodas.filter(bateEstruturaParticipacao);
+  const participacoesIndicadoresPeriodo = participacoesIndicadoresPessoa.filter(
+    (p) => p.data >= periodo.inicio && p.data <= periodo.fim,
   );
-  const participacoesIndicadoresPessoa = participacoesTodas.filter((p) => idsEstrutura.has(p.colaborador_id));
 
-  // Treinamentos obrigatórios (NR) nunca respeitam o filtro de período: a situação de
-  // conformidade de cada pessoa sempre olha o curso mais recente dela, não o recorte
-  // selecionado na tela — ver InfoBanner da aba NR.
+  // Treinamentos obrigatórios (NR) nunca respeitam o filtro de período, e usam a estrutura
+  // ATUAL do colaborador (não a de quando ele fez o curso): a situação de conformidade é
+  // sempre sobre quem precisa de quê HOJE — ver InfoBanner da aba NR.
   const nrPorColaboradorPessoa = nrPorColaboradorTodos.filter((n) => idsPermitidos.has(n.colaborador_id));
 
   const idsTreinamentoComParticipantePessoa = new Set(participacoesPessoa.map((p) => p.treinamento_id));
@@ -137,6 +161,14 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
       <div className="rounded-lg border border-border bg-card p-4">
         <TreinamentosFilters opcoes={opcoes} />
       </div>
+
+      <InfoBanner>
+        Nas abas Indicadores, Treinamentos gerais e Por colaborador, os
+        filtros de função/nível/eixo/setor/gestor usam a estrutura{" "}
+        <strong>vigente na data do treinamento</strong> a partir de
+        06/10/2026. Já a aba Treinamentos obrigatórios (NR) sempre usa a
+        estrutura atual, pois é sobre quem precisa de quê hoje.
+      </InfoBanner>
 
       <TreinamentosClient
         treinamentosTodos={treinamentosTodos}

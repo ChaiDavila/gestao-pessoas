@@ -107,7 +107,10 @@ export default async function DesligamentosPage({ searchParams }: PageProps) {
         tela Colaboradores (ação rápida na linha) e na ficha individual. Os
         cards, o gráfico por setor e a tabela abaixo respeitam o período
         selecionado acima. Os dois gráficos de evolução por ano (quantidade e
-        taxa de turnover) são sempre o histórico completo.
+        taxa de turnover) são sempre o histórico completo. Os filtros de
+        função/nível/eixo/setor/gestor usam a estrutura{" "}
+        <strong>vigente na data do desligamento</strong> a partir de
+        06/10/2026.
       </InfoBanner>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -122,9 +122,10 @@ export default async function EvolucaoSalarialPage({
       </div>
 
       <InfoBanner>
-        O período (De/Até) filtra pela <strong>data da alteração</strong> de
-        cargo/salário — os demais filtros continuam se referindo aos dados
-        atuais do colaborador.
+        Os filtros de função/nível/eixo/setor/gestor usam a estrutura{" "}
+        <strong>vigente na data da alteração</strong> (não a atual do
+        colaborador) a partir de 06/10/2026 — lançamentos anteriores a essa
+        data usam o cadastro atual como aproximação.
       </InfoBanner>
 
       <div className="rounded-lg border border-border bg-card p-4">

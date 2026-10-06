@@ -131,10 +131,58 @@ export async function atualizarColaborador(
     return { error: pessoaError.message };
   }
 
+  const { data: estruturaAtual, error: estruturaError } = await supabase
+    .schema("rh")
+    .from("colaboradores")
+    .select("cargo_id, nivel_id, eixo_id, setor_id, gestor_colaborador_id")
+    .eq("id", colaboradorId)
+    .single();
+
+  if (estruturaError || !estruturaAtual) {
+    return { error: estruturaError?.message ?? "Colaborador não encontrado." };
+  }
+
+  const camposRh = colaboradorCamposRh(dados);
+  const estruturaMudou =
+    estruturaAtual.cargo_id !== camposRh.cargo_id ||
+    estruturaAtual.nivel_id !== camposRh.nivel_id ||
+    estruturaAtual.eixo_id !== camposRh.eixo_id ||
+    estruturaAtual.setor_id !== camposRh.setor_id ||
+    estruturaAtual.gestor_colaborador_id !== camposRh.gestor_colaborador_id;
+
+  // Função/nível/eixo/setor/gestor mudaram: registra a vigência de hoje ANTES de
+  // sobrescrever o cadastro, preservando o que valia antes (usado pelas consultas
+  // históricas de Treinamentos/Evolução Salarial/Desligamentos — ver
+  // rh.estrutura_vigente_em). Sempre com a data de hoje: não há campo no formulário de
+  // edição pra informar uma vigência retroativa.
+  if (estruturaMudou) {
+    const unidadeId = await getUnidadeIdPadrao();
+    const { error: historicoError } = await supabase
+      .schema("rh")
+      .from("historico_estrutura_organizacional")
+      .upsert(
+        {
+          unidade_id: unidadeId,
+          colaborador_id: colaboradorId,
+          data_vigencia: new Date().toISOString().slice(0, 10),
+          cargo_id: camposRh.cargo_id,
+          nivel_id: camposRh.nivel_id,
+          eixo_id: camposRh.eixo_id,
+          setor_id: camposRh.setor_id,
+          gestor_colaborador_id: camposRh.gestor_colaborador_id,
+        },
+        { onConflict: "colaborador_id,data_vigencia" },
+      );
+
+    if (historicoError) {
+      return { error: historicoError.message };
+    }
+  }
+
   const { error: colaboradorError } = await supabase
     .schema("rh")
     .from("colaboradores")
-    .update(colaboradorCamposRh(dados))
+    .update(camposRh)
     .eq("id", colaboradorId);
 
   if (colaboradorError) {
