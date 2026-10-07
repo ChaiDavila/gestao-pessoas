@@ -11,9 +11,15 @@ import { StatusBadge } from "@/components/status-badge";
 import { InfoBanner } from "@/components/info-banner";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { formatarData, hojeISO } from "@/lib/date";
-import { situacaoVencimento } from "@/lib/vencimento";
+import { situacaoVencimento, type SituacaoVencimento } from "@/lib/vencimento";
 import type { NrColaboradorItem } from "@/lib/data/treinamentos";
-import { registrarNrLote, renovarNr, atualizarRegistroNr } from "./actions";
+import {
+  registrarNrLote,
+  renovarNr,
+  atualizarRegistroNr,
+  atualizarAcompanhamentoNr,
+  ativarAcompanhamentoNrNovo,
+} from "./actions";
 import type { TreinamentoFormState } from "./actions";
 import { SelecaoParticipantes } from "./selecao-participantes";
 
@@ -27,10 +33,20 @@ function peso(tone: string | undefined) {
   return 0;
 }
 
+// "Sem registro" é uma pendência (curso acompanhado que nunca foi feito) — diferente de
+// não ter badge nenhum. Só se aplica a itens com acompanhar=true; itens desativados têm
+// seu próprio rótulo ("Sem acompanhamento"), tratado à parte na renderização.
+function situacaoNr(item: NrColaboradorItem): SituacaoVencimento {
+  if (!item.treinamento_id) return { tone: "danger", texto: "Sem registro" };
+  return situacaoVencimento(item.data_vencimento) ?? { tone: "success", texto: "Sem vencimento" };
+}
+
 function piorSituacaoDoColaborador(entradas: NrColaboradorItem[]) {
-  return entradas
-    .map((e) => ({ item: e, situacao: situacaoVencimento(e.data_vencimento) }))
-    .sort((a, b) => peso(b.situacao?.tone) - peso(a.situacao?.tone))[0];
+  const acompanhadas = entradas.filter((e) => e.acompanhar);
+  if (acompanhadas.length === 0) return undefined;
+  return acompanhadas
+    .map((e) => ({ item: e, situacao: situacaoNr(e) }))
+    .sort((a, b) => peso(b.situacao.tone) - peso(a.situacao.tone))[0];
 }
 
 export function NrTab({
@@ -75,23 +91,30 @@ export function NrTab({
   const kpis = useMemo(() => {
     let emDia = 0;
     let pendente = 0;
+    let comAcompanhamento = 0;
     for (const [, info] of porColaborador) {
       const pior = piorSituacaoDoColaborador(info.entradas);
-      if (peso(pior?.situacao?.tone) <= 1) emDia++;
+      // Sem nenhuma NR acompanhada (função não exige nada, ou tudo foi desligado
+      // manualmente) não entra em nenhum dos dois buckets — não é pendência.
+      if (!pior) continue;
+      comAcompanhamento++;
+      if (peso(pior.situacao.tone) <= 1) emDia++;
       else pendente++;
     }
-    const semRegistro = Math.max(0, colaboradoresNoFiltro.length - porColaborador.length);
+    const semAcompanhamento = Math.max(0, colaboradoresNoFiltro.length - comAcompanhamento);
     const cursosARenovar = nrPorColaborador.filter((n) => {
+      if (!n.acompanhar || !n.treinamento_id) return false;
       const s = situacaoVencimento(n.data_vencimento);
       return s?.tone === "danger" || s?.tone === "warning";
     }).length;
-    return { emDia, pendente, semRegistro, cursosARenovar };
+    return { emDia, pendente, semAcompanhamento, cursosARenovar };
   }, [porColaborador, nrPorColaborador, colaboradoresNoFiltro]);
 
   const timeline = useMemo(() => {
     const vencidos: NrColaboradorItem[] = [];
     const porMes = new Map<string, NrColaboradorItem[]>();
     for (const n of nrPorColaborador) {
+      if (!n.acompanhar) continue;
       // Cursos sem vencimento cadastrado não entram na linha do tempo (não há prazo pra
       // acompanhar) — ficam visíveis só na Lista.
       if (!n.data_vencimento) continue;
@@ -115,13 +138,14 @@ export function NrTab({
   return (
     <div className="space-y-4">
       <InfoBanner>
-        Controle de validade das NRs, no mesmo modelo da planilha &quot;Controle
-        de validade de NRs&quot; que a COONTROL já usa: uma linha por
-        colaborador, com o status de cada curso calculado automaticamente a
-        partir do registro mais recente de cada NR — o filtro de{" "}
-        <strong>Período</strong> no topo da tela não esconde NRs vencidas
-        antigas, ele só filtra por função/setor/gestor/status etc. A lista de
-        cursos e a periodicidade de cada um são cadastradas em{" "}
+        Controle de validade das NRs: uma linha por colaborador, com o status
+        de cada curso calculado a partir do registro mais recente — o filtro
+        de <strong>Período</strong> não esconde NRs vencidas antigas. Cada NR
+        tem um <strong>acompanhamento</strong> próprio (ligado automaticamente
+        quando a função exige, editável a qualquer momento): desligar não
+        apaga o curso nem o certificado, só tira aquela NR dos alertas e
+        indicadores — útil quando a pessoa muda de função e ela deixa de
+        precisar renovar. A matriz de NR por função fica em{" "}
         <strong>Configurações → Treinamentos</strong>.
       </InfoBanner>
 
@@ -164,12 +188,12 @@ export function NrTab({
         <StatTile
           label="Colaboradores com NR pendente"
           valor={String(kpis.pendente)}
-          subtitulo="vencida ou a vencer"
+          subtitulo="vencida, a vencer ou sem registro"
         />
         <StatTile
-          label="Sem nenhuma NR registrada"
-          valor={String(kpis.semRegistro)}
-          subtitulo="pode ser lacuna de conformidade"
+          label="Sem nenhuma NR acompanhada"
+          valor={String(kpis.semAcompanhamento)}
+          subtitulo="função não exige, ou foi desligado manualmente"
         />
         <StatTile
           label="Cursos a renovar"
@@ -201,6 +225,7 @@ export function NrTab({
                   cargoNome={info.cargo_nome}
                   setorNome={info.setor_nome}
                   entradas={info.entradas}
+                  nrsCatalogo={nrsCatalogo}
                 />
               ))}
               {porColaborador.length === 0 && (
@@ -252,22 +277,26 @@ function LinhaColaborador({
   cargoNome,
   setorNome,
   entradas,
+  nrsCatalogo,
 }: {
   colaboradorId: string;
   nome: string;
   cargoNome: string | null;
   setorNome: string | null;
   entradas: NrColaboradorItem[];
+  nrsCatalogo: NrCatalogo[];
 }) {
   const [aberto, setAberto] = useState(false);
   const [renovandoRapido, setRenovandoRapido] = useState(false);
   const pior = piorSituacaoDoColaborador(entradas);
-  const temPendencia = peso(pior?.situacao?.tone) >= 2;
-  const proximaPendenciaTexto = pior?.situacao
+  const temPendencia = pior ? peso(pior.situacao.tone) >= 2 : false;
+  const proximaPendenciaTexto = pior
     ? `${pior.item.nr} — ${pior.item.nr_nome}${
         pior.item.data_vencimento ? ` · vence ${formatarData(pior.item.data_vencimento)}` : ""
       }`
     : "—";
+  const nrsJaPresentes = new Set(entradas.map((e) => e.nr_numero));
+  const nrsDisponiveis = nrsCatalogo.filter((n) => !nrsJaPresentes.has(n.id));
 
   return (
     <>
@@ -345,6 +374,11 @@ function LinhaColaborador({
                 ))}
               </tbody>
             </table>
+            {nrsDisponiveis.length > 0 && (
+              <div className="mt-3">
+                <AcompanharNovaNr colaboradorId={colaboradorId} opcoes={nrsDisponiveis} />
+              </div>
+            )}
           </td>
         </tr>
       )}
@@ -360,7 +394,15 @@ function LinhaNr({
   colaboradorId: string;
 }) {
   const [modo, setModo] = useState<"nenhum" | "editando" | "renovando">("nenhum");
-  const situacao = situacaoVencimento(item.data_vencimento);
+  const [pendente, setPendente] = useState(false);
+  const situacao = situacaoNr(item);
+
+  function alternarAcompanhamento() {
+    setPendente(true);
+    atualizarAcompanhamentoNr(item.acompanhamento_id, !item.acompanhar).finally(() =>
+      setPendente(false),
+    );
+  }
 
   return (
     <>
@@ -373,23 +415,37 @@ function LinhaNr({
           {formatarData(item.data_vencimento)}
         </td>
         <td className="py-2">
-          {situacao && <StatusBadge tone={situacao.tone}>{situacao.texto}</StatusBadge>}
+          {item.acompanhar ? (
+            <StatusBadge tone={situacao.tone}>{situacao.texto}</StatusBadge>
+          ) : (
+            <StatusBadge tone="neutral">Sem acompanhamento</StatusBadge>
+          )}
         </td>
         <td className="py-2 text-right">
           <div className="flex justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setModo(modo === "editando" ? "nenhum" : "editando")}
-            >
-              Editar
-            </Button>
+            {item.treinamento_id && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setModo(modo === "editando" ? "nenhum" : "editando")}
+              >
+                Editar
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setModo(modo === "renovando" ? "nenhum" : "renovando")}
             >
               Renovar
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={pendente}
+              onClick={alternarAcompanhamento}
+            >
+              {item.acompanhar ? "Desativar acompanhamento" : "Ativar acompanhamento"}
             </Button>
           </div>
         </td>
@@ -413,6 +469,51 @@ function LinhaNr({
         </tr>
       )}
     </>
+  );
+}
+
+// Liga o acompanhamento de uma NR que a função do colaborador não exige (ou ainda não foi
+// feita) — pra quando alguém quer monitorar uma certificação extra mesmo sem ser exigência.
+function AcompanharNovaNr({
+  colaboradorId,
+  opcoes,
+}: {
+  colaboradorId: string;
+  opcoes: NrCatalogo[];
+}) {
+  const [nrId, setNrId] = useState("");
+  const [pendente, setPendente] = useState(false);
+
+  function ativar() {
+    if (!nrId) return;
+    setPendente(true);
+    ativarAcompanhamentoNrNovo(colaboradorId, nrId).finally(() => {
+      setPendente(false);
+      setNrId("");
+    });
+  }
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="w-64 space-y-1">
+        <Label htmlFor={`nova_nr_${colaboradorId}`}>Acompanhar outra NR</Label>
+        <NativeSelect
+          id={`nova_nr_${colaboradorId}`}
+          value={nrId}
+          onChange={(e) => setNrId(e.target.value)}
+        >
+          <option value="">Selecione...</option>
+          {opcoes.map((n) => (
+            <option key={n.id} value={n.id}>
+              {n.nr} — {n.nome}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+      <Button type="button" size="sm" variant="outline" disabled={!nrId || pendente} onClick={ativar}>
+        {pendente ? "Ativando..." : "Ativar"}
+      </Button>
+    </div>
   );
 }
 
@@ -580,8 +681,10 @@ function FormularioEditarNr({
   item: NrColaboradorItem;
   aoSalvar: () => void;
 }) {
+  // Só renderizado quando item.treinamento_id existe (ver guarda em LinhaNr) — não há o
+  // que editar num item "Sem registro".
   const [state, formAction, pending] = useActionState<TreinamentoFormState, FormData>(
-    atualizarRegistroNr.bind(null, item.treinamento_id, item.colaborador_id),
+    atualizarRegistroNr.bind(null, item.treinamento_id!, item.colaborador_id),
     undefined,
   );
 
@@ -602,7 +705,7 @@ function FormularioEditarNr({
       )}
       <div className="space-y-1">
         <Label htmlFor="ed_data">Data de realização</Label>
-        <Input id="ed_data" name="data" type="date" required defaultValue={item.data} />
+        <Input id="ed_data" name="data" type="date" required defaultValue={item.data ?? hojeISO()} />
       </div>
       <div className="space-y-1">
         <Label htmlFor="ed_carga">Carga horária</Label>
@@ -612,7 +715,7 @@ function FormularioEditarNr({
           type="number"
           step="0.5"
           required
-          defaultValue={item.carga_horaria}
+          defaultValue={item.carga_horaria ?? ""}
         />
       </div>
       <div className="space-y-1">

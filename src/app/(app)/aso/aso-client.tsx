@@ -29,6 +29,8 @@ import {
   adicionarExameComplementar,
   atualizarExameComplementar,
   removerExameComplementar,
+  atualizarAcompanhamentoExame,
+  ativarAcompanhamentoExameNovo,
 } from "./actions";
 import type { AsoFormState } from "./actions";
 
@@ -81,7 +83,9 @@ type LinhaResumo = {
 // Toda pessoa entra com pelo menos a linha "ASO" (mesmo sem nenhum registro — nesse caso
 // entra como "Nunca registrado", já que ASO admissional é obrigatório pra todo CLT), então
 // o "pior" nunca fica indefinido e a situação geral sempre reflete a real pendência, mesmo
-// de quem não tem nenhum exame complementar exigido pelo PGR.
+// de quem não tem nenhum exame complementar exigido pelo PGR. Exames com acompanhamento
+// desligado não entram aqui (não contam pra situação geral nem pros indicadores), mas
+// continuam visíveis no detalhe do colaborador — ver g.pgrItens (sem filtro) em LinhaColaborador.
 function linhasResumoDoGrupo(g: Grupo): LinhaResumo[] {
   const linhas: LinhaResumo[] = [];
   const a = g.asoItens[0] ?? null;
@@ -94,6 +98,7 @@ function linhasResumoDoGrupo(g: Grupo): LinhaResumo[] {
       : { tone: "danger", texto: "Nunca registrado" },
   });
   for (const p of g.pgrItens) {
+    if (!p.acompanhar) continue;
     linhas.push({
       nome: p.exame_nome,
       data: p.data,
@@ -221,6 +226,7 @@ export function AsoClient({
         });
       }
       for (const p of g.pgrItens) {
+        if (!p.acompanhar) continue;
         const s = situacaoPgr(p);
         // Exame só-admissão nunca registrado não tem vencimento correndo — não faz sentido
         // aparecer na linha do tempo (nem em "sem vencimento"), só no detalhe do colaborador.
@@ -267,7 +273,11 @@ export function AsoClient({
       <InfoBanner>
         A lista de qual exame cada função exige, e com que periodicidade, é definida
         em <strong>Configurações → ASO e PGR → Exames exigidos por função (PGR)</strong>.
-        Clique num colaborador para ver o detalhe; o histórico completo de exames
+        Cada exame complementar tem um <strong>acompanhamento</strong> próprio
+        (ligado automaticamente quando a função exige): desligar não apaga o
+        exame nem o resultado, só tira da lista de pendências — útil quando a
+        pessoa muda de função e aquele exame deixa de ser exigido. Clique num
+        colaborador para ver o detalhe; o histórico completo de exames
         antigos fica na ficha do colaborador, aba &quot;Exames ocupacionais&quot;.
         Quem tem um tipo de contrato marcado como isento (ex.: PJ, Estágio) nem
         aparece aqui — ajuste em <strong>Configurações → ASO e PGR → Exigência de
@@ -560,7 +570,7 @@ function LinhaColaborador({
                   )}
                 </tbody>
               </table>
-              <div className="mt-2">
+              <div className="mt-2 flex flex-wrap items-end gap-3">
                 <PainelAdicionar rotulo="+ Registrar exame complementar">
                   {(fechar) => (
                     <FormularioExameComplementar
@@ -570,6 +580,12 @@ function LinhaColaborador({
                     />
                   )}
                 </PainelAdicionar>
+                <AcompanharNovoExame
+                  colaboradorId={grupo.colaboradorId}
+                  opcoes={tiposExame.filter(
+                    (t) => !grupo.pgrItens.some((p) => p.exame_id === t.id),
+                  )}
+                />
               </div>
             </div>
           </td>
@@ -753,6 +769,53 @@ function FormularioEditarAso({
   );
 }
 
+// Liga o acompanhamento de um exame complementar que a função não exige (certificação/
+// exame extra que alguém quer monitorar mesmo sem ser exigência do PGR).
+function AcompanharNovoExame({
+  colaboradorId,
+  opcoes,
+}: {
+  colaboradorId: string;
+  opcoes: { id: string; nome: string }[];
+}) {
+  const [exameId, setExameId] = useState("");
+  const [pendente, setPendente] = useState(false);
+
+  if (opcoes.length === 0) return null;
+
+  function ativar() {
+    if (!exameId) return;
+    setPendente(true);
+    ativarAcompanhamentoExameNovo(colaboradorId, exameId).finally(() => {
+      setPendente(false);
+      setExameId("");
+    });
+  }
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="w-64 space-y-1">
+        <Label htmlFor={`novo_exame_${colaboradorId}`}>Acompanhar outro exame</Label>
+        <NativeSelect
+          id={`novo_exame_${colaboradorId}`}
+          value={exameId}
+          onChange={(e) => setExameId(e.target.value)}
+        >
+          <option value="">Selecione...</option>
+          {opcoes.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.nome}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+      <Button type="button" size="sm" variant="outline" disabled={!exameId || pendente} onClick={ativar}>
+        {pendente ? "Ativando..." : "Ativar"}
+      </Button>
+    </div>
+  );
+}
+
 function LinhaPgr({
   item,
   situacao,
@@ -763,6 +826,14 @@ function LinhaPgr({
   colaboradorId: string;
 }) {
   const [modo, setModo] = useState<"nenhum" | "editando" | "registrando">("nenhum");
+  const [pendente, setPendente] = useState(false);
+
+  function alternarAcompanhamento() {
+    setPendente(true);
+    atualizarAcompanhamentoExame(item.acompanhamento_id, !item.acompanhar).finally(() =>
+      setPendente(false),
+    );
+  }
 
   return (
     <>
@@ -775,7 +846,11 @@ function LinhaPgr({
           {item.data_vencimento ? formatarData(item.data_vencimento) : "—"}
         </td>
         <td className="py-2">
-          <StatusBadge tone={situacao.tone}>{situacao.texto}</StatusBadge>
+          {item.acompanhar ? (
+            <StatusBadge tone={situacao.tone}>{situacao.texto}</StatusBadge>
+          ) : (
+            <StatusBadge tone="neutral">Sem acompanhamento</StatusBadge>
+          )}
         </td>
         <td className="py-2 text-right">
           <div className="flex items-center justify-end gap-2">
@@ -798,6 +873,9 @@ function LinhaPgr({
             {item.registro_id && (
               <BotaoRemover action={() => removerExameComplementar(item.registro_id!)} />
             )}
+            <Button variant="ghost" size="sm" disabled={pendente} onClick={alternarAcompanhamento}>
+              {item.acompanhar ? "Desativar acompanhamento" : "Ativar acompanhamento"}
+            </Button>
           </div>
         </td>
       </tr>
@@ -937,6 +1015,10 @@ function FormularioAso({
       <div className="space-y-1">
         <Label htmlFor="aso_vencimento">Vencimento</Label>
         <Input id="aso_vencimento" name="data_vencimento" type="date" />
+        <p className="text-xs text-muted-foreground">
+          Deixe em branco num ASO periódico pra calcular sozinho pela
+          periodicidade da função (Configurações → ASO e PGR), se configurada.
+        </p>
       </div>
       <div className="col-span-2 flex justify-end">
         <Button type="submit" size="sm" disabled={pending}>

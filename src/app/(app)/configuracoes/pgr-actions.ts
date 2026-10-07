@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
+import { seedAcompanhamentoExameParaFuncao } from "@/lib/data/acompanhamento";
 
 export type PgrFormState = { error: string } | { ok: true } | undefined;
 
@@ -26,8 +27,30 @@ export async function adicionarPgr(
   });
 
   if (error) return { error: error.message };
+
+  await supabase
+    .schema("rh")
+    .from("config_cargos")
+    .update({ exames_matriz_confirmada: false })
+    .eq("id", cargoId);
+
+  await seedAcompanhamentoExameParaFuncao(supabase, unidadeId, cargoId, exameId);
+
   revalidar();
   return { ok: true };
+}
+
+// "Confirmar que esta função não exige nenhum exame complementar" — diferencia de "ainda
+// não configurada" (zero linhas na matriz, sem ninguém ter olhado pra isso ainda).
+export async function definirExamesMatrizConfirmada(cargoId: string, confirmada: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("config_cargos")
+    .update({ exames_matriz_confirmada: confirmada })
+    .eq("id", cargoId);
+  if (error) throw new Error(error.message);
+  revalidar();
 }
 
 export async function removerPgr(id: string) {
@@ -81,6 +104,16 @@ export async function registrarPgrLote(
   if (novos.length > 0) {
     const { error } = await supabase.schema("rh").from("config_exames_por_funcao").insert(novos);
     if (error) return { error: error.message };
+
+    await supabase
+      .schema("rh")
+      .from("config_cargos")
+      .update({ exames_matriz_confirmada: false })
+      .in("id", cargoIds);
+
+    for (const { cargo_id, exame_id } of novos) {
+      await seedAcompanhamentoExameParaFuncao(supabase, unidadeId, cargo_id, exame_id);
+    }
   }
 
   revalidar();

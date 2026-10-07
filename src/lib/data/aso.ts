@@ -16,6 +16,7 @@ export type AsoColaboradorItem = {
 };
 
 export type PgrColaboradorItem = {
+  acompanhamento_id: string;
   colaborador_id: string;
   colaborador_nome: string;
   cargo_id: string | null;
@@ -23,6 +24,7 @@ export type PgrColaboradorItem = {
   setor_id: string | null;
   setor_nome: string | null;
   status_rh: string;
+  acompanhar: boolean;
   exame_id: string;
   exame_nome: string;
   periodicidade_meses: number | null;

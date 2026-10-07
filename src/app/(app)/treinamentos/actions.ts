@@ -7,6 +7,40 @@ import { somarMeses } from "@/lib/date";
 
 export type TreinamentoFormState = { error: string } | { ok: true } | undefined;
 
+// Liga/desliga o acompanhamento de validade de uma NR já presente na ficha do colaborador
+// (curso feito, ou exigido pela função) — nunca apaga o treinamento/certificado, só tira
+// (ou devolve) aquela combinação dos alertas e indicadores de pendência.
+export async function atualizarAcompanhamentoNr(acompanhamentoId: string, acompanhar: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .schema("rh")
+    .from("colaborador_nr_acompanhamento")
+    .update({ acompanhar })
+    .eq("id", acompanhamentoId);
+
+  if (error) throw new Error(error.message);
+  revalidar();
+}
+
+// Começa a acompanhar uma NR que o colaborador ainda não tinha nenhuma linha — curso que a
+// função dele não exige, mas alguém quer monitorar mesmo assim (ex.: certificação extra).
+export async function ativarAcompanhamentoNrNovo(colaboradorId: string, nrCatalogoId: string) {
+  const supabase = await createClient();
+  const unidadeId = await getUnidadeIdPadrao();
+  const { error } = await supabase.schema("rh").from("colaborador_nr_acompanhamento").upsert(
+    {
+      unidade_id: unidadeId,
+      colaborador_id: colaboradorId,
+      nr_catalogo_id: nrCatalogoId,
+      acompanhar: true,
+    },
+    { onConflict: "colaborador_id,nr_catalogo_id" },
+  );
+
+  if (error) throw new Error(error.message);
+  revalidar();
+}
+
 function revalidar() {
   revalidatePath("/treinamentos");
 }
@@ -141,6 +175,28 @@ export async function registrarNrLote(
   if (participantesError) {
     await supabase.schema("rh").from("treinamentos").delete().eq("id", treinamento.id);
     return { error: participantesError.message };
+  }
+
+  // Garante que todo participante tenha uma linha de acompanhamento pra essa NR — só cria
+  // quando ainda não existe nenhuma (acompanhar=true por padrão); nunca sobrescreve uma
+  // escolha manual já feita (nem pra ligar, nem pra desligar).
+  const { data: existentes } = await supabase
+    .schema("rh")
+    .from("colaborador_nr_acompanhamento")
+    .select("colaborador_id")
+    .eq("nr_catalogo_id", nrCatalogoId)
+    .in("colaborador_id", participantes);
+  const jaTem = new Set((existentes ?? []).map((e) => e.colaborador_id));
+  const semAcompanhamento = participantes.filter((id) => !jaTem.has(id));
+  if (semAcompanhamento.length > 0) {
+    await supabase.schema("rh").from("colaborador_nr_acompanhamento").insert(
+      semAcompanhamento.map((colaboradorId) => ({
+        unidade_id: unidadeId,
+        colaborador_id: colaboradorId,
+        nr_catalogo_id: nrCatalogoId,
+        acompanhar: true,
+      })),
+    );
   }
 
   revalidar();

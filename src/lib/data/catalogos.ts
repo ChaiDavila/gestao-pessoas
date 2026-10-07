@@ -40,7 +40,7 @@ export async function getTodosCatalogos() {
     tiposExame,
   ] = await Promise.all([
     listar("config_setores", "id, nome", "nome"),
-    listar("config_cargos", "id, nome, cbo", "nome"),
+    listar("config_cargos", "id, nome, cbo, nr_matriz_confirmada, exames_matriz_confirmada", "nome"),
     listar("config_niveis", "id, nome, ordem", "ordem"),
     listar("config_eixos", "id, nome", "nome"),
     listar("config_motivos_evolucao_salarial", "id, motivo", "motivo"),
@@ -81,4 +81,39 @@ export async function getPgrCompleto() {
 
   if (error) throw new Error(error.message);
   return (data ?? []) as PgrItem[];
+}
+
+export type NrFuncaoItem = {
+  id: string;
+  cargo_id: string;
+  nr_catalogo_id: string;
+};
+
+export async function getNrsPorFuncaoCompleto() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("rh")
+    .from("config_nrs_por_funcao")
+    .select("id, cargo_id, nr_catalogo_id")
+    .eq("ativo", true);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as NrFuncaoItem[];
+}
+
+export type PeriodicidadeAsoItem = {
+  cargo_id: string;
+  periodicidade_meses: number;
+};
+
+export async function getPeriodicidadeAsoPorFuncao() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("rh")
+    .from("config_periodicidade_aso_por_funcao")
+    .select("cargo_id, periodicidade_meses")
+    .eq("ativo", true);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PeriodicidadeAsoItem[];
 }

@@ -4,10 +4,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoBanner } from "@/components/info-banner";
 import { TabelaCatalogo, type ColunaCatalogo } from "./tabela-catalogo";
 import { PgrTab } from "./pgr-tab";
+import { NrFuncaoTab } from "./nr-funcao-tab";
+import { PeriodicidadeAsoTab } from "./periodicidade-aso-tab";
 import { UsuariosTab } from "./usuarios-tab";
 import { ExigenciaAsoTab } from "./exigencia-aso-tab";
 import { BitrixTab } from "./bitrix-tab";
-import type { PgrItem } from "@/lib/data/catalogos";
+import type {
+  PgrItem,
+  NrFuncaoItem,
+  PeriodicidadeAsoItem,
+} from "@/lib/data/catalogos";
 import type { getTodosCatalogos } from "@/lib/data/catalogos";
 import type { UsuarioArea } from "./usuarios-actions";
 import type { ExigenciaAsoItem } from "@/lib/data/colaborador-detalhe";
@@ -61,6 +67,8 @@ type Catalogos = Awaited<ReturnType<typeof getTodosCatalogos>>;
 export function ConfiguracoesClient({
   catalogos,
   pgrItens,
+  nrFuncaoItens,
+  periodicidadeAso,
   usuarios,
   souAdmin,
   usuarioAtualId,
@@ -69,6 +77,8 @@ export function ConfiguracoesClient({
 }: {
   catalogos: Catalogos;
   pgrItens: PgrItem[];
+  nrFuncaoItens: NrFuncaoItem[];
+  periodicidadeAso: PeriodicidadeAsoItem[];
   usuarios: UsuarioArea[];
   souAdmin: boolean;
   usuarioAtualId: string | null;
@@ -79,10 +89,26 @@ export function ConfiguracoesClient({
     id: String(c.id),
     nome: String(c.nome),
   }));
+  const cargosComExamesFlag = catalogos.cargos.map((c) => ({
+    id: String(c.id),
+    nome: String(c.nome),
+    exames_matriz_confirmada: Boolean(c.exames_matriz_confirmada),
+  }));
+  const cargosComNrFlag = catalogos.cargos.map((c) => ({
+    id: String(c.id),
+    nome: String(c.nome),
+    nr_matriz_confirmada: Boolean(c.nr_matriz_confirmada),
+  }));
   const tiposExameOpcoes = catalogos.tiposExame.map((e) => ({
     id: String(e.id),
     nome: String(e.nome),
     periodicidade_meses: e.periodicidade_meses as number | null,
+  }));
+  const nrsCatalogoOpcoes = catalogos.nrsCatalogo.map((n) => ({
+    id: String(n.id),
+    nr: String(n.nr),
+    nome: String(n.nome),
+    periodicidade_meses: n.periodicidade_meses as number | null,
   }));
 
   return (
@@ -169,6 +195,16 @@ export function ConfiguracoesClient({
             itens={catalogos.nrsCatalogo}
           />
         </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="mb-1 text-sm font-semibold text-foreground">
+            NRs exigidas por função
+          </h3>
+          <NrFuncaoTab
+            itens={nrFuncaoItens}
+            cargos={cargosComNrFlag}
+            nrsCatalogo={nrsCatalogoOpcoes}
+          />
+        </div>
       </TabsContent>
 
       <TabsContent value="aso" className="space-y-6 pt-4">
@@ -196,9 +232,20 @@ export function ConfiguracoesClient({
           </h3>
           <PgrTab
             pgrItens={pgrItens}
-            cargos={cargosOpcoes}
+            cargos={cargosComExamesFlag}
             tiposExame={tiposExameOpcoes}
           />
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="mb-1 text-sm font-semibold text-foreground">
+            Periodicidade do ASO periódico por função
+          </h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            ASO periódico é obrigatório pra todo mundo — aqui só se define de quanto em
+            quanto tempo cada função precisa renovar. Função sem periodicidade configurada
+            continua com o vencimento digitado manualmente ao registrar.
+          </p>
+          <PeriodicidadeAsoTab itens={periodicidadeAso} cargos={cargosOpcoes} />
         </div>
       </TabsContent>
 

@@ -43,19 +43,22 @@ export type ParticipacaoItem = {
 };
 
 export type NrColaboradorItem = {
+  acompanhamento_id: string;
   colaborador_id: string;
   colaborador_nome: string;
   setor_id: string | null;
   setor_nome: string | null;
   status_rh: string;
+  acompanhar: boolean;
   nr_numero: string;
   nr: string;
   nr_nome: string;
   periodicidade_meses: number | null;
-  treinamento_id: string;
-  data: string;
+  // Nulos quando o curso é acompanhado mas nunca foi registrado ("Sem registro").
+  treinamento_id: string | null;
+  data: string | null;
   data_vencimento: string | null;
-  carga_horaria: number;
+  carga_horaria: number | null;
   custo_total: number | null;
   instrutor: string | null;
   cargo_id: string | null;

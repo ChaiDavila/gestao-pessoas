@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { colaboradorSchema } from "@/lib/validations/colaborador";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
+import {
+  seedAcompanhamentoNrPorFuncao,
+  seedAcompanhamentoExamePorFuncao,
+} from "@/lib/data/acompanhamento";
 
 export type FormState = { error: string } | { ok: true } | undefined;
 
@@ -89,6 +93,11 @@ export async function criarColaborador(
       error: colaboradorError?.message ?? "Erro ao criar colaborador.",
     };
   }
+
+  // Semeia acompanhamento=true pras NRs/exames que a função dele já exige, desde a
+  // admissão — mesmo sem nenhum treinamento/exame registrado ainda.
+  await seedAcompanhamentoNrPorFuncao(supabase, unidadeId, colaborador.id, dados.cargo_id ?? null);
+  await seedAcompanhamentoExamePorFuncao(supabase, unidadeId, colaborador.id, dados.cargo_id ?? null);
 
   revalidatePath("/colaboradores");
   redirect(`/colaboradores/${colaborador.id}`);
@@ -187,6 +196,15 @@ export async function atualizarColaborador(
 
   if (colaboradorError) {
     return { error: colaboradorError.message };
+  }
+
+  // Função mudou: semeia acompanhamento=true pras NRs/exames que a função NOVA exige e o
+  // colaborador ainda não tinha linha — nunca desliga o que já existia da função anterior
+  // (ver rh/lib/data/acompanhamento.ts).
+  if (estruturaAtual.cargo_id !== camposRh.cargo_id) {
+    const unidadeId = await getUnidadeIdPadrao();
+    await seedAcompanhamentoNrPorFuncao(supabase, unidadeId, colaboradorId, camposRh.cargo_id);
+    await seedAcompanhamentoExamePorFuncao(supabase, unidadeId, colaboradorId, camposRh.cargo_id);
   }
 
   revalidatePath("/colaboradores");

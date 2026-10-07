@@ -1,4 +1,9 @@
-import { getTodosCatalogos, getPgrCompleto } from "@/lib/data/catalogos";
+import {
+  getTodosCatalogos,
+  getPgrCompleto,
+  getNrsPorFuncaoCompleto,
+  getPeriodicidadeAsoPorFuncao,
+} from "@/lib/data/catalogos";
 import { getExigenciaAso } from "@/lib/data/colaborador-detalhe";
 import { getRegrasBitrix } from "@/lib/data/bitrix-regras";
 import { getUsuarioAtual } from "@/lib/auth";
@@ -9,13 +14,16 @@ export default async function ConfiguracoesPage() {
   const usuarioAtual = await getUsuarioAtual();
   const souAdmin = usuarioAtual?.papel === "admin";
 
-  const [catalogos, pgrItens, usuarios, exigenciaAso, regrasBitrix] = await Promise.all([
-    getTodosCatalogos(),
-    getPgrCompleto(),
-    souAdmin ? listarUsuarios() : Promise.resolve([]),
-    getExigenciaAso(),
-    getRegrasBitrix(),
-  ]);
+  const [catalogos, pgrItens, nrFuncaoItens, periodicidadeAso, usuarios, exigenciaAso, regrasBitrix] =
+    await Promise.all([
+      getTodosCatalogos(),
+      getPgrCompleto(),
+      getNrsPorFuncaoCompleto(),
+      getPeriodicidadeAsoPorFuncao(),
+      souAdmin ? listarUsuarios() : Promise.resolve([]),
+      getExigenciaAso(),
+      getRegrasBitrix(),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -33,6 +41,8 @@ export default async function ConfiguracoesPage() {
       <ConfiguracoesClient
         catalogos={catalogos}
         pgrItens={pgrItens}
+        nrFuncaoItens={nrFuncaoItens}
+        periodicidadeAso={periodicidadeAso}
         usuarios={usuarios}
         souAdmin={souAdmin}
         usuarioAtualId={usuarioAtual?.id ?? null}

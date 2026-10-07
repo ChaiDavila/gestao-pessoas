@@ -7,65 +7,66 @@ import { NativeSelect } from "@/components/native-select";
 import { BotaoRemover } from "@/components/botao-remover";
 import { PainelAdicionar } from "@/components/painel-adicionar";
 import { StatusBadge } from "@/components/status-badge";
-import type { PgrItem } from "@/lib/data/catalogos";
+import type { NrFuncaoItem } from "@/lib/data/catalogos";
 import {
-  adicionarPgr,
-  removerPgr,
-  registrarPgrLote,
-  definirExamesMatrizConfirmada,
-} from "./pgr-actions";
-import type { PgrFormState } from "./pgr-actions";
+  adicionarNrFuncao,
+  removerNrFuncao,
+  registrarNrFuncaoLote,
+  definirNrMatrizConfirmada,
+} from "./nr-funcao-actions";
+import type { NrFuncaoFormState } from "./nr-funcao-actions";
 
-type Cargo = { id: string; nome: string; exames_matriz_confirmada: boolean };
-type TipoExame = { id: string; nome: string; periodicidade_meses: number | null };
+type Cargo = { id: string; nome: string; nr_matriz_confirmada: boolean };
+type NrCatalogo = { id: string; nr: string; nome: string; periodicidade_meses: number | null };
 
-export function PgrTab({
-  pgrItens,
+export function NrFuncaoTab({
+  itens,
   cargos,
-  tiposExame,
+  nrsCatalogo,
 }: {
-  pgrItens: PgrItem[];
+  itens: NrFuncaoItem[];
   cargos: Cargo[];
-  tiposExame: TipoExame[];
+  nrsCatalogo: NrCatalogo[];
 }) {
   const porCargo = useMemo(() => {
-    const mapa = new Map<string, PgrItem[]>();
-    for (const p of pgrItens) {
-      if (!mapa.has(p.cargo_id)) mapa.set(p.cargo_id, []);
-      mapa.get(p.cargo_id)!.push(p);
+    const mapa = new Map<string, NrFuncaoItem[]>();
+    for (const i of itens) {
+      if (!mapa.has(i.cargo_id)) mapa.set(i.cargo_id, []);
+      mapa.get(i.cargo_id)!.push(i);
     }
     return cargos
       .map((c) => ({ cargo: c, itens: mapa.get(c.id) ?? [] }))
-      .filter((c) => c.itens.length > 0 || c.cargo.exames_matriz_confirmada)
+      .filter((c) => c.itens.length > 0 || c.cargo.nr_matriz_confirmada)
       .sort((a, b) => a.cargo.nome.localeCompare(b.cargo.nome));
-  }, [pgrItens, cargos]);
+  }, [itens, cargos]);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Exames complementares exigidos por função (PGR). A periodicidade vem do
-        catálogo de exames, não é escolhida aqui.
+        NRs exigidas por função. A periodicidade vem do catálogo de cursos de NR, não é
+        escolhida aqui. Nada é marcado automaticamente — confirme &quot;Esta função não
+        exige NR&quot; pras funções que você já conferiu e não precisam de nenhuma.
       </p>
 
       <div className="space-y-2">
-        {porCargo.map(({ cargo, itens }) => (
+        {porCargo.map(({ cargo, itens: itensCargo }) => (
           <LinhaCargo
             key={cargo.id}
             cargo={cargo}
-            itens={itens}
-            tiposExame={tiposExame}
+            itens={itensCargo}
+            nrsCatalogo={nrsCatalogo}
           />
         ))}
         {porCargo.length === 0 && (
           <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
-            Nenhum exame exigido cadastrado ainda.
+            Nenhuma função configurada ainda.
           </p>
         )}
       </div>
 
       <PainelAdicionar rotulo="+ Cadastro rápido em lote">
         {(fechar) => (
-          <FormularioLote cargos={cargos} tiposExame={tiposExame} aoSalvar={fechar} />
+          <FormularioLote cargos={cargos} nrsCatalogo={nrsCatalogo} aoSalvar={fechar} />
         )}
       </PainelAdicionar>
     </div>
@@ -75,17 +76,17 @@ export function PgrTab({
 function LinhaCargo({
   cargo,
   itens,
-  tiposExame,
+  nrsCatalogo,
 }: {
   cargo: Cargo;
-  itens: PgrItem[];
-  tiposExame: TipoExame[];
+  itens: NrFuncaoItem[];
+  nrsCatalogo: NrCatalogo[];
 }) {
   const [aberto, setAberto] = useState(false);
-  const [confirmada, setConfirmada] = useState(cargo.exames_matriz_confirmada);
-  const [pendingConfirmacao, startTransition] = useTransition();
-  const exameIdsAtuais = new Set(itens.map((i) => i.exame_id));
-  const disponiveis = tiposExame.filter((e) => !exameIdsAtuais.has(e.id));
+  const [confirmada, setConfirmada] = useState(cargo.nr_matriz_confirmada);
+  const [pending, startTransition] = useTransition();
+  const nrIdsAtuais = new Set(itens.map((i) => i.nr_catalogo_id));
+  const disponiveis = nrsCatalogo.filter((n) => !nrIdsAtuais.has(n.id));
 
   return (
     <div className="rounded-lg border border-border">
@@ -95,55 +96,53 @@ function LinhaCargo({
         className="flex w-full items-center justify-between px-4 py-3 text-left"
       >
         <p className="font-medium text-foreground">{cargo.nome}</p>
-        {itens.length === 0 && confirmada ? (
-          <StatusBadge tone="neutral">Confirmado: não exige exame</StatusBadge>
-        ) : (
-          <p className="text-xs text-muted-foreground">{itens.length} exame(s)</p>
-        )}
+        <div className="flex items-center gap-2">
+          {itens.length === 0 && confirmada ? (
+            <StatusBadge tone="neutral">Confirmado: não exige NR</StatusBadge>
+          ) : (
+            <p className="text-xs text-muted-foreground">{itens.length} NR(s)</p>
+          )}
+        </div>
       </button>
       {aberto && (
         <div className="border-t border-border p-4">
           <ul className="space-y-1">
             {itens.map((item) => {
-              const exame = tiposExame.find((e) => e.id === item.exame_id);
+              const nr = nrsCatalogo.find((n) => n.id === item.nr_catalogo_id);
               return (
                 <li
                   key={item.id}
                   className="flex items-center justify-between border-b border-border py-1.5 text-sm last:border-0"
                 >
                   <span>
-                    {exame?.nome ?? "—"}
-                    {exame?.periodicidade_meses
-                      ? ` (a cada ${exame.periodicidade_meses} meses)`
-                      : " (somente admissão)"}
+                    {nr ? `${nr.nr} — ${nr.nome}` : "—"}
+                    {nr?.periodicidade_meses ? ` (a cada ${nr.periodicidade_meses} meses)` : ""}
                   </span>
-                  <BotaoRemover action={() => removerPgr(item.id)} />
+                  <BotaoRemover action={() => removerNrFuncao(item.id)} />
                 </li>
               );
             })}
             {itens.length === 0 && (
               <li className="py-1.5 text-sm text-muted-foreground">
-                Nenhum exame exigido cadastrado.
+                Nenhuma NR exigida cadastrada.
               </li>
             )}
           </ul>
           <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-            {disponiveis.length > 0 && (
-              <AdicionarExameCargo cargoId={cargo.id} opcoes={disponiveis} />
-            )}
+            {disponiveis.length > 0 && <AdicionarNrCargo cargoId={cargo.id} opcoes={disponiveis} />}
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <Checkbox
                 checked={confirmada}
-                disabled={pendingConfirmacao}
+                disabled={pending}
                 onCheckedChange={(v) => {
                   const novo = !!v;
                   setConfirmada(novo);
                   startTransition(() => {
-                    definirExamesMatrizConfirmada(cargo.id, novo);
+                    definirNrMatrizConfirmada(cargo.id, novo);
                   });
                 }}
               />
-              Esta função não exige nenhum exame complementar
+              Esta função não exige nenhuma NR
             </label>
           </div>
         </div>
@@ -152,45 +151,41 @@ function LinhaCargo({
   );
 }
 
-function AdicionarExameCargo({
+function AdicionarNrCargo({
   cargoId,
   opcoes,
 }: {
   cargoId: string;
-  opcoes: TipoExame[];
+  opcoes: NrCatalogo[];
 }) {
-  const [exameId, setExameId] = useState("");
-  const action = exameId
-    ? adicionarPgr.bind(null, cargoId, exameId)
-    : async (prevState: PgrFormState) => prevState;
-  const [state, formAction, pending] = useActionState<PgrFormState, FormData>(
+  const [nrId, setNrId] = useState("");
+  const action = nrId
+    ? adicionarNrFuncao.bind(null, cargoId, nrId)
+    : async (prevState: NrFuncaoFormState) => prevState;
+  const [state, formAction, pending] = useActionState<NrFuncaoFormState, FormData>(
     action,
     undefined,
   );
 
   useEffect(() => {
-    if (state && "ok" in state) setExameId("");
+    if (state && "ok" in state) setNrId("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   return (
-    <form action={formAction} className="mt-3 flex items-end gap-2">
+    <form action={formAction} className="flex items-end gap-2">
       {state && "error" in state && (
         <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">{state.error}</p>
       )}
-      <NativeSelect
-        value={exameId}
-        onChange={(e) => setExameId(e.target.value)}
-        className="w-64"
-      >
-        <option value="">Adicionar exame...</option>
-        {opcoes.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.nome}
+      <NativeSelect value={nrId} onChange={(e) => setNrId(e.target.value)} className="w-64">
+        <option value="">Adicionar NR...</option>
+        {opcoes.map((n) => (
+          <option key={n.id} value={n.id}>
+            {n.nr} — {n.nome}
           </option>
         ))}
       </NativeSelect>
-      <Button type="submit" size="sm" disabled={pending || !exameId}>
+      <Button type="submit" size="sm" disabled={pending || !nrId}>
         {pending ? "Adicionando..." : "Adicionar"}
       </Button>
     </form>
@@ -199,15 +194,15 @@ function AdicionarExameCargo({
 
 function FormularioLote({
   cargos,
-  tiposExame,
+  nrsCatalogo,
   aoSalvar,
 }: {
   cargos: Cargo[];
-  tiposExame: TipoExame[];
+  nrsCatalogo: NrCatalogo[];
   aoSalvar: () => void;
 }) {
-  const [state, formAction, pending] = useActionState<PgrFormState, FormData>(
-    registrarPgrLote,
+  const [state, formAction, pending] = useActionState<NrFuncaoFormState, FormData>(
+    registrarNrFuncaoLote,
     undefined,
   );
 
@@ -222,15 +217,11 @@ function FormularioLote({
       className="max-w-3xl space-y-4 rounded-lg border border-border bg-card p-4"
     >
       {state && "error" in state && (
-        <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
-          {state.error}
-        </p>
+        <p className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">{state.error}</p>
       )}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-            Funções
-          </p>
+          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Funções</p>
           <div className="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto rounded-md border border-border p-2">
             {cargos.map((c) => (
               <label key={c.id} className="flex items-center gap-2 text-sm">
@@ -242,13 +233,13 @@ function FormularioLote({
         </div>
         <div>
           <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-            Exames
+            Cursos de NR
           </p>
           <div className="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto rounded-md border border-border p-2">
-            {tiposExame.map((e) => (
-              <label key={e.id} className="flex items-center gap-2 text-sm">
-                <Checkbox name="exames" value={e.id} />
-                {e.nome}
+            {nrsCatalogo.map((n) => (
+              <label key={n.id} className="flex items-center gap-2 text-sm">
+                <Checkbox name="nrs" value={n.id} />
+                {n.nr} — {n.nome}
               </label>
             ))}
           </div>
