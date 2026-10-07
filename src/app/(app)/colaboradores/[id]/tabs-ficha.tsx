@@ -118,7 +118,6 @@ export function TabsFicha({
     <Tabs defaultValue="dados">
       <TabsList>
         <TabsTrigger value="dados">Dados cadastrais</TabsTrigger>
-        <TabsTrigger value="contrato">Contrato e função</TabsTrigger>
         <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
         <TabsTrigger value="historico">Histórico salarial</TabsTrigger>
         <TabsTrigger value="formacao">Formação</TabsTrigger>
@@ -127,12 +126,15 @@ export function TabsFicha({
         <TabsTrigger value="movimentacoes">Histórico de movimentações</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="dados" className="pt-4">
+      <TabsContent value="dados" className="pt-4 space-y-6">
         <DadosCadastraisView colaborador={valoresIniciais} />
-      </TabsContent>
 
-      <TabsContent value="contrato" className="pt-4">
-        <ContratoFuncaoView colaborador={valoresIniciais} />
+        <div className="border-t border-border pt-6">
+          <h3 className="mb-4 text-sm font-semibold text-foreground">
+            Contrato e função
+          </h3>
+          <ContratoFuncaoView colaborador={valoresIniciais} />
+        </div>
       </TabsContent>
 
       <TabsContent value="dependentes" className="pt-4">
