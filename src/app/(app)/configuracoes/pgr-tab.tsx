@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NativeSelect } from "@/components/native-select";
@@ -82,7 +82,11 @@ function LinhaCargo({
   tiposExame: TipoExame[];
 }) {
   const [aberto, setAberto] = useState(false);
-  const [confirmada, setConfirmada] = useState(cargo.exames_matriz_confirmada);
+  // useOptimistic (não useState+useEffect) de propósito: a prop `cargo.exames_matriz_confirmada`
+  // muda depois de outras ações (ex.: adicionar um exame zera a confirmação) mesmo sem o
+  // componente remontar (key estável) — isso garante que o checkbox sempre reflita o banco
+  // assim que a revalidação chega, sem precisar sincronizar manualmente em um efeito.
+  const [confirmada, setConfirmadaOtimista] = useOptimistic(cargo.exames_matriz_confirmada);
   const [pendingConfirmacao, startTransition] = useTransition();
   const exameIdsAtuais = new Set(itens.map((i) => i.exame_id));
   const disponiveis = tiposExame.filter((e) => !exameIdsAtuais.has(e.id));
@@ -137,9 +141,9 @@ function LinhaCargo({
                 disabled={pendingConfirmacao}
                 onCheckedChange={(v) => {
                   const novo = !!v;
-                  setConfirmada(novo);
-                  startTransition(() => {
-                    definirExamesMatrizConfirmada(cargo.id, novo);
+                  startTransition(async () => {
+                    setConfirmadaOtimista(novo);
+                    await definirExamesMatrizConfirmada(cargo.id, novo);
                   });
                 }}
               />

@@ -142,8 +142,22 @@ export type OpcoesFormulario = {
   gestoresComEquipe: { id: string; nome: string }[];
 };
 
+export type ValoresAtuaisColaborador = {
+  cargo_id?: string | null;
+  setor_id?: string | null;
+  nivel_id?: string | null;
+  eixo_id?: string | null;
+  gestor_colaborador_id?: string | null;
+};
+
 export async function getOpcoesFormulario(
   excluirColaboradorId?: string,
+  // Valores ATUAIS do colaborador sendo editado — garante que apareçam na lista mesmo se o
+  // catálogo foi desativado (ou o gestor foi desligado) depois do cadastro. Sem isso, o
+  // <select> nativo não acha a opção correspondente ao defaultValue, cai silenciosamente
+  // pra "Nenhum", e salvar QUALQUER outro campo do formulário apaga esse vínculo sem
+  // querer — não é só "esconder uma opção do catálogo", é perder dado já cadastrado.
+  valoresAtuais?: ValoresAtuaisColaborador,
 ): Promise<OpcoesFormulario> {
   const supabase = await createClient();
 
@@ -174,12 +188,51 @@ export async function getOpcoesFormulario(
     (gestoresEmUso.data ?? []).map((g) => g.gestor_colaborador_id as string),
   );
 
+  async function comValorAtualGarantido<T extends { id: string; nome: string }>(
+    lista: T[],
+    valorAtualId: string | null | undefined,
+    tabela: "config_cargos" | "config_setores" | "config_niveis" | "config_eixos",
+    colunas: string,
+  ): Promise<T[]> {
+    if (!valorAtualId || lista.some((item) => item.id === valorAtualId)) return lista;
+    const { data } = await supabase
+      .schema("rh")
+      .from(tabela)
+      .select(colunas)
+      .eq("id", valorAtualId)
+      .maybeSingle();
+    if (!data) return lista;
+    const encontrado = data as unknown as T;
+    return [...lista, { ...encontrado, nome: `${encontrado.nome} (inativo)` }];
+  }
+
+  async function gestorAtualGarantido(): Promise<typeof listaGestores> {
+    const id = valoresAtuais?.gestor_colaborador_id;
+    if (!id || listaGestores.some((g) => g.id === id)) return listaGestores;
+    const { data } = await supabase
+      .schema("rh")
+      .from("vw_colaboradores")
+      .select("id, nome")
+      .eq("id", id)
+      .maybeSingle();
+    if (!data) return listaGestores;
+    return [...listaGestores, { id: data.id, nome: `${data.nome} (desligado)` }];
+  }
+
+  const [cargosFinal, setoresFinal, niveisFinal, eixosFinal, gestoresFinal] = await Promise.all([
+    comValorAtualGarantido(cargos.data ?? [], valoresAtuais?.cargo_id, "config_cargos", "id, nome, cbo"),
+    comValorAtualGarantido(setores.data ?? [], valoresAtuais?.setor_id, "config_setores", "id, nome"),
+    comValorAtualGarantido(niveis.data ?? [], valoresAtuais?.nivel_id, "config_niveis", "id, nome"),
+    comValorAtualGarantido(eixos.data ?? [], valoresAtuais?.eixo_id, "config_eixos", "id, nome"),
+    gestorAtualGarantido(),
+  ]);
+
   return {
-    cargos: cargos.data ?? [],
-    setores: setores.data ?? [],
-    niveis: niveis.data ?? [],
-    eixos: eixos.data ?? [],
-    gestores: listaGestores,
+    cargos: cargosFinal,
+    setores: setoresFinal,
+    niveis: niveisFinal,
+    eixos: eixosFinal,
+    gestores: gestoresFinal,
     gestoresComEquipe: listaGestores.filter((g) => idsComEquipe.has(g.id)),
   };
 }

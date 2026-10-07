@@ -328,6 +328,12 @@ function FormularioAso({
             type="date"
             defaultValue={valoresIniciais?.data_vencimento ?? ""}
           />
+          {!valoresIniciais && (
+            <p className="text-xs text-muted-foreground">
+              Deixe em branco num ASO periódico pra calcular sozinho pela
+              periodicidade da função, se configurada.
+            </p>
+          )}
         </div>
       </div>
       <div className="flex justify-end gap-2">
@@ -359,6 +365,7 @@ function FormularioExameComplementar({
   aoSalvar: () => void;
   aoCancelar?: () => void;
 }) {
+  const editando = Boolean(valoresIniciais);
   const [state, formAction, pending] = useActionState(action, undefined);
   const [exameId, setExameId] = useState(valoresIniciais?.exame_id ?? "");
   const [data, setData] = useState(valoresIniciais?.data ?? hojeISO());
@@ -369,6 +376,8 @@ function FormularioExameComplementar({
   }, [state]);
 
   const exameSelecionado = opcoesExame.find((e) => e.id === exameId);
+  // Só usado na CRIAÇÃO (prévia do vencimento calculado pela periodicidade atual do
+  // catálogo) — na edição, o vencimento vem do campo editável abaixo, não é recalculado.
   const vencimentoPrevisto = useMemo(() => {
     if (!exameSelecionado?.periodicidade_meses || !data) return null;
     return somarMeses(data, exameSelecionado.periodicidade_meses);
@@ -403,11 +412,13 @@ function FormularioExameComplementar({
               </option>
             ))}
           </NativeSelect>
-          <input
-            type="hidden"
-            name="periodicidade_meses"
-            value={exameSelecionado?.periodicidade_meses ?? ""}
-          />
+          {!editando && (
+            <input
+              type="hidden"
+              name="periodicidade_meses"
+              value={exameSelecionado?.periodicidade_meses ?? ""}
+            />
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="exame_data">Data</Label>
@@ -420,12 +431,25 @@ function FormularioExameComplementar({
             onChange={(e) => setData(e.target.value)}
           />
         </div>
+        {editando && (
+          <div className="space-y-1.5">
+            <Label htmlFor="exame_vencimento">Vencimento</Label>
+            <Input
+              id="exame_vencimento"
+              name="data_vencimento"
+              type="date"
+              defaultValue={valoresIniciais?.data_vencimento ?? ""}
+            />
+          </div>
+        )}
       </div>
-      <p className="text-sm text-muted-foreground">
-        {exameSelecionado?.periodicidade_meses
-          ? `Vencimento calculado automaticamente: ${vencimentoPrevisto ? formatarData(vencimentoPrevisto) : "—"}`
-          : "Este exame é somente na admissão (sem vencimento)."}
-      </p>
+      {!editando && (
+        <p className="text-sm text-muted-foreground">
+          {exameSelecionado?.periodicidade_meses
+            ? `Vencimento calculado automaticamente: ${vencimentoPrevisto ? formatarData(vencimentoPrevisto) : "—"}`
+            : "Este exame é somente na admissão (sem vencimento)."}
+        </p>
+      )}
       <div className="flex justify-end gap-2">
         {aoCancelar && (
           <Button type="button" variant="ghost" onClick={aoCancelar}>

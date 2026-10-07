@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NativeSelect } from "@/components/native-select";
@@ -83,7 +83,11 @@ function LinhaCargo({
   nrsCatalogo: NrCatalogo[];
 }) {
   const [aberto, setAberto] = useState(false);
-  const [confirmada, setConfirmada] = useState(cargo.nr_matriz_confirmada);
+  // useOptimistic (não useState+useEffect) de propósito: a prop `cargo.nr_matriz_confirmada`
+  // muda depois de outras ações (ex.: adicionar uma NR zera a confirmação) mesmo sem o
+  // componente remontar (key estável) — isso garante que o checkbox sempre reflita o banco
+  // assim que a revalidação chega, sem precisar sincronizar manualmente em um efeito.
+  const [confirmada, setConfirmadaOtimista] = useOptimistic(cargo.nr_matriz_confirmada);
   const [pending, startTransition] = useTransition();
   const nrIdsAtuais = new Set(itens.map((i) => i.nr_catalogo_id));
   const disponiveis = nrsCatalogo.filter((n) => !nrIdsAtuais.has(n.id));
@@ -136,9 +140,9 @@ function LinhaCargo({
                 disabled={pending}
                 onCheckedChange={(v) => {
                   const novo = !!v;
-                  setConfirmada(novo);
-                  startTransition(() => {
-                    definirNrMatrizConfirmada(cargo.id, novo);
+                  startTransition(async () => {
+                    setConfirmadaOtimista(novo);
+                    await definirNrMatrizConfirmada(cargo.id, novo);
                   });
                 }}
               />

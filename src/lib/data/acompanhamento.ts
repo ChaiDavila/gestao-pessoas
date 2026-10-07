@@ -41,7 +41,8 @@ export async function seedAcompanhamentoNrPorFuncao(
     }));
 
   if (novos.length > 0) {
-    await supabase.schema("rh").from("colaborador_nr_acompanhamento").insert(novos);
+    const { error } = await supabase.schema("rh").from("colaborador_nr_acompanhamento").insert(novos);
+    if (error) console.error("seedAcompanhamentoNrPorFuncao:", error.message);
   }
 }
 
@@ -79,7 +80,8 @@ export async function seedAcompanhamentoExamePorFuncao(
     }));
 
   if (novos.length > 0) {
-    await supabase.schema("rh").from("colaborador_exame_acompanhamento").insert(novos);
+    const { error } = await supabase.schema("rh").from("colaborador_exame_acompanhamento").insert(novos);
+    if (error) console.error("seedAcompanhamentoExamePorFuncao:", error.message);
   }
 }
 
@@ -120,7 +122,8 @@ export async function seedAcompanhamentoNrParaFuncao(
     }));
 
   if (novos.length > 0) {
-    await supabase.schema("rh").from("colaborador_nr_acompanhamento").insert(novos);
+    const { error } = await supabase.schema("rh").from("colaborador_nr_acompanhamento").insert(novos);
+    if (error) console.error("seedAcompanhamentoNrParaFuncao:", error.message);
   }
 }
 
@@ -159,6 +162,7 @@ export async function seedAcompanhamentoExameParaFuncao(
     }));
 
   if (novos.length > 0) {
-    await supabase.schema("rh").from("colaborador_exame_acompanhamento").insert(novos);
+    const { error } = await supabase.schema("rh").from("colaborador_exame_acompanhamento").insert(novos);
+    if (error) console.error("seedAcompanhamentoExameParaFuncao:", error.message);
   }
 }

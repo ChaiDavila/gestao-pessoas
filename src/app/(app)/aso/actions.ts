@@ -175,13 +175,13 @@ export async function atualizarExameComplementar(
   formData: FormData,
 ): Promise<AsoFormState> {
   const data = formData.get("data") as string;
-  const periodicidadeRaw = formData.get("periodicidade_meses") as string;
+  const dataVencimento = (formData.get("data_vencimento") as string) || null;
 
   if (!data) return { error: "Informe a data." };
 
-  const periodicidadeMeses = periodicidadeRaw ? Number(periodicidadeRaw) : null;
-  const dataVencimento = periodicidadeMeses ? somarMeses(data, periodicidadeMeses) : null;
-
+  // Vencimento vem direto do formulário (não recalculado pela periodicidade do catálogo
+  // de exames) — se o tipo de exame mudar de periodicidade depois, isso não deve alterar
+  // o vencimento já calculado/digitado de um registro existente.
   const supabase = await createClient();
   const { error } = await supabase
     .schema("rh")

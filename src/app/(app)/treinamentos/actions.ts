@@ -189,7 +189,7 @@ export async function registrarNrLote(
   const jaTem = new Set((existentes ?? []).map((e) => e.colaborador_id));
   const semAcompanhamento = participantes.filter((id) => !jaTem.has(id));
   if (semAcompanhamento.length > 0) {
-    await supabase.schema("rh").from("colaborador_nr_acompanhamento").insert(
+    const { error: acompError } = await supabase.schema("rh").from("colaborador_nr_acompanhamento").insert(
       semAcompanhamento.map((colaboradorId) => ({
         unidade_id: unidadeId,
         colaborador_id: colaboradorId,
@@ -197,6 +197,7 @@ export async function registrarNrLote(
         acompanhar: true,
       })),
     );
+    if (acompError) console.error("registrarNrLote (seed acompanhamento):", acompError.message);
   }
 
   revalidar();

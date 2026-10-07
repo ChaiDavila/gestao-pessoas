@@ -271,7 +271,7 @@ export async function adicionarAso(
   const tipoExame = formData.get("tipo_exame") as string;
   const data = formData.get("data") as string;
   const resultado = formData.get("resultado") as string;
-  const dataVencimento = (formData.get("data_vencimento") as string) || null;
+  let dataVencimento = (formData.get("data_vencimento") as string) || null;
 
   if (!tipoExame || !data || !resultado) {
     return { error: "Informe tipo de exame, data e resultado." };
@@ -279,6 +279,31 @@ export async function adicionarAso(
 
   const supabase = await createClient();
   const unidadeId = await getUnidadeIdPadrao();
+
+  // ASO periódico: se não foi digitado um vencimento, calcula pela periodicidade
+  // configurada pra função do colaborador — mesma regra da tela principal de ASO.
+  if (tipoExame === "periodico" && !dataVencimento) {
+    const { data: colaborador } = await supabase
+      .schema("rh")
+      .from("colaboradores")
+      .select("cargo_id")
+      .eq("id", colaboradorId)
+      .single();
+
+    if (colaborador?.cargo_id) {
+      const { data: periodicidade } = await supabase
+        .schema("rh")
+        .from("config_periodicidade_aso_por_funcao")
+        .select("periodicidade_meses")
+        .eq("cargo_id", colaborador.cargo_id)
+        .eq("ativo", true)
+        .maybeSingle();
+
+      if (periodicidade?.periodicidade_meses) {
+        dataVencimento = somarMeses(data, periodicidade.periodicidade_meses);
+      }
+    }
+  }
 
   const { error } = await supabase.schema("rh").from("aso_registros").insert({
     unidade_id: unidadeId,
@@ -381,15 +406,15 @@ export async function atualizarExameComplementar(
 ): Promise<SubRecursoState> {
   const exameId = formData.get("exame_id") as string;
   const data = formData.get("data") as string;
-  const periodicidadeRaw = formData.get("periodicidade_meses") as string;
+  const dataVencimento = (formData.get("data_vencimento") as string) || null;
 
   if (!exameId || !data) {
     return { error: "Selecione o exame e a data." };
   }
 
-  const periodicidadeMeses = periodicidadeRaw ? Number(periodicidadeRaw) : null;
-  const dataVencimento = periodicidadeMeses ? somarMeses(data, periodicidadeMeses) : null;
-
+  // Vencimento vem direto do formulário (não recalculado pela periodicidade atual do
+  // catálogo) — se a periodicidade do tipo de exame mudar depois, isso não deve alterar o
+  // vencimento já calculado/digitado de um registro existente.
   const supabase = await createClient();
   const { error } = await supabase
     .schema("rh")

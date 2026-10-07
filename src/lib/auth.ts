@@ -68,3 +68,13 @@ export async function exigirAcessoTela(tela: TelaId): Promise<UsuarioAtual> {
   if (!podeVerTela(usuario, tela)) redirect(primeiraTelaPermitida(usuario));
   return usuario;
 }
+
+// Guarda de Server Action: lança um erro com mensagem clara em vez de deixar a tentativa
+// estourar na RLS do Postgres direto (que ainda é quem garante a permissão de verdade —
+// isso aqui só evita um erro técnico cru chegando na tela de quem não pode mesmo editar).
+export async function exigirOperador(): Promise<void> {
+  const atual = await getUsuarioAtual();
+  if (!atual || atual.papel === "leitor" || !atual.papel) {
+    throw new Error("Você não tem permissão para alterar esta configuração.");
+  }
+}

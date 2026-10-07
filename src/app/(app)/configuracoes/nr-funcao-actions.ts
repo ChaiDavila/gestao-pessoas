@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
+import { exigirOperador } from "@/lib/auth";
 import { seedAcompanhamentoNrParaFuncao } from "@/lib/data/acompanhamento";
 
 export type NrFuncaoFormState = { error: string } | { ok: true } | undefined;
@@ -17,6 +18,12 @@ export async function adicionarNrFuncao(
   _prevState: NrFuncaoFormState,
   _formData: FormData,
 ): Promise<NrFuncaoFormState> {
+  try {
+    await exigirOperador();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const supabase = await createClient();
   const unidadeId = await getUnidadeIdPadrao();
 
@@ -43,6 +50,7 @@ export async function adicionarNrFuncao(
 }
 
 export async function removerNrFuncao(id: string) {
+  await exigirOperador();
   const supabase = await createClient();
   const { error } = await supabase
     .schema("rh")
@@ -57,6 +65,12 @@ export async function registrarNrFuncaoLote(
   _prevState: NrFuncaoFormState,
   formData: FormData,
 ): Promise<NrFuncaoFormState> {
+  try {
+    await exigirOperador();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const cargoIds = formData.getAll("cargos") as string[];
   const nrIds = formData.getAll("nrs") as string[];
 
@@ -112,6 +126,7 @@ export async function registrarNrFuncaoLote(
 // "Confirmar que esta função não exige nenhuma NR" — diferencia de "ainda não configurada"
 // (zero linhas na matriz, sem ninguém ter olhado pra isso ainda).
 export async function definirNrMatrizConfirmada(cargoId: string, confirmada: boolean) {
+  await exigirOperador();
   const supabase = await createClient();
   const { error } = await supabase
     .schema("rh")

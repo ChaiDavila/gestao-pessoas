@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
+import { exigirOperador } from "@/lib/auth";
 import { seedAcompanhamentoExameParaFuncao } from "@/lib/data/acompanhamento";
 
 export type PgrFormState = { error: string } | { ok: true } | undefined;
@@ -17,6 +18,12 @@ export async function adicionarPgr(
   _prevState: PgrFormState,
   _formData: FormData,
 ): Promise<PgrFormState> {
+  try {
+    await exigirOperador();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const supabase = await createClient();
   const unidadeId = await getUnidadeIdPadrao();
 
@@ -43,6 +50,7 @@ export async function adicionarPgr(
 // "Confirmar que esta função não exige nenhum exame complementar" — diferencia de "ainda
 // não configurada" (zero linhas na matriz, sem ninguém ter olhado pra isso ainda).
 export async function definirExamesMatrizConfirmada(cargoId: string, confirmada: boolean) {
+  await exigirOperador();
   const supabase = await createClient();
   const { error } = await supabase
     .schema("rh")
@@ -54,6 +62,7 @@ export async function definirExamesMatrizConfirmada(cargoId: string, confirmada:
 }
 
 export async function removerPgr(id: string) {
+  await exigirOperador();
   const supabase = await createClient();
   const { error } = await supabase
     .schema("rh")
@@ -68,6 +77,12 @@ export async function registrarPgrLote(
   _prevState: PgrFormState,
   formData: FormData,
 ): Promise<PgrFormState> {
+  try {
+    await exigirOperador();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const cargoIds = formData.getAll("cargos") as string[];
   const exameIds = formData.getAll("exames") as string[];
 

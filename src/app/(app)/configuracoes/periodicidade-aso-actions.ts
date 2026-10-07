@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
+import { exigirOperador } from "@/lib/auth";
 
 export type PeriodicidadeAsoFormState = { error: string } | { ok: true } | undefined;
 
@@ -17,6 +18,12 @@ export async function definirPeriodicidadeAso(
   _prevState: PeriodicidadeAsoFormState,
   formData: FormData,
 ): Promise<PeriodicidadeAsoFormState> {
+  try {
+    await exigirOperador();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const periodicidadeRaw = formData.get("periodicidade_meses") as string;
   const periodicidadeMeses = Number(periodicidadeRaw);
 
@@ -46,6 +53,7 @@ export async function definirPeriodicidadeAso(
 }
 
 export async function removerPeriodicidadeAso(cargoId: string) {
+  await exigirOperador();
   const supabase = await createClient();
   const { error } = await supabase
     .schema("rh")

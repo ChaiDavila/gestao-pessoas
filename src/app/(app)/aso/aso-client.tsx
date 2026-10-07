@@ -885,7 +885,7 @@ function LinhaPgr({
             <FormularioEditarExameComplementar
               registroId={item.registro_id}
               data={item.data!}
-              periodicidadeMeses={item.periodicidade_meses}
+              dataVencimento={item.data_vencimento}
               aoSalvar={() => setModo("nenhum")}
             />
           </td>
@@ -910,12 +910,12 @@ function LinhaPgr({
 function FormularioEditarExameComplementar({
   registroId,
   data,
-  periodicidadeMeses,
+  dataVencimento,
   aoSalvar,
 }: {
   registroId: string;
   data: string;
-  periodicidadeMeses: number | null;
+  dataVencimento: string | null;
   aoSalvar: () => void;
 }) {
   const [state, formAction, pending] = useActionState<AsoFormState, FormData>(
@@ -938,16 +938,19 @@ function FormularioEditarExameComplementar({
           {state.error}
         </p>
       )}
-      <input type="hidden" name="periodicidade_meses" value={periodicidadeMeses ?? ""} />
       <div className="space-y-1">
         <Label htmlFor="edc_data">Data</Label>
         <Input id="edc_data" name="data" type="date" required defaultValue={data} />
       </div>
-      <p className="text-xs text-muted-foreground">
-        {periodicidadeMeses
-          ? "O vencimento é recalculado automaticamente a partir desta data."
-          : "Este exame é somente na admissão (sem vencimento)."}
-      </p>
+      <div className="space-y-1">
+        <Label htmlFor="edc_vencimento">Vencimento</Label>
+        <Input
+          id="edc_vencimento"
+          name="data_vencimento"
+          type="date"
+          defaultValue={dataVencimento ?? ""}
+        />
+      </div>
       <div className="flex gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={aoSalvar}>
           Cancelar

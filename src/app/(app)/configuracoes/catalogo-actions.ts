@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
+import { exigirOperador } from "@/lib/auth";
 
 export type CatalogoFormState = { error: string } | { ok: true } | undefined;
 
@@ -16,6 +17,12 @@ export async function criarItemCatalogo(
   _prevState: CatalogoFormState,
   formData: FormData,
 ): Promise<CatalogoFormState> {
+  try {
+    await exigirOperador();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const supabase = await createClient();
   const unidadeId = await getUnidadeIdPadrao();
 
@@ -66,6 +73,12 @@ export async function atualizarItemCatalogo(
   _prevState: CatalogoFormState,
   formData: FormData,
 ): Promise<CatalogoFormState> {
+  try {
+    await exigirOperador();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const supabase = await createClient();
 
   const valores: Record<string, unknown> = {};
@@ -83,6 +96,7 @@ export async function atualizarItemCatalogo(
 
 // "Remover" nunca apaga uso já feito: some da lista de sugestão via ativo=false.
 export async function removerItemCatalogo(tabela: string, id: string) {
+  await exigirOperador();
   const supabase = await createClient();
   const { error } = await supabase.schema("rh").from(tabela).update({ ativo: false }).eq("id", id);
   if (error) throw new Error(error.message);

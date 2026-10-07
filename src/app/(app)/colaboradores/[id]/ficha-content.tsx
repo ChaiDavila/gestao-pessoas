@@ -57,7 +57,13 @@ export async function FichaColaboradorContent({
     opcoesExame,
     opcoesMotivoEvolucao,
   ] = await Promise.all([
-    getOpcoesFormulario(id),
+    getOpcoesFormulario(id, {
+      cargo_id: colaborador.cargo_id,
+      setor_id: colaborador.setor_id,
+      nivel_id: colaborador.nivel_id,
+      eixo_id: colaborador.eixo_id,
+      gestor_colaborador_id: colaborador.gestor_colaborador_id,
+    }),
     getMotivosDesligamento(),
     getDependentes(id),
     getFormacoes(id),
