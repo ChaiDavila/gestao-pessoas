@@ -121,7 +121,7 @@ export function TabsFicha({
         <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
         <TabsTrigger value="historico">Histórico salarial</TabsTrigger>
         <TabsTrigger value="formacao">Formação</TabsTrigger>
-        <TabsTrigger value="exames">Exames ocupacionais</TabsTrigger>
+        <TabsTrigger value="exames">ASO</TabsTrigger>
         <TabsTrigger value="treinamentos">Treinamentos</TabsTrigger>
         <TabsTrigger value="movimentacoes">Histórico de movimentações</TabsTrigger>
       </TabsList>
