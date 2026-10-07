@@ -99,6 +99,24 @@ export async function criarColaborador(
   await seedAcompanhamentoNrPorFuncao(supabase, unidadeId, colaborador.id, dados.cargo_id ?? null);
   await seedAcompanhamentoExamePorFuncao(supabase, unidadeId, colaborador.id, dados.cargo_id ?? null);
 
+  // Primeiro registro de histórico de estrutura organizacional, vigente desde a admissão —
+  // sem isso, o histórico de movimentações da ficha ficaria sempre vazio pra quem nunca
+  // mudou de função (não é um valor inventado: é a estrutura real informada no cadastro).
+  const { error: historicoError } = await supabase
+    .schema("rh")
+    .from("historico_estrutura_organizacional")
+    .insert({
+      unidade_id: unidadeId,
+      colaborador_id: colaborador.id,
+      data_vigencia: dados.data_admissao,
+      cargo_id: dados.cargo_id ?? null,
+      nivel_id: dados.nivel_id ?? null,
+      eixo_id: dados.eixo_id ?? null,
+      setor_id: dados.setor_id ?? null,
+      gestor_colaborador_id: dados.gestor_colaborador_id ?? null,
+    });
+  if (historicoError) console.error("criarColaborador (histórico de estrutura):", historicoError.message);
+
   revalidatePath("/colaboradores");
   redirect(`/colaboradores/${colaborador.id}`);
 }

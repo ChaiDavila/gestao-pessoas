@@ -15,6 +15,8 @@ import { DependentesTab } from "./dependentes-tab";
 import { FormacaoTab } from "./formacao-tab";
 import { HistoricoTab } from "./historico-tab";
 import { ExamesTab } from "./exames-tab";
+import type { ParticipacaoItem, NrColaboradorItem } from "@/lib/data/treinamentos";
+import type { HistoricoEstruturaRow } from "@/lib/data/colaborador-detalhe";
 
 type Valores = Record<string, string | number | null | undefined>;
 type AcaoComEstado = (
@@ -31,6 +33,7 @@ export function FichaColaboradorClient({
   colaborador,
   opcoes,
   modoInicial,
+  colaboradorId,
   atualizarAction,
   desativarAction,
   reativarAction,
@@ -58,10 +61,14 @@ export function FichaColaboradorClient({
   adicionarExameAction,
   atualizarExameAction,
   removerExameAction,
+  participacoesTreinamentos,
+  nrAcompanhamento,
+  historicoEstrutura,
 }: {
   colaborador: Valores;
   opcoes: OpcoesFormulario;
   modoInicial: "ver" | "editar";
+  colaboradorId: string;
   atualizarAction: (
     prevState: FormState,
     formData: FormData,
@@ -95,6 +102,9 @@ export function FichaColaboradorClient({
   adicionarExameAction: AcaoComEstado;
   atualizarExameAction: AcaoComId;
   removerExameAction: (exameRegistroId: string) => Promise<void>;
+  participacoesTreinamentos: ParticipacaoItem[];
+  nrAcompanhamento: NrColaboradorItem[];
+  historicoEstrutura: HistoricoEstruturaRow[];
 }) {
   const [modo, setModo] = useState<"ver" | "editar">(modoInicial);
   const nome = String(colaborador.nome ?? "");
@@ -146,6 +156,8 @@ export function FichaColaboradorClient({
       </div>
 
       <TabsFicha
+        colaboradorId={colaboradorId}
+        nome={nome}
         opcoes={opcoes}
         valoresIniciais={colaborador}
         atualizarAction={atualizarAction}
@@ -174,6 +186,9 @@ export function FichaColaboradorClient({
         adicionarExameAction={adicionarExameAction}
         atualizarExameAction={atualizarExameAction}
         removerExameAction={removerExameAction}
+        participacoesTreinamentos={participacoesTreinamentos}
+        nrAcompanhamento={nrAcompanhamento}
+        historicoEstrutura={historicoEstrutura}
       />
     </div>
   );

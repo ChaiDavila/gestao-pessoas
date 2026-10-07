@@ -9,9 +9,13 @@ import { PainelAdicionar } from "@/components/painel-adicionar";
 import { BotaoRemover } from "@/components/botao-remover";
 import { StatusBadge } from "@/components/status-badge";
 import { formatarData, hojeISO, somarMeses } from "@/lib/date";
-import { situacaoVencimento } from "@/lib/vencimento";
+import { situacaoVencimento, situacaoPgr } from "@/lib/vencimento";
 import type { SubRecursoState } from "./sub-recursos-actions";
-import type { ExameComplementarRow } from "@/lib/data/colaborador-detalhe";
+import type { PgrColaboradorItem } from "@/lib/data/aso";
+import {
+  atualizarAcompanhamentoExame,
+  ativarAcompanhamentoExameNovo,
+} from "@/app/(app)/aso/actions";
 
 type AsoItem = {
   id: string;
@@ -21,7 +25,6 @@ type AsoItem = {
   data_vencimento: string | null;
 };
 
-type ExameComplementarItem = ExameComplementarRow;
 type Acao = (prevState: SubRecursoState, formData: FormData) => Promise<SubRecursoState>;
 type AcaoComId = (
   registroId: string,
@@ -38,6 +41,7 @@ const TIPO_EXAME_LABEL: Record<string, string> = {
 };
 
 export function ExamesTab({
+  colaboradorId,
   asoRegistros,
   examesComplementares,
   opcoesExame,
@@ -48,8 +52,9 @@ export function ExamesTab({
   atualizarExameAction,
   removerExameAction,
 }: {
+  colaboradorId: string;
   asoRegistros: AsoItem[];
-  examesComplementares: ExameComplementarItem[];
+  examesComplementares: PgrColaboradorItem[];
   opcoesExame: { id: string; nome: string; periodicidade_meses: number | null }[];
   adicionarAsoAction: Acao;
   atualizarAsoAction: AcaoComId;
@@ -58,6 +63,8 @@ export function ExamesTab({
   atualizarExameAction: AcaoComId;
   removerExameAction: (exameRegistroId: string) => Promise<void>;
 }) {
+  const exameIdsAtuais = new Set(examesComplementares.map((e) => e.exame_id));
+  const opcoesDisponiveis = opcoesExame.filter((o) => !exameIdsAtuais.has(o.id));
   return (
     <div className="space-y-8">
       <section className="space-y-4">
@@ -101,8 +108,14 @@ export function ExamesTab({
 
       <section className="space-y-4">
         <h3 className="text-sm font-semibold text-foreground">
-          Exames complementares
+          Exames complementares (PGR)
         </h3>
+        <p className="text-xs text-muted-foreground">
+          Mesmas regras e situações do módulo ASO: um exame exigido pela
+          função aparece aqui mesmo sem nenhum registro ainda (&quot;Sem
+          registro&quot;). Desativar o acompanhamento preserva o histórico,
+          só tira dos alertas.
+        </p>
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border text-xs uppercase text-muted-foreground">
@@ -110,39 +123,45 @@ export function ExamesTab({
                 <th className="px-4 py-2 font-medium">Exame</th>
                 <th className="px-4 py-2 font-medium">Data</th>
                 <th className="px-4 py-2 font-medium">Vencimento</th>
+                <th className="px-4 py-2 font-medium">Situação</th>
                 <th className="px-4 py-2" />
               </tr>
             </thead>
             <tbody>
               {examesComplementares.map((e) => (
                 <LinhaExameComplementar
-                  key={e.id}
+                  key={e.exame_id}
                   exame={e}
-                  opcoesExame={opcoesExame}
-                  atualizarAction={atualizarExameAction.bind(null, e.id)}
-                  removerAction={() => removerExameAction(e.id)}
+                  atualizarAction={e.registro_id ? atualizarExameAction.bind(null, e.registro_id) : null}
+                  removerAction={e.registro_id ? () => removerExameAction(e.registro_id!) : null}
+                  adicionarAction={adicionarExameAction}
                 />
               ))}
               {examesComplementares.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
-                    Nenhum exame complementar registrado.
+                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                    Nenhum exame complementar acompanhado.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        <PainelAdicionar rotulo="+ Registrar exame complementar">
-          {(fechar) => (
-            <FormularioExameComplementar
-              action={adicionarExameAction}
-              opcoesExame={opcoesExame}
-              textoBotao="Registrar"
-              aoSalvar={fechar}
-            />
+        <div className="flex flex-wrap items-end gap-3">
+          <PainelAdicionar rotulo="+ Registrar exame complementar">
+            {(fechar) => (
+              <FormularioExameComplementar
+                action={adicionarExameAction}
+                opcoesExame={opcoesExame}
+                textoBotao="Registrar"
+                aoSalvar={fechar}
+              />
+            )}
+          </PainelAdicionar>
+          {opcoesDisponiveis.length > 0 && (
+            <AcompanharNovoExame colaboradorId={colaboradorId} opcoes={opcoesDisponiveis} />
           )}
-        </PainelAdicionar>
+        </div>
       </section>
     </div>
   );
@@ -203,52 +222,242 @@ function LinhaAso({
 
 function LinhaExameComplementar({
   exame,
-  opcoesExame,
   atualizarAction,
   removerAction,
+  adicionarAction,
 }: {
-  exame: ExameComplementarItem;
-  opcoesExame: { id: string; nome: string; periodicidade_meses: number | null }[];
-  atualizarAction: Acao;
-  removerAction: () => Promise<void>;
+  exame: PgrColaboradorItem;
+  atualizarAction: Acao | null;
+  removerAction: (() => Promise<void>) | null;
+  adicionarAction: Acao;
 }) {
-  const [editando, setEditando] = useState(false);
-  const situacao = situacaoVencimento(exame.data_vencimento);
+  const [modo, setModo] = useState<"nenhum" | "editando" | "registrando">("nenhum");
+  const [pendenteAcompanhamento, setPendenteAcompanhamento] = useState(false);
+  const situacao = situacaoPgr(exame);
 
-  if (editando) {
-    return (
-      <tr className="border-b border-border last:border-0">
-        <td colSpan={4} className="px-4 py-3">
-          <FormularioExameComplementar
-            action={atualizarAction}
-            opcoesExame={opcoesExame}
-            valoresIniciais={exame}
-            textoBotao="Salvar"
-            aoSalvar={() => setEditando(false)}
-            aoCancelar={() => setEditando(false)}
-          />
-        </td>
-      </tr>
+  function alternarAcompanhamento() {
+    setPendenteAcompanhamento(true);
+    atualizarAcompanhamentoExame(exame.acompanhamento_id, !exame.acompanhar).finally(() =>
+      setPendenteAcompanhamento(false),
     );
   }
 
   return (
-    <tr className="border-b border-border last:border-0">
-      <td className="px-4 py-2">{exame.config_tipos_exame?.nome ?? "—"}</td>
-      <td className="px-4 py-2 text-muted-foreground">{formatarData(exame.data)}</td>
-      <td className="px-4 py-2 text-muted-foreground">
-        {exame.data_vencimento ? formatarData(exame.data_vencimento) : "Somente na admissão"}
-        {situacao && <StatusBadge tone={situacao.tone}> {situacao.texto}</StatusBadge>}
-      </td>
-      <td className="px-4 py-2 text-right">
-        <div className="flex justify-end gap-1">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setEditando(true)}>
-            Editar
-          </Button>
-          <BotaoRemover action={removerAction} />
-        </div>
-      </td>
-    </tr>
+    <>
+      <tr className="border-b border-border last:border-0">
+        <td className="px-4 py-2">{exame.exame_nome}</td>
+        <td className="px-4 py-2 text-muted-foreground">
+          {exame.data ? formatarData(exame.data) : "—"}
+        </td>
+        <td className="px-4 py-2 text-muted-foreground">
+          {exame.data_vencimento
+            ? formatarData(exame.data_vencimento)
+            : exame.periodicidade_meses === null
+              ? "Somente na admissão"
+              : "—"}
+        </td>
+        <td className="px-4 py-2">
+          {exame.acompanhar ? (
+            <StatusBadge tone={situacao.tone}>{situacao.texto}</StatusBadge>
+          ) : (
+            <StatusBadge tone="neutral">Sem acompanhamento</StatusBadge>
+          )}
+        </td>
+        <td className="px-4 py-2 text-right">
+          <div className="flex justify-end gap-1">
+            {atualizarAction && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setModo(modo === "editando" ? "nenhum" : "editando")}
+              >
+                Editar
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModo(modo === "registrando" ? "nenhum" : "registrando")}
+            >
+              Registrar
+            </Button>
+            {removerAction && <BotaoRemover action={removerAction} />}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={pendenteAcompanhamento}
+              onClick={alternarAcompanhamento}
+            >
+              {exame.acompanhar ? "Desativar acompanhamento" : "Ativar acompanhamento"}
+            </Button>
+          </div>
+        </td>
+      </tr>
+      {modo === "editando" && atualizarAction && (
+        <tr>
+          <td colSpan={5} className="px-4 pb-3">
+            <FormularioEditarExameComplementarFicha
+              action={atualizarAction}
+              data={exame.data ?? hojeISO()}
+              dataVencimento={exame.data_vencimento}
+              aoSalvar={() => setModo("nenhum")}
+            />
+          </td>
+        </tr>
+      )}
+      {modo === "registrando" && (
+        <tr>
+          <td colSpan={5} className="px-4 pb-3">
+            <FormularioRegistrarExameRapido
+              action={adicionarAction}
+              exameId={exame.exame_id}
+              periodicidadeMeses={exame.periodicidade_meses}
+              aoSalvar={() => setModo("nenhum")}
+            />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function FormularioEditarExameComplementarFicha({
+  action,
+  data,
+  dataVencimento,
+  aoSalvar,
+}: {
+  action: Acao;
+  data: string;
+  dataVencimento: string | null;
+  aoSalvar: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(action, undefined);
+
+  useEffect(() => {
+    if (state && "ok" in state) aoSalvar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  return (
+    <form
+      action={formAction}
+      className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/30 p-3"
+    >
+      {state && "error" in state && (
+        <p className="w-full rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+          {state.error}
+        </p>
+      )}
+      <div className="space-y-1">
+        <Label htmlFor="edc_data">Data</Label>
+        <Input id="edc_data" name="data" type="date" required defaultValue={data} />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="edc_vencimento">Vencimento</Label>
+        <Input
+          id="edc_vencimento"
+          name="data_vencimento"
+          type="date"
+          defaultValue={dataVencimento ?? ""}
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={aoSalvar}>
+          Cancelar
+        </Button>
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function FormularioRegistrarExameRapido({
+  action,
+  exameId,
+  periodicidadeMeses,
+  aoSalvar,
+}: {
+  action: Acao;
+  exameId: string;
+  periodicidadeMeses: number | null;
+  aoSalvar: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(action, undefined);
+
+  useEffect(() => {
+    if (state && "ok" in state) aoSalvar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  return (
+    <form
+      action={formAction}
+      className="flex items-end gap-3 rounded-md border border-border bg-muted/30 p-3"
+    >
+      {state && "error" in state && (
+        <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>
+      )}
+      <input type="hidden" name="exame_id" value={exameId} />
+      <input type="hidden" name="periodicidade_meses" value={periodicidadeMeses ?? ""} />
+      <div className="space-y-1">
+        <Label htmlFor="rapido_data">Data</Label>
+        <Input id="rapido_data" name="data" type="date" required defaultValue={hojeISO()} />
+      </div>
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? "Salvando..." : "Confirmar"}
+      </Button>
+    </form>
+  );
+}
+
+// Liga o acompanhamento de um exame complementar que a função do colaborador não exige
+// (certificação/exame extra que alguém quer monitorar mesmo sem ser exigência do PGR).
+function AcompanharNovoExame({
+  colaboradorId,
+  opcoes,
+}: {
+  colaboradorId: string;
+  opcoes: { id: string; nome: string }[];
+}) {
+  const [exameId, setExameId] = useState("");
+  const [pendente, setPendente] = useState(false);
+
+  function ativar() {
+    if (!exameId) return;
+    setPendente(true);
+    ativarAcompanhamentoExameNovo(colaboradorId, exameId).finally(() => {
+      setPendente(false);
+      setExameId("");
+    });
+  }
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="w-64 space-y-1">
+        <Label htmlFor="novo_exame_ficha">Acompanhar outro exame</Label>
+        <NativeSelect
+          id="novo_exame_ficha"
+          value={exameId}
+          onChange={(e) => setExameId(e.target.value)}
+        >
+          <option value="">Selecione...</option>
+          {opcoes.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.nome}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+      <Button type="button" size="sm" variant="outline" disabled={!exameId || pendente} onClick={ativar}>
+        {pendente ? "Ativando..." : "Ativar"}
+      </Button>
+    </div>
   );
 }
 
@@ -350,25 +559,24 @@ function FormularioAso({
   );
 }
 
+// Só pra registrar um exame complementar NOVO (que ainda não tinha nenhuma linha de
+// acompanhamento) — editar ou renovar um já existente usa os formulários dedicados acima.
 function FormularioExameComplementar({
   action,
   opcoesExame,
-  valoresIniciais,
   textoBotao,
   aoSalvar,
   aoCancelar,
 }: {
   action: Acao;
   opcoesExame: { id: string; nome: string; periodicidade_meses: number | null }[];
-  valoresIniciais?: ExameComplementarItem;
   textoBotao: string;
   aoSalvar: () => void;
   aoCancelar?: () => void;
 }) {
-  const editando = Boolean(valoresIniciais);
   const [state, formAction, pending] = useActionState(action, undefined);
-  const [exameId, setExameId] = useState(valoresIniciais?.exame_id ?? "");
-  const [data, setData] = useState(valoresIniciais?.data ?? hojeISO());
+  const [exameId, setExameId] = useState("");
+  const [data, setData] = useState(hojeISO());
 
   useEffect(() => {
     if (state && "ok" in state) aoSalvar();
@@ -376,8 +584,6 @@ function FormularioExameComplementar({
   }, [state]);
 
   const exameSelecionado = opcoesExame.find((e) => e.id === exameId);
-  // Só usado na CRIAÇÃO (prévia do vencimento calculado pela periodicidade atual do
-  // catálogo) — na edição, o vencimento vem do campo editável abaixo, não é recalculado.
   const vencimentoPrevisto = useMemo(() => {
     if (!exameSelecionado?.periodicidade_meses || !data) return null;
     return somarMeses(data, exameSelecionado.periodicidade_meses);
@@ -412,13 +618,11 @@ function FormularioExameComplementar({
               </option>
             ))}
           </NativeSelect>
-          {!editando && (
-            <input
-              type="hidden"
-              name="periodicidade_meses"
-              value={exameSelecionado?.periodicidade_meses ?? ""}
-            />
-          )}
+          <input
+            type="hidden"
+            name="periodicidade_meses"
+            value={exameSelecionado?.periodicidade_meses ?? ""}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="exame_data">Data</Label>
@@ -431,25 +635,12 @@ function FormularioExameComplementar({
             onChange={(e) => setData(e.target.value)}
           />
         </div>
-        {editando && (
-          <div className="space-y-1.5">
-            <Label htmlFor="exame_vencimento">Vencimento</Label>
-            <Input
-              id="exame_vencimento"
-              name="data_vencimento"
-              type="date"
-              defaultValue={valoresIniciais?.data_vencimento ?? ""}
-            />
-          </div>
-        )}
       </div>
-      {!editando && (
-        <p className="text-sm text-muted-foreground">
-          {exameSelecionado?.periodicidade_meses
-            ? `Vencimento calculado automaticamente: ${vencimentoPrevisto ? formatarData(vencimentoPrevisto) : "—"}`
-            : "Este exame é somente na admissão (sem vencimento)."}
-        </p>
-      )}
+      <p className="text-sm text-muted-foreground">
+        {exameSelecionado?.periodicidade_meses
+          ? `Vencimento calculado automaticamente: ${vencimentoPrevisto ? formatarData(vencimentoPrevisto) : "—"}`
+          : "Este exame é somente na admissão (sem vencimento)."}
+      </p>
       <div className="flex justify-end gap-2">
         {aoCancelar && (
           <Button type="button" variant="ghost" onClick={aoCancelar}>

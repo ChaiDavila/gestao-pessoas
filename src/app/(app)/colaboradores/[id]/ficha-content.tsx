@@ -6,10 +6,13 @@ import {
   getFormacoes,
   getHistoricoSalarial,
   getAsoRegistros,
-  getExamesComplementares,
+  getPgrColaborador,
   getConfigFormacoes,
   getConfigTiposExame,
   getMotivosEvolucaoSalarial,
+  getTreinamentosColaborador,
+  getNrColaborador,
+  getHistoricoEstruturaColaborador,
 } from "@/lib/data/colaborador-detalhe";
 import {
   atualizarColaborador,
@@ -56,6 +59,9 @@ export async function FichaColaboradorContent({
     opcoesNivelFormacao,
     opcoesExame,
     opcoesMotivoEvolucao,
+    participacoesTreinamentos,
+    nrAcompanhamento,
+    historicoEstrutura,
   ] = await Promise.all([
     getOpcoesFormulario(id, {
       cargo_id: colaborador.cargo_id,
@@ -69,10 +75,13 @@ export async function FichaColaboradorContent({
     getFormacoes(id),
     getHistoricoSalarial(id),
     getAsoRegistros(id),
-    getExamesComplementares(id),
+    getPgrColaborador(id),
     getConfigFormacoes(),
     getConfigTiposExame(),
     getMotivosEvolucaoSalarial(),
+    getTreinamentosColaborador(id),
+    getNrColaborador(id),
+    getHistoricoEstruturaColaborador(id),
   ]);
 
   return (
@@ -80,6 +89,7 @@ export async function FichaColaboradorContent({
       colaborador={colaborador}
       opcoes={opcoes}
       modoInicial={modoInicial}
+      colaboradorId={id}
       atualizarAction={atualizarColaborador.bind(null, id)}
       desativarAction={desativarColaborador.bind(null, id)}
       reativarAction={reativarColaborador.bind(null, id)}
@@ -107,6 +117,9 @@ export async function FichaColaboradorContent({
       adicionarExameAction={adicionarExameComplementar.bind(null, id)}
       atualizarExameAction={atualizarExameComplementar.bind(null, id)}
       removerExameAction={removerExameComplementar.bind(null, id)}
+      participacoesTreinamentos={participacoesTreinamentos}
+      nrAcompanhamento={nrAcompanhamento}
+      historicoEstrutura={historicoEstrutura}
     />
   );
 }

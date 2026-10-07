@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import type { NrColaboradorItem, ParticipacaoItem } from "@/lib/data/treinamentos";
+import type { PgrColaboradorItem } from "@/lib/data/aso";
 
 export type FormacaoRow = {
   id: string;
@@ -90,18 +92,81 @@ export async function getAsoRegistros(colaboradorId: string) {
   return data ?? [];
 }
 
-export async function getExamesComplementares(colaboradorId: string) {
+// Mesma fonte do módulo ASO (rh.vw_pgr_colaborador): uma linha por exame complementar
+// ACOMPANHADO (inclusive os nunca registrados — "Sem registro"), com o estado de
+// acompanhamento, pra ficha e módulo nunca divergirem.
+export async function getPgrColaborador(colaboradorId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .schema("rh")
-    .from("exames_complementares_registros")
-    .select("id, exame_id, data, data_vencimento, config_tipos_exame(nome)")
+    .from("vw_pgr_colaborador")
+    .select("*")
     .eq("colaborador_id", colaboradorId)
-    .eq("ativo", true)
+    .order("exame_nome", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PgrColaboradorItem[];
+}
+
+// Treinamentos (gerais + NR) que o colaborador participou — histórico completo de
+// renovações, igual ao que o módulo Treinamentos mostra (mesma view, mesmos registros).
+export async function getTreinamentosColaborador(colaboradorId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("rh")
+    .from("vw_treinamento_participantes")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
     .order("data", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as ExameComplementarRow[];
+  return (data ?? []) as ParticipacaoItem[];
+}
+
+// Situação/acompanhamento de NR do colaborador — mesma fonte do módulo Treinamentos
+// (rh.vw_nr_colaborador), incluindo NRs acompanhadas sem nenhum curso feito ainda.
+export async function getNrColaborador(colaboradorId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("rh")
+    .from("vw_nr_colaborador")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("nr", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as NrColaboradorItem[];
+}
+
+export type HistoricoEstruturaRow = {
+  id: string;
+  data_vigencia: string;
+  cargo_id: string | null;
+  cargo_nome: string | null;
+  nivel_id: string | null;
+  nivel_nome: string | null;
+  eixo_id: string | null;
+  eixo_nome: string | null;
+  setor_id: string | null;
+  setor_nome: string | null;
+  gestor_colaborador_id: string | null;
+  gestor_nome: string | null;
+};
+
+// Histórico de função/nível/eixo/setor/gestor com vigência — mesma tabela que a edição do
+// colaborador já alimenta (rh.historico_estrutura_organizacional), só com os nomes
+// resolvidos pra exibição. Mais antigo primeiro, pra calcular "anterior → novo" em ordem.
+export async function getHistoricoEstruturaColaborador(colaboradorId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("rh")
+    .from("vw_historico_estrutura_colaborador")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("data_vigencia", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as HistoricoEstruturaRow[];
 }
 
 export async function getConfigFormacoes() {

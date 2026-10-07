@@ -11,6 +11,10 @@ import { DependentesTab } from "./dependentes-tab";
 import { FormacaoTab } from "./formacao-tab";
 import { HistoricoTab } from "./historico-tab";
 import { ExamesTab } from "./exames-tab";
+import { TreinamentosTab } from "./treinamentos-tab";
+import { MovimentacoesTab } from "./movimentacoes-tab";
+import type { ParticipacaoItem, NrColaboradorItem } from "@/lib/data/treinamentos";
+import type { HistoricoEstruturaRow } from "@/lib/data/colaborador-detalhe";
 
 type Valores = Record<string, string | number | null | undefined>;
 type AcaoComEstado = (
@@ -24,6 +28,8 @@ type AcaoComId = (
 ) => Promise<SubRecursoState>;
 
 export function TabsFicha({
+  colaboradorId,
+  nome,
   opcoes,
   valoresIniciais,
   atualizarAction,
@@ -52,7 +58,12 @@ export function TabsFicha({
   adicionarExameAction,
   atualizarExameAction,
   removerExameAction,
+  participacoesTreinamentos,
+  nrAcompanhamento,
+  historicoEstrutura,
 }: {
+  colaboradorId: string;
+  nome: string;
   opcoes: OpcoesFormulario;
   valoresIniciais: Valores;
   atualizarAction: (
@@ -84,6 +95,9 @@ export function TabsFicha({
   adicionarExameAction: AcaoComEstado;
   atualizarExameAction: AcaoComId;
   removerExameAction: (exameRegistroId: string) => Promise<void>;
+  participacoesTreinamentos: ParticipacaoItem[];
+  nrAcompanhamento: NrColaboradorItem[];
+  historicoEstrutura: HistoricoEstruturaRow[];
 }) {
   if (modo === "editar") {
     return (
@@ -109,6 +123,8 @@ export function TabsFicha({
         <TabsTrigger value="historico">Histórico salarial</TabsTrigger>
         <TabsTrigger value="formacao">Formação</TabsTrigger>
         <TabsTrigger value="exames">Exames ocupacionais</TabsTrigger>
+        <TabsTrigger value="treinamentos">Treinamentos</TabsTrigger>
+        <TabsTrigger value="movimentacoes">Histórico de movimentações</TabsTrigger>
       </TabsList>
 
       <TabsContent value="dados" className="pt-4">
@@ -155,6 +171,7 @@ export function TabsFicha({
 
       <TabsContent value="exames" className="pt-4">
         <ExamesTab
+          colaboradorId={colaboradorId}
           asoRegistros={asoRegistros}
           examesComplementares={examesComplementares}
           opcoesExame={opcoesExame}
@@ -164,6 +181,25 @@ export function TabsFicha({
           adicionarExameAction={adicionarExameAction}
           atualizarExameAction={atualizarExameAction}
           removerExameAction={removerExameAction}
+        />
+      </TabsContent>
+
+      <TabsContent value="treinamentos" className="pt-4">
+        <TreinamentosTab
+          nome={nome}
+          participacoes={participacoesTreinamentos}
+          nrAcompanhamento={nrAcompanhamento}
+        />
+      </TabsContent>
+
+      <TabsContent value="movimentacoes" className="pt-4">
+        <MovimentacoesTab
+          historico={historicoEstrutura}
+          dataAdmissao={
+            typeof valoresIniciais.data_admissao === "string"
+              ? valoresIniciais.data_admissao
+              : null
+          }
         />
       </TabsContent>
     </Tabs>

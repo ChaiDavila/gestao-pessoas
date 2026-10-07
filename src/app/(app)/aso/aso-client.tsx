@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatarData, hojeISO } from "@/lib/date";
-import { situacaoVencimento, type SituacaoVencimento } from "@/lib/vencimento";
+import { situacaoVencimento, situacaoPgr, type SituacaoVencimento } from "@/lib/vencimento";
 import type { AsoColaboradorItem, PgrColaboradorItem } from "@/lib/data/aso";
 import {
   adicionarAso,
@@ -41,20 +41,6 @@ const TIPO_EXAME_LABEL: Record<string, string> = {
   mudanca_funcao: "Mudança de função",
   retorno_trabalho: "Retorno ao trabalho",
 };
-
-function situacaoPgr(item: PgrColaboradorItem): SituacaoVencimento {
-  if (!item.registro_id) {
-    // Exame só-na-admissão (sem periodicidade) nunca registrado: falta só lançar o dado,
-    // não tem prazo correndo atrás dele — não é uma pendência de conformidade recorrente
-    // como um exame periódico vencido, então não entra como alerta (fica visível só no
-    // detalhe do colaborador).
-    if (item.periodicidade_meses === null) {
-      return { tone: "neutral", texto: "Pendente de registro" };
-    }
-    return { tone: "danger", texto: "Nunca registrado" };
-  }
-  return situacaoVencimento(item.data_vencimento) ?? { tone: "success", texto: "Sem vencimento" };
-}
 
 // "neutral" (exame só-admissão pendente só de registro) pesa igual a "success" — não conta
 // como pendência de conformidade, só aparece no detalhe.

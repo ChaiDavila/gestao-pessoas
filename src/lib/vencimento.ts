@@ -15,3 +15,21 @@ export function situacaoVencimento(
   if (dataVencimento <= em30dias) return { tone: "warning", texto: "A vencer" };
   return { tone: "success", texto: "Em dia" };
 }
+
+// Situação de um exame complementar (PGR) — usada pelo módulo ASO e pela ficha do
+// colaborador (mesma regra nos dois lugares, nunca duas implementações divergentes).
+// "neutral" (exame só-admissão pendente só de registro) não é pendência de conformidade,
+// só aparece no detalhe.
+export function situacaoPgr(item: {
+  registro_id: string | null;
+  data_vencimento: string | null;
+  periodicidade_meses: number | null;
+}): SituacaoVencimento {
+  if (!item.registro_id) {
+    if (item.periodicidade_meses === null) {
+      return { tone: "neutral", texto: "Pendente de registro" };
+    }
+    return { tone: "danger", texto: "Nunca registrado" };
+  }
+  return situacaoVencimento(item.data_vencimento) ?? { tone: "success", texto: "Sem vencimento" };
+}
