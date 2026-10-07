@@ -145,8 +145,10 @@ export function NrTab({
         quando a função exige, editável a qualquer momento): desligar não
         apaga o curso nem o certificado, só tira aquela NR dos alertas e
         indicadores — útil quando a pessoa muda de função e ela deixa de
-        precisar renovar. A matriz de NR por função fica em{" "}
-        <strong>Configurações → Treinamentos</strong>.
+        precisar renovar. Desativar um curso de NR no catálogo também para os
+        alertas de quem já estava sendo acompanhado (sem apagar histórico) —
+        reativar o curso volta a gerar alerta automaticamente. A matriz de NR
+        por função fica em <strong>Configurações → Treinamentos</strong>.
       </InfoBanner>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
