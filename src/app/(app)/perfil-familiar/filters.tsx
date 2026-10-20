@@ -58,10 +58,10 @@ export function PerfilFamiliarFilters({ opcoes }: { opcoes: OpcoesFormulario }) 
       <div className="w-44 space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Status</label>
         <NativeSelect
-          value={searchParams.get("status") ?? ""}
+          value={searchParams.get("status") ?? "ativo"}
           onChange={(e) => atualizarFiltro("status", e.target.value)}
         >
-          <option value="">Todos</option>
+          <option value="todos">Todos</option>
           {STATUS_RH.map((s) => (
             <option key={s} value={s}>
               {STATUS_RH_LABEL[s]}

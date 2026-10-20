@@ -58,7 +58,9 @@ export async function getColaboradoresFamiliar(filtros: PerfilFamiliarFiltros) {
   if (filtros.eixoId?.length) query = query.in("eixo_id", filtros.eixoId);
   if (filtros.setorId?.length) query = query.in("setor_id", filtros.setorId);
   if (filtros.gestorId?.length) query = query.in("gestor_colaborador_id", filtros.gestorId);
-  if (filtros.status) query = query.eq("status_rh", filtros.status);
+  if (filtros.status && filtros.status !== "todos") {
+    query = query.eq("status_rh", filtros.status);
+  }
   if (filtros.estadoCivil?.length) query = query.in("estado_civil", filtros.estadoCivil);
 
   const { data, error } = await query;

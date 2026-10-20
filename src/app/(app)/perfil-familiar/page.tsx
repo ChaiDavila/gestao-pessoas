@@ -32,7 +32,7 @@ export default async function PerfilFamiliarPage({ searchParams }: PageProps) {
     eixoId: todos(params.eixo),
     setorId: todos(params.setor),
     gestorId: todos(params.gestor),
-    status: primeiro(params.status),
+    status: primeiro(params.status) ?? "ativo",
     estadoCivil: todos(params.estadoCivil),
     somenteComFilhos: primeiro(params.comFilhos) === "1",
   };

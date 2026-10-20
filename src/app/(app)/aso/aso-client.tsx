@@ -11,7 +11,7 @@ import { PainelAdicionar } from "@/components/painel-adicionar";
 import { BotaoRemover } from "@/components/botao-remover";
 import { StatusBadge } from "@/components/status-badge";
 import { StatTile } from "@/components/stat-tile";
-import { InfoBanner } from "@/components/info-banner";
+import { InfoBannerComDetalhe } from "@/components/info-banner";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import {
   Dialog,
@@ -256,22 +256,51 @@ export function AsoClient({
         <StatTile label="Exames a vencer ou vencidos" valor={String(kpis.pendentesNotificacao)} subtitulo="soma de todos os exames pendentes, de todo mundo" />
       </div>
 
-      <InfoBanner>
-        A lista de qual exame cada função exige, e com que periodicidade, é definida
-        em <strong>Configurações → ASO e PGR → Exames exigidos por função (PGR)</strong>.
-        Cada exame complementar tem um <strong>acompanhamento</strong> próprio
-        (ligado automaticamente quando a função exige): desligar não apaga o
-        exame nem o resultado, só tira da lista de pendências — útil quando a
-        pessoa muda de função e aquele exame deixa de ser exigido. Desativar
-        um tipo de exame no catálogo também para os alertas de quem já estava
-        sendo acompanhado (sem apagar histórico) — reativar volta a gerar
-        alerta automaticamente. Clique num
-        colaborador para ver o detalhe; o histórico completo de exames
-        antigos fica na ficha do colaborador, aba &quot;Exames ocupacionais&quot;.
-        Quem tem um tipo de contrato marcado como isento (ex.: PJ, Estágio) nem
-        aparece aqui — ajuste em <strong>Configurações → ASO e PGR → Exigência de
-        ASO/PGR por tipo de contrato</strong>.
-      </InfoBanner>
+      <InfoBannerComDetalhe
+        resumo={
+          <>
+            Uma linha por colaborador; os exames exigidos vêm do PGR da
+            função, cada um com acompanhamento próprio.
+          </>
+        }
+        detalhe={
+          <>
+            <p>
+              A lista de qual exame cada função exige, e com que
+              periodicidade, é definida em{" "}
+              <strong>
+                Configurações → ASO e PGR → Exames exigidos por função (PGR)
+              </strong>
+              .
+            </p>
+            <p>
+              Cada exame complementar tem um <strong>acompanhamento</strong>{" "}
+              próprio (ligado automaticamente quando a função exige):
+              desligar não apaga o exame nem o resultado, só tira da lista de
+              pendências — útil quando a pessoa muda de função e aquele exame
+              deixa de ser exigido.
+            </p>
+            <p>
+              Desativar um tipo de exame no catálogo também para os alertas
+              de quem já estava sendo acompanhado (sem apagar histórico);
+              reativar volta a gerar alerta automaticamente.
+            </p>
+            <p>
+              Clique num colaborador pra ver o detalhe; o histórico completo
+              fica na ficha dele, aba &quot;ASO&quot;.
+            </p>
+            <p>
+              Quem tem tipo de contrato isento (ex.: PJ, Estágio) nem aparece
+              aqui — ajuste em{" "}
+              <strong>
+                Configurações → ASO e PGR → Exigência de ASO/PGR por tipo de
+                contrato
+              </strong>
+              .
+            </p>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-lg border border-border p-1">

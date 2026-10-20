@@ -8,7 +8,7 @@ import { NativeSelect } from "@/components/native-select";
 import { PainelAdicionar } from "@/components/painel-adicionar";
 import { StatTile } from "@/components/stat-tile";
 import { StatusBadge } from "@/components/status-badge";
-import { InfoBanner } from "@/components/info-banner";
+import { InfoBannerComDetalhe } from "@/components/info-banner";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { formatarData, hojeISO } from "@/lib/date";
 import { situacaoVencimento, type SituacaoVencimento } from "@/lib/vencimento";
@@ -137,19 +137,38 @@ export function NrTab({
 
   return (
     <div className="space-y-4">
-      <InfoBanner>
-        Controle de validade das NRs: uma linha por colaborador, com o status
-        de cada curso calculado a partir do registro mais recente — o filtro
-        de <strong>Período</strong> não esconde NRs vencidas antigas. Cada NR
-        tem um <strong>acompanhamento</strong> próprio (ligado automaticamente
-        quando a função exige, editável a qualquer momento): desligar não
-        apaga o curso nem o certificado, só tira aquela NR dos alertas e
-        indicadores — útil quando a pessoa muda de função e ela deixa de
-        precisar renovar. Desativar um curso de NR no catálogo também para os
-        alertas de quem já estava sendo acompanhado (sem apagar histórico) —
-        reativar o curso volta a gerar alerta automaticamente. A matriz de NR
-        por função fica em <strong>Configurações → Treinamentos</strong>.
-      </InfoBanner>
+      <InfoBannerComDetalhe
+        resumo={
+          <>
+            Uma linha por colaborador: status calculado pelo registro mais
+            recente de cada NR, com acompanhamento próprio por curso.
+          </>
+        }
+        detalhe={
+          <>
+            <p>
+              O filtro de <strong>Período</strong> não esconde NRs vencidas
+              antigas — ele só vale pros indicadores agregados.
+            </p>
+            <p>
+              Cada NR tem um <strong>acompanhamento</strong> próprio (ligado
+              automaticamente quando a função exige, editável a qualquer
+              momento): desligar não apaga o curso nem o certificado, só tira
+              aquela NR dos alertas — útil quando a pessoa muda de função e
+              deixa de precisar renovar.
+            </p>
+            <p>
+              Desativar um curso de NR no catálogo também para os alertas de
+              quem já estava sendo acompanhado (sem apagar histórico);
+              reativar volta a gerar alerta automaticamente.
+            </p>
+            <p>
+              A matriz de NR por função fica em{" "}
+              <strong>Configurações → Treinamentos</strong>.
+            </p>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PainelAdicionar rotulo="+ Registrar treinamento de NR">
