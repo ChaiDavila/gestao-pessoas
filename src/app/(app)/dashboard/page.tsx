@@ -3,6 +3,7 @@ import {
   getColaboradoresDashboard,
   getDesligamentosDashboard,
   getFormacaoAtualTodos,
+  getHistoricoSalarialDashboard,
 } from "@/lib/data/dashboard";
 import { exigirAcessoTela } from "@/lib/auth";
 import { DashboardFilters } from "./filters";
@@ -36,12 +37,14 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     ate: primeiro(params.ate),
   };
 
-  const [colaboradores, desligamentos, formacaoAtual, opcoes] = await Promise.all([
-    getColaboradoresDashboard(),
-    getDesligamentosDashboard(),
-    getFormacaoAtualTodos(),
-    getOpcoesFormulario(),
-  ]);
+  const [colaboradores, desligamentos, formacaoAtual, historicoSalarial, opcoes] =
+    await Promise.all([
+      getColaboradoresDashboard(),
+      getDesligamentosDashboard(),
+      getFormacaoAtualTodos(),
+      getHistoricoSalarialDashboard(),
+      getOpcoesFormulario(),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -63,6 +66,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         colaboradores={colaboradores}
         desligamentos={desligamentos}
         formacaoAtual={formacaoAtual}
+        historicoSalarial={historicoSalarial}
         filtros={filtros}
       />
     </div>

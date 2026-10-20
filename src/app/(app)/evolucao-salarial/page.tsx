@@ -72,20 +72,6 @@ export default async function EvolucaoSalarialPage({
   const colaboradoresUnicos = new Set(lancamentos.map((l) => l.colaborador_id)).size;
   const promocoes = lancamentos.filter((l) => l.motivo_nome === "Promoção").length;
   const reajustesGerais = lancamentos.filter((l) => l.motivo_nome === "Reajuste geral").length;
-  const comAumentoPercentual = lancamentos.filter(
-    (l) => l.salario_anterior && Number(l.salario_anterior) > 0 && l.salario_novo != null,
-  );
-  const aumentoMedio =
-    comAumentoPercentual.length > 0
-      ? comAumentoPercentual.reduce(
-          (s, l) =>
-            s +
-            ((Number(l.salario_novo) - Number(l.salario_anterior)) /
-              Number(l.salario_anterior)) *
-              100,
-          0,
-        ) / comAumentoPercentual.length
-      : 0;
 
   const alteracoesPorMotivo = agruparContagem(
     lancamentos.map((l) => l.motivo_nome ?? "Sem motivo"),
@@ -132,7 +118,7 @@ export default async function EvolucaoSalarialPage({
         <EvolucaoSalarialFilters opcoes={opcoes} colaboradores={colaboradores} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatTile
           label="Alterações registradas"
           valor={String(lancamentos.length)}
@@ -148,11 +134,6 @@ export default async function EvolucaoSalarialPage({
           label="Reajustes gerais"
           valor={String(reajustesGerais)}
           subtitulo="no recorte filtrado"
-        />
-        <StatTile
-          label="Aumento médio por alteração"
-          valor={`${aumentoMedio.toFixed(1)}%`}
-          subtitulo="variação média de salário por registro"
         />
       </div>
 

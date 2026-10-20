@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatarData } from "@/lib/date";
 import { formatarMoeda, formatarPercentual } from "@/lib/formatacao";
 import {
   calcularDashboard,
@@ -25,22 +26,25 @@ import type {
   ColaboradorDashboardItem,
   DesligamentoDashboardItem,
   FormacaoAtualItem,
+  HistoricoSalarialDashboardItem,
 } from "@/lib/data/dashboard";
 
 export function DashboardClient({
   colaboradores,
   desligamentos,
   formacaoAtual,
+  historicoSalarial,
   filtros,
 }: {
   colaboradores: ColaboradorDashboardItem[];
   desligamentos: DesligamentoDashboardItem[];
   formacaoAtual: FormacaoAtualItem[];
+  historicoSalarial: HistoricoSalarialDashboardItem[];
   filtros: DashboardFiltros;
 }) {
   const dados = useMemo(
-    () => calcularDashboard(colaboradores, desligamentos, formacaoAtual, filtros),
-    [colaboradores, desligamentos, formacaoAtual, filtros],
+    () => calcularDashboard(colaboradores, desligamentos, formacaoAtual, filtros, historicoSalarial),
+    [colaboradores, desligamentos, formacaoAtual, filtros, historicoSalarial],
   );
   // Esconde faixas etárias sem ninguém no recorte atual, em vez de mostrar colunas zeradas.
   const faixaEtariaComDados = dados.porFaixaEtaria.filter((g) => g.valor > 0);
@@ -215,14 +219,20 @@ export function DashboardClient({
           />
         </ChartCard>
 
-        <ChartCard titulo="Evolução da folha salarial total">
-          <LineChart
-            labels={dados.anosOrdenados}
-            valores={dados.folhaPorAno}
-            formatarValor={(v) => formatarMoeda(v) ?? ""}
-            linhaExtraTooltip={(i) => dados.folhaPorAnoVariacaoTexto[i]}
-          />
-        </ChartCard>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="mb-3 text-sm font-semibold text-foreground">
+            Evolução da folha salarial total
+          </p>
+          <div style={{ height: 260 }}>
+            <LineChart
+              labels={dados.anosOrdenados}
+              valores={dados.folhaPorAno}
+              formatarValor={(v) => formatarMoeda(v) ?? ""}
+              linhaExtraTooltip={(i) => dados.folhaPorAnoVariacaoTexto[i]}
+            />
+          </div>
+          <ComparacaoFolhaPeriodo comparacao={dados.comparacaoFolha} />
+        </div>
 
       </div>
 
@@ -367,6 +377,95 @@ export function DashboardClient({
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function ComparacaoFolhaPeriodo({
+  comparacao,
+}: {
+  comparacao: ReturnType<typeof calcularDashboard>["comparacaoFolha"];
+}) {
+  if (!comparacao) {
+    return (
+      <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+        Sem dados suficientes para comparar o início e o fim do período.
+      </p>
+    );
+  }
+
+  const {
+    dataInicial,
+    dataFinal,
+    folhaInicial,
+    folhaFinal,
+    diferenca,
+    percentual,
+    incompleta,
+    semDadoInicial,
+    semDadoFinal,
+  } = comparacao;
+
+  const periodoTexto = (
+    <p className="text-xs text-muted-foreground">
+      Período: {formatarData(dataInicial)} a {formatarData(dataFinal)}
+    </p>
+  );
+
+  // Sem nenhum salário determinável numa das pontas, a diferença em cima de um "zero" que na
+  // verdade é "sem dado" seria enganosa (pareceria um aumento de 100%) — mostra só o que se
+  // sabe de cada lado e explica por que não dá pra calcular a variação.
+  if (semDadoInicial || semDadoFinal) {
+    return (
+      <div className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
+        {periodoTexto}
+        <p className="text-foreground">
+          Folha inicial:{" "}
+          <span className="font-medium">
+            {semDadoInicial ? "sem dado suficiente" : formatarMoeda(folhaInicial)}
+          </span>{" "}
+          | Folha final:{" "}
+          <span className="font-medium">
+            {semDadoFinal ? "sem dado suficiente" : formatarMoeda(folhaFinal)}
+          </span>
+          .
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Não dá pra calcular o aumento/redução no período: falta salário
+          histórico de quem estava ativo{" "}
+          {semDadoInicial && semDadoFinal
+            ? "nas duas datas"
+            : semDadoInicial
+              ? "na data inicial"
+              : "na data final"}
+          . Registrar o histórico salarial em Colaboradores → Histórico
+          salarial resolve isso daqui pra frente.
+        </p>
+      </div>
+    );
+  }
+
+  const sinal = diferenca >= 0 ? "+" : "-";
+  const verbo = diferenca >= 0 ? "Aumento" : "Redução";
+  const percentualTexto =
+    percentual !== null ? ` (${sinal}${Math.abs(percentual).toFixed(1)}%)` : "";
+
+  return (
+    <div className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
+      {periodoTexto}
+      <p className="text-foreground">
+        Folha inicial: <span className="font-medium">{formatarMoeda(folhaInicial)}</span> | Folha
+        final: <span className="font-medium">{formatarMoeda(folhaFinal)}</span>.{" "}
+        {verbo} de {formatarMoeda(Math.abs(diferenca))}
+        {percentualTexto} no período.
+      </p>
+      {incompleta && (
+        <p className="text-xs text-muted-foreground">
+          Comparação incompleta: falta salário histórico (ou admissional) de
+          pelo menos um colaborador numa das duas datas — os valores acima
+          podem estar subestimados onde não há nenhum registro.
+        </p>
+      )}
     </div>
   );
 }

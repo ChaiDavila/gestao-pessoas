@@ -2,11 +2,13 @@ import type {
   ColaboradorDashboardItem,
   DesligamentoDashboardItem,
   FormacaoAtualItem,
+  HistoricoSalarialDashboardItem,
 } from "@/lib/data/dashboard";
 import {
   agruparDesligamentosPorColaborador,
   estavaAtivoEm,
   headcountEm,
+  type DesligamentoParaHeadcount,
 } from "@/lib/headcount";
 import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
@@ -126,11 +128,107 @@ const FAIXAS_TEMPO_CASA = [
 
 const LABEL_SEXO: Record<string, string> = { M: "Masculino", F: "Feminino" };
 
+type HistoricoOrdenado = { data: string; salario_novo: number };
+
+function agruparHistoricoSalarial(
+  historico: HistoricoSalarialDashboardItem[],
+): Map<string, HistoricoOrdenado[]> {
+  const mapa = new Map<string, HistoricoOrdenado[]>();
+  for (const h of historico) {
+    if (h.salario_novo === null || h.salario_novo === undefined) continue;
+    if (!mapa.has(h.colaborador_id)) mapa.set(h.colaborador_id, []);
+    mapa.get(h.colaborador_id)!.push({ data: h.data, salario_novo: Number(h.salario_novo) });
+  }
+  for (const lista of mapa.values()) lista.sort((a, b) => a.data.localeCompare(b.data));
+  return mapa;
+}
+
+// Salário vigente de um colaborador numa data passada: a entrada mais recente do histórico
+// com `data <= dataAlvo`, se existir (valor CONFIRMADO). Sem nenhuma entrada até ali, cai pro
+// salário admissional — uma aproximação (ninguém garante que não houve reajuste não
+// registrado antes do primeiro lançamento), por isso `confirmado: false` nesse caso. Em
+// `hojeISO`, usa `salario_atual` direto (fonte de verdade do presente, não precisa
+// reconstrução nenhuma).
+function salarioVigenteEm(
+  colaborador: { salario_atual: number | null; salario_admissional: number | null },
+  historicoAsc: HistoricoOrdenado[],
+  dataAlvo: string,
+  hojeISO: string,
+): { valor: number | null; confirmado: boolean } {
+  if (dataAlvo === hojeISO) {
+    const valor = colaborador.salario_atual;
+    return { valor: valor ?? null, confirmado: valor !== null && valor !== undefined };
+  }
+
+  let escolhido: HistoricoOrdenado | null = null;
+  for (const h of historicoAsc) {
+    if (h.data <= dataAlvo) escolhido = h;
+    else break;
+  }
+  if (escolhido) return { valor: escolhido.salario_novo, confirmado: true };
+
+  if (colaborador.salario_admissional !== null && colaborador.salario_admissional !== undefined) {
+    return { valor: Number(colaborador.salario_admissional), confirmado: false };
+  }
+  return { valor: null, confirmado: false };
+}
+
+// Folha salarial reconstruída numa data: soma do salário vigente (ver acima) de quem estava
+// ATIVO naquela data (reconstruído via admissão + histórico real de desligamento/reativação,
+// nunca via status_rh atual) — `incompleta` sinaliza que pelo menos um salário entrou como
+// aproximação (sem lançamento de histórico confirmando o valor naquela data) ou ficou de
+// fora por falta total de dado (nem histórico, nem admissional).
+function folhaNaData(
+  colaboradoresEstrutura: ColaboradorDashboardItem[],
+  desligamentosPorColaborador: Map<string, DesligamentoParaHeadcount[]>,
+  historicoPorColaborador: Map<string, HistoricoOrdenado[]>,
+  data: string,
+  hojeISO: string,
+): { total: number; incompleta: boolean; ativos: number; ativosComDado: number } {
+  let total = 0;
+  let incompleta = false;
+  let ativos = 0;
+  let ativosComDado = 0;
+  for (const c of colaboradoresEstrutura) {
+    if (!estavaAtivoEm(c, desligamentosPorColaborador.get(c.id) ?? [], data)) continue;
+    ativos++;
+    const { valor, confirmado } = salarioVigenteEm(
+      c,
+      historicoPorColaborador.get(c.id) ?? [],
+      data,
+      hojeISO,
+    );
+    if (valor !== null) {
+      total += valor;
+      ativosComDado++;
+    }
+    if (!confirmado) incompleta = true;
+  }
+  return { total, incompleta, ativos, ativosComDado };
+}
+
+export type ComparacaoFolha = {
+  dataInicial: string;
+  dataFinal: string;
+  folhaInicial: number;
+  folhaFinal: number;
+  diferenca: number;
+  // null quando a folha inicial é zero (sem base pra calcular variação percentual).
+  percentual: number | null;
+  incompleta: boolean;
+  // true quando havia gente ativa na data, mas NENHUMA tem salário determinável (nem
+  // histórico, nem admissional) — nesse caso o valor em R$ não é um zero confiável, é "sem
+  // dado", e a UI não deve calcular diferença/variação em cima dele.
+  semDadoInicial: boolean;
+  semDadoFinal: boolean;
+} | null;
+
 export function calcularDashboard(
   colaboradoresTodos: ColaboradorDashboardItem[],
   desligamentosTodos: DesligamentoDashboardItem[],
   formacaoAtual: FormacaoAtualItem[],
   filtros: DashboardFiltros,
+  historicoSalarialTodos: HistoricoSalarialDashboardItem[] = [],
 ) {
   const hoje = new Date();
   const hojeISO = hoje.toISOString().slice(0, 10);
@@ -263,6 +361,56 @@ export function calcularDashboard(
     return `No período, a folha ${verbo} ${formatarMoeda(Math.abs(diferenca))} (${sinal}${percentual.toFixed(1)}%)`;
   });
 
+  // Comparação folha inicial × folha final do período: usa as datas De/Até do filtro quando
+  // selecionadas; sem período selecionado, cai pro primeiro e último ponto do gráfico acima
+  // (mesma base de anos). Diferente de `folhaPorAno` (que usa o salário ATUAL de todo mundo,
+  // uma aproximação deliberada), aqui o salário de cada data é RECONSTRUÍDO via histórico —
+  // é o que permite a folha inicial (numa data passada) não ficar inflada pelos reajustes que
+  // só aconteceram depois.
+  const fimDoAno = (ano: string) => (ano === String(anoAtual) ? hojeISO : `${ano}-12-31`);
+  const primeiroAnoComDados = anosOrdenados[0];
+  const ultimoAnoComDados = anosOrdenados[anosOrdenados.length - 1];
+  const dataInicialComparacao =
+    filtros.de ?? (primeiroAnoComDados ? fimDoAno(primeiroAnoComDados) : null);
+  const dataFinalComparacaoBruta =
+    filtros.ate ?? (ultimoAnoComDados ? fimDoAno(ultimoAnoComDados) : null);
+  const dataFinalComparacao =
+    dataFinalComparacaoBruta && dataFinalComparacaoBruta > hojeISO
+      ? hojeISO
+      : dataFinalComparacaoBruta;
+
+  const historicoSalarialPorColaborador = agruparHistoricoSalarial(historicoSalarialTodos);
+
+  let comparacaoFolha: ComparacaoFolha = null;
+  if (dataInicialComparacao && dataFinalComparacao) {
+    const inicial = folhaNaData(
+      colaboradoresEstrutura,
+      desligamentosPorColaborador,
+      historicoSalarialPorColaborador,
+      dataInicialComparacao,
+      hojeISO,
+    );
+    const final = folhaNaData(
+      colaboradoresEstrutura,
+      desligamentosPorColaborador,
+      historicoSalarialPorColaborador,
+      dataFinalComparacao,
+      hojeISO,
+    );
+    const diferenca = final.total - inicial.total;
+    comparacaoFolha = {
+      dataInicial: dataInicialComparacao,
+      dataFinal: dataFinalComparacao,
+      folhaInicial: inicial.total,
+      folhaFinal: final.total,
+      diferenca,
+      percentual: inicial.total !== 0 ? (diferenca / inicial.total) * 100 : null,
+      incompleta: inicial.incompleta || final.incompleta,
+      semDadoInicial: inicial.ativos > 0 && inicial.ativosComDado === 0,
+      semDadoFinal: final.ativos > 0 && final.ativosComDado === 0,
+    };
+  }
+
   const porSetor = agrupar(
     ativos.map((c) => ({ chave: c.setor_nome ?? "Sem setor", id: c.id })),
   ).sort((a, b) => b.valor - a.valor);
@@ -331,6 +479,7 @@ export function calcularDashboard(
     turnoverPorAno,
     folhaPorAno,
     folhaPorAnoVariacaoTexto,
+    comparacaoFolha,
     porSetor,
     porSexo,
     porFaixaEtaria,
