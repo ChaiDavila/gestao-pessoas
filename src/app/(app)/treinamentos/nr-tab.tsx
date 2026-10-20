@@ -41,12 +41,54 @@ function situacaoNr(item: NrColaboradorItem): SituacaoVencimento {
   return situacaoVencimento(item.data_vencimento) ?? { tone: "success", texto: "Sem vencimento" };
 }
 
-function piorSituacaoDoColaborador(entradas: NrColaboradorItem[]) {
+type Pendencia = {
+  item: NrColaboradorItem;
+  situacao: SituacaoVencimento;
+  textoProximaPendencia: string;
+};
+
+// Só considera NRs ACOMPANHADAS — a próxima pendência de alguém sem nenhum
+// acompanhamento é "Sem acompanhamento", não a situação de um curso que a pessoa nem está
+// sendo cobrada por manter em dia. Prioridade: 1) curso exigido sem nenhum registro ainda;
+// 2) o vencido há mais tempo; 3) o próximo a vencer (ou o mais distante, se nada estiver
+// vencido/a vencer) — um único sort por data cobre os dois, já que vencido é sempre < hoje
+// <= qualquer data futura.
+function pendenciaDoColaborador(entradas: NrColaboradorItem[]): Pendencia | undefined {
   const acompanhadas = entradas.filter((e) => e.acompanhar);
   if (acompanhadas.length === 0) return undefined;
-  return acompanhadas
-    .map((e) => ({ item: e, situacao: situacaoNr(e) }))
-    .sort((a, b) => peso(b.situacao.tone) - peso(a.situacao.tone))[0];
+
+  const semRegistro = acompanhadas
+    .filter((e) => !e.treinamento_id)
+    .sort((a, b) => a.nr.localeCompare(b.nr));
+  if (semRegistro.length > 0) {
+    const item = semRegistro[0];
+    return {
+      item,
+      situacao: { tone: "danger", texto: "Sem registro" },
+      textoProximaPendencia: `Falta registrar ${item.nr}`,
+    };
+  }
+
+  const comVencimento = acompanhadas
+    .filter((e) => e.data_vencimento)
+    .sort((a, b) => a.data_vencimento!.localeCompare(b.data_vencimento!));
+  if (comVencimento.length > 0) {
+    const item = comVencimento[0];
+    const situacao = situacaoVencimento(item.data_vencimento)!;
+    const rotulo = situacao.tone === "danger" ? "vencido em" : "vence";
+    return {
+      item,
+      situacao,
+      textoProximaPendencia: `${item.nr} — ${rotulo} ${formatarData(item.data_vencimento)}`,
+    };
+  }
+
+  // Só sobram cursos acompanhados sem vencimento cadastrado.
+  return {
+    item: acompanhadas[0],
+    situacao: { tone: "success", texto: "Sem vencimento" },
+    textoProximaPendencia: "—",
+  };
 }
 
 export function NrTab({
@@ -93,7 +135,7 @@ export function NrTab({
     let pendente = 0;
     let comAcompanhamento = 0;
     for (const [, info] of porColaborador) {
-      const pior = piorSituacaoDoColaborador(info.entradas);
+      const pior = pendenciaDoColaborador(info.entradas);
       // Sem nenhuma NR acompanhada (função não exige nada, ou tudo foi desligado
       // manualmente) não entra em nenhum dos dois buckets — não é pendência.
       if (!pior) continue;
@@ -309,15 +351,13 @@ function LinhaColaborador({
 }) {
   const [aberto, setAberto] = useState(false);
   const [renovandoRapido, setRenovandoRapido] = useState(false);
-  const pior = piorSituacaoDoColaborador(entradas);
+  const pior = pendenciaDoColaborador(entradas);
   const temPendencia = pior ? peso(pior.situacao.tone) >= 2 : false;
-  const proximaPendenciaTexto = pior
-    ? `${pior.item.nr} — ${pior.item.nr_nome}${
-        pior.item.data_vencimento ? ` · vence ${formatarData(pior.item.data_vencimento)}` : ""
-      }`
-    : "—";
+  const proximaPendenciaTexto = pior ? pior.textoProximaPendencia : "Sem acompanhamento";
   const nrsJaPresentes = new Set(entradas.map((e) => e.nr_numero));
   const nrsDisponiveis = nrsCatalogo.filter((n) => !nrsJaPresentes.has(n.id));
+  const acompanhadas = entradas.filter((e) => e.acompanhar);
+  const semAcompanhamento = entradas.filter((e) => !e.acompanhar);
 
   return (
     <>
@@ -378,25 +418,35 @@ function LinhaColaborador({
       {aberto && (
         <tr className="border-b border-border bg-muted/20 last:border-0">
           <td />
-          <td colSpan={5} className="p-4">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="py-1 font-medium">Curso</th>
-                  <th className="py-1 font-medium">Última data</th>
-                  <th className="py-1 font-medium">Vencimento</th>
-                  <th className="py-1 font-medium">Status</th>
-                  <th className="py-1" />
-                </tr>
-              </thead>
-              <tbody>
-                {entradas.map((e) => (
-                  <LinhaNr key={e.nr_numero} item={e} colaboradorId={colaboradorId} />
-                ))}
-              </tbody>
-            </table>
+          <td colSpan={5} className="space-y-4 p-4">
+            <div>
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                NRs acompanhadas
+              </h4>
+              <TabelaNrsDoColaborador itens={acompanhadas} colaboradorId={colaboradorId} />
+              {acompanhadas.length === 0 && (
+                <p className="py-2 text-sm text-muted-foreground">
+                  Nenhuma NR acompanhada — a função não exige nenhuma, ou o
+                  acompanhamento foi desligado individualmente.
+                </p>
+              )}
+            </div>
+
+            {semAcompanhamento.length > 0 && (
+              <div>
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Histórico sem acompanhamento
+                </h4>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Não gera alertas nem entra nas pendências — o curso e o
+                  certificado continuam preservados.
+                </p>
+                <TabelaNrsDoColaborador itens={semAcompanhamento} colaboradorId={colaboradorId} />
+              </div>
+            )}
+
             {nrsDisponiveis.length > 0 && (
-              <div className="mt-3">
+              <div>
                 <AcompanharNovaNr colaboradorId={colaboradorId} opcoes={nrsDisponiveis} />
               </div>
             )}
@@ -404,6 +454,34 @@ function LinhaColaborador({
         </tr>
       )}
     </>
+  );
+}
+
+function TabelaNrsDoColaborador({
+  itens,
+  colaboradorId,
+}: {
+  itens: NrColaboradorItem[];
+  colaboradorId: string;
+}) {
+  if (itens.length === 0) return null;
+  return (
+    <table className="w-full text-left text-sm">
+      <thead className="text-xs uppercase text-muted-foreground">
+        <tr>
+          <th className="py-1 font-medium">Curso</th>
+          <th className="py-1 font-medium">Última data</th>
+          <th className="py-1 font-medium">Vencimento</th>
+          <th className="py-1 font-medium">Status</th>
+          <th className="py-1" />
+        </tr>
+      </thead>
+      <tbody>
+        {itens.map((e) => (
+          <LinhaNr key={e.nr_numero} item={e} colaboradorId={colaboradorId} />
+        ))}
+      </tbody>
+    </table>
   );
 }
 
