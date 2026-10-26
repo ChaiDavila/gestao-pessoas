@@ -13,7 +13,7 @@ import { getColaboradoresDashboard } from "@/lib/data/dashboard";
 import { calcularIndicadoresDesligamentos } from "@/lib/desligamentos-indicadores";
 import { formatarData, resolverPeriodo } from "@/lib/date";
 import { DesligamentosFilters } from "./filters";
-import { PeriodoFilter } from "./periodo-filter";
+import { PeriodoFilter } from "@/components/periodo-filter";
 import { BotaoRemoverDesligamento } from "./botao-remover-desligamento";
 import { EditarDesligamentoDialog } from "./editar-desligamento-dialog";
 import { EvolucaoAnualChart } from "./evolucao-anual-chart";

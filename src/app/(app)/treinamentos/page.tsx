@@ -11,7 +11,7 @@ import { exigirAcessoTela } from "@/lib/auth";
 import { resolverPeriodo } from "@/lib/date";
 import { agruparDesligamentosPorColaborador, estevaAtivoEmAlgumMomento } from "@/lib/headcount";
 import { InfoBanner } from "@/components/info-banner";
-import { PeriodoFilter } from "./periodo-filter";
+import { PeriodoFilter } from "@/components/periodo-filter";
 import { TreinamentosFilters } from "./filters";
 import { TreinamentosClient } from "./treinamentos-client";
 

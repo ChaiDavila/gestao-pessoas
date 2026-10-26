@@ -117,25 +117,6 @@ export function EvolucaoSalarialFilters({
           ))}
         </NativeSelect>
       </div>
-
-      <div className="w-40 space-y-1">
-        <label className="text-xs font-medium text-muted-foreground">De</label>
-        <Input
-          type="date"
-          defaultValue={searchParams.get("de") ?? ""}
-          onChange={(e) => atualizarFiltro("de", e.target.value)}
-        />
-      </div>
-      <div className="w-40 space-y-1">
-        <label className="text-xs font-medium text-muted-foreground">
-          Até
-        </label>
-        <Input
-          type="date"
-          defaultValue={searchParams.get("ate") ?? ""}
-          onChange={(e) => atualizarFiltro("ate", e.target.value)}
-        />
-      </div>
     </div>
   );
 }

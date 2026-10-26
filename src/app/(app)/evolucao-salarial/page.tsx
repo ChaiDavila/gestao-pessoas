@@ -1,18 +1,17 @@
-import Link from "next/link";
-import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { InfoBanner } from "@/components/info-banner";
 import { StatTile } from "@/components/stat-tile";
 import { ChartCard } from "@/components/chart-card";
 import { BarChart } from "@/components/charts/bar-chart";
+import { PeriodoFilter } from "@/components/periodo-filter";
 import {
   getOpcoesFormulario,
   getTodosColaboradoresOpcoes,
 } from "@/lib/data/colaboradores";
 import { getEvolucaoSalarial } from "@/lib/data/evolucao-salarial";
-import { formatarData } from "@/lib/date";
-import { formatarMoeda } from "@/lib/formatacao";
+import { resolverPeriodo } from "@/lib/date";
 import { EvolucaoSalarialFilters } from "./filters";
 import { CrescimentoFolhaChart } from "./crescimento-chart";
+import { LancamentosPorColaborador } from "./lancamentos-por-colaborador";
 import { exigirAcessoTela } from "@/lib/auth";
 
 type PageProps = {
@@ -42,6 +41,12 @@ export default async function EvolucaoSalarialPage({
   await exigirAcessoTela("evolucao-salarial");
   const params = await searchParams;
 
+  const periodo = resolverPeriodo(
+    primeiro(params.periodo),
+    primeiro(params.periodoDe),
+    primeiro(params.periodoAte),
+  );
+
   const filtros = {
     busca: primeiro(params.busca),
     colaboradorId: todos(params.colaborador),
@@ -51,8 +56,8 @@ export default async function EvolucaoSalarialPage({
     setorId: todos(params.setor),
     gestorId: todos(params.gestor),
     status: primeiro(params.status),
-    de: primeiro(params.de),
-    ate: primeiro(params.ate),
+    de: periodo.inicio,
+    ate: periodo.fim,
   };
 
   const [lancamentos, opcoes, colaboradores] = await Promise.all([
@@ -115,6 +120,9 @@ export default async function EvolucaoSalarialPage({
       </InfoBanner>
 
       <div className="rounded-lg border border-border bg-card p-4">
+        <PeriodoFilter />
+      </div>
+      <div className="rounded-lg border border-border bg-card p-4">
         <EvolucaoSalarialFilters opcoes={opcoes} colaboradores={colaboradores} />
       </div>
 
@@ -122,18 +130,18 @@ export default async function EvolucaoSalarialPage({
         <StatTile
           label="Alterações registradas"
           valor={String(lancamentos.length)}
-          subtitulo={`${colaboradoresUnicos} colaborador(es) no filtro atual`}
+          subtitulo={`no ${periodo.rotulo} · ${colaboradoresUnicos} colaborador(es)`}
           accent
         />
         <StatTile
           label="Promoções"
           valor={String(promocoes)}
-          subtitulo="no recorte filtrado"
+          subtitulo={`no ${periodo.rotulo}`}
         />
         <StatTile
           label="Reajustes gerais"
           valor={String(reajustesGerais)}
-          subtitulo="no recorte filtrado"
+          subtitulo={`no ${periodo.rotulo}`}
         />
       </div>
 
@@ -155,68 +163,7 @@ export default async function EvolucaoSalarialPage({
 
       <CrescimentoFolhaChart labels={anosCrescimento} valores={crescimentoValores} />
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-card">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-border text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-medium">Colaborador</th>
-              <th className="px-4 py-3 font-medium">Data</th>
-              <th className="px-4 py-3 font-medium">Cargo anterior</th>
-              <th className="px-4 py-3 font-medium">Cargo novo</th>
-              <th className="px-4 py-3 font-medium">Salário anterior</th>
-              <th className="px-4 py-3 font-medium">Salário novo</th>
-              <th className="px-4 py-3 font-medium">Motivo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lancamentos.map((l) => (
-              <tr
-                key={l.id}
-                className="border-b border-border last:border-0 hover:bg-muted/30"
-              >
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/colaboradores/${l.colaborador_id}`}
-                    className="flex items-center gap-3"
-                  >
-                    <ColaboradorAvatar nome={l.colaborador_nome} size="sm" />
-                    <p className="font-medium text-foreground hover:text-primary">
-                      {l.colaborador_nome}
-                    </p>
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {formatarData(l.data)}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {l.cargo_anterior ?? "—"}
-                </td>
-                <td className="px-4 py-3">{l.cargo_novo ?? "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {formatarMoeda(l.salario_anterior) ?? "—"}
-                </td>
-                <td className="px-4 py-3 font-medium text-foreground">
-                  {formatarMoeda(l.salario_novo) ?? "—"}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {l.motivo_nome ?? "—"}
-                </td>
-              </tr>
-            ))}
-            {lancamentos.length === 0 && (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-10 text-center text-muted-foreground"
-                >
-                  Nenhum lançamento de evolução salarial encontrado para os
-                  filtros selecionados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <LancamentosPorColaborador lancamentos={lancamentos} />
     </div>
   );
 }
