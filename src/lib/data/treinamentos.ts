@@ -40,6 +40,7 @@ export type ParticipacaoItem = {
   nivel_id: string | null;
   eixo_id: string | null;
   gestor_colaborador_id: string | null;
+  total_participantes: number;
 };
 
 export type NrColaboradorItem = {

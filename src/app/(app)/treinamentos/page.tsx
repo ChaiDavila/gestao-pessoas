@@ -40,6 +40,7 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
     eixoId: todos(params.eixo),
     setorId: todos(params.setor),
     gestorId: todos(params.gestor),
+    categoriaId: todos(params.categoria),
     status: statusParam === "todos" ? undefined : (statusParam ?? "ativo"),
   };
 
@@ -98,6 +99,7 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
     if (filtros.eixoId.length && !filtros.eixoId.includes(p.eixo_id ?? "")) return false;
     if (filtros.setorId.length && !filtros.setorId.includes(p.setor_id ?? "")) return false;
     if (filtros.gestorId.length && !filtros.gestorId.includes(p.gestor_colaborador_id ?? "")) return false;
+    if (filtros.categoriaId.length && !filtros.categoriaId.includes(p.categoria_id ?? "")) return false;
     if (filtros.busca && !p.colaborador_nome.toLowerCase().includes(filtros.busca)) return false;
     return true;
   }
@@ -140,7 +142,8 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
   const treinamentosGerais = treinamentosTodos
     .filter((t) => t.tipo === "geral")
     .filter((t) => t.data >= periodo.inicio && t.data <= periodo.fim)
-    .filter((t) => idsTreinamentoComParticipantePessoa.has(t.id));
+    .filter((t) => idsTreinamentoComParticipantePessoa.has(t.id))
+    .filter((t) => !filtros.categoriaId.length || filtros.categoriaId.includes(t.categoria_id ?? ""));
 
   const colaboradoresNoFiltro = colaboradoresTodos
     .filter((c) => idsPermitidos.has(c.id))
@@ -159,7 +162,7 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
         <PeriodoFilter />
       </div>
       <div className="rounded-lg border border-border bg-card p-4">
-        <TreinamentosFilters opcoes={opcoes} />
+        <TreinamentosFilters opcoes={opcoes} categorias={categorias} />
       </div>
 
       <InfoBanner>
@@ -167,7 +170,8 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
         filtros de função/nível/eixo/setor/gestor usam a estrutura{" "}
         <strong>vigente na data do treinamento</strong> a partir de
         06/10/2026. Já a aba Treinamentos obrigatórios (NR) sempre usa a
-        estrutura atual, pois é sobre quem precisa de quê hoje.
+        estrutura atual, pois é sobre quem precisa de quê hoje — por isso
+        não respeita o filtro de Categoria.
       </InfoBanner>
 
       <TreinamentosClient

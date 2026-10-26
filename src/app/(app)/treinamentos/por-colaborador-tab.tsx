@@ -5,6 +5,7 @@ import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { BotaoRemover } from "@/components/botao-remover";
 import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
+import { custoRateadoPorParticipacao } from "@/lib/treinamentos-indicadores";
 import type { ParticipacaoItem } from "@/lib/data/treinamentos";
 import { removerParticipacao } from "./actions";
 
@@ -136,7 +137,13 @@ function LinhaColaborador({
                     </td>
                     <td className="py-2 text-muted-foreground">
                       {i.carga_horaria}h
-                      {i.custo_total ? ` · ${formatarMoeda(i.custo_total)}` : ""}
+                      {i.custo_total
+                        ? ` · ${formatarMoeda(custoRateadoPorParticipacao(i))}${
+                            i.total_participantes > 1
+                              ? ` (rateado entre ${i.total_participantes})`
+                              : ""
+                          }`
+                        : ""}
                     </td>
                     <td className="py-2 text-right">
                       <BotaoRemover

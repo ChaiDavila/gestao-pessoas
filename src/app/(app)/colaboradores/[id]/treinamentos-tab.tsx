@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
 import { situacaoVencimento, type SituacaoVencimento } from "@/lib/vencimento";
+import { custoRateadoPorParticipacao } from "@/lib/treinamentos-indicadores";
 import type { ParticipacaoItem, NrColaboradorItem } from "@/lib/data/treinamentos";
 
 // "Sem registro" é uma pendência (NR acompanhada que nunca foi feita) — mesma regra do
@@ -115,7 +116,13 @@ export function TreinamentosTab({
                   <td className="px-4 py-2 text-muted-foreground">{formatarData(p.data)}</td>
                   <td className="px-4 py-2 text-muted-foreground">
                     {p.carga_horaria}h
-                    {p.custo_total ? ` · ${formatarMoeda(p.custo_total)}` : ""}
+                    {p.custo_total
+                      ? ` · ${formatarMoeda(custoRateadoPorParticipacao(p))}${
+                          p.total_participantes > 1
+                            ? ` (rateado entre ${p.total_participantes})`
+                            : ""
+                        }`
+                      : ""}
                   </td>
                 </tr>
               ))}

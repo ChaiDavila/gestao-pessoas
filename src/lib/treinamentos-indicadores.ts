@@ -11,6 +11,19 @@ import type { ParticipacaoItem, TreinamentoItem } from "@/lib/data/treinamentos"
 
 export type AgrupamentoValor = { chave: string; valor: number };
 
+// Custo de UMA participação: o treinamento pode ser em turma (vários participantes), e
+// `custo_total` na linha de participação é o custo do treinamento inteiro, não da pessoa —
+// ratear por `total_participantes` é o que mostra o custo atribuível àquele colaborador.
+// Usado nas telas que exibem o custo por participação (Por colaborador, ficha do
+// colaborador) — os indicadores agregados abaixo têm seu próprio rateio (ver `custoRateado`
+// dentro de `calcularIndicadores`), já testado, que não foi tocado aqui.
+export function custoRateadoPorParticipacao(p: {
+  custo_total: number | null;
+  total_participantes: number;
+}): number {
+  return Number(p.custo_total || 0) / Math.max(1, p.total_participantes);
+}
+
 function agruparSoma<T>(
   itens: T[],
   chaveFn: (item: T) => string,

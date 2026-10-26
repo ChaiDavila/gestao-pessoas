@@ -8,7 +8,13 @@ import { MultiSelect } from "@/components/multi-select";
 import type { OpcoesFormulario } from "@/lib/data/colaboradores";
 import { STATUS_RH, STATUS_RH_LABEL } from "@/lib/constants/rh";
 
-export function TreinamentosFilters({ opcoes }: { opcoes: OpcoesFormulario }) {
+export function TreinamentosFilters({
+  opcoes,
+  categorias,
+}: {
+  opcoes: OpcoesFormulario;
+  categorias: { id: string; nome: string }[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -54,6 +60,7 @@ export function TreinamentosFilters({ opcoes }: { opcoes: OpcoesFormulario }) {
       <SelecaoMultipla label="Eixo" paramKey="eixo" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.eixos} />
       <SelecaoMultipla label="Setor" paramKey="setor" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.setores} />
       <SelecaoMultipla label="Gestor" paramKey="gestor" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={opcoes.gestoresComEquipe} />
+      <SelecaoMultipla label="Categoria" paramKey="categoria" searchParams={searchParams} onChange={atualizarFiltroMultiplo} options={categorias} />
       <div className="w-44 space-y-1">
         <label className="text-xs font-medium text-muted-foreground">
           Colaborador
