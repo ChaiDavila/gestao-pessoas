@@ -284,12 +284,19 @@ export async function atualizarTreinamentoGeral(
   const custoTotal = formData.get("custo_total") as string;
   const instrutor = (formData.get("instrutor") as string) || null;
   const dataVencimento = (formData.get("data_vencimento") as string) || null;
+  // Universo de quem podia ser marcado/desmarcado no formulário (só colaboradores ativos —
+  // ver SelecaoParticipantes). Participantes fora desse universo (ex.: já desligados) nunca
+  // aparecem como checkbox, então não podem ter sido "desmarcados" — ficam de fora do
+  // rateio de inclusão/remoção abaixo pra não sumir do treinamento sem a pessoa ter escolhido isso.
+  const colaboradoresSelecionaveis = formData.getAll("colaborador_selecionavel") as string[];
+  const participantesSelecionados = new Set(formData.getAll("participantes") as string[]);
 
   if (!nome || !categoriaId || !data || !cargaHoraria) {
     return { error: "Informe nome, categoria, data e carga horária." };
   }
 
   const supabase = await createClient();
+
   const { error } = await supabase
     .schema("rh")
     .from("treinamentos")
@@ -305,6 +312,45 @@ export async function atualizarTreinamentoGeral(
     .eq("id", treinamentoId);
 
   if (error) return { error: error.message };
+
+  const { data: participantesAtuais, error: participantesAtuaisError } = await supabase
+    .schema("rh")
+    .from("treinamento_participantes")
+    .select("id, colaborador_id")
+    .eq("treinamento_id", treinamentoId);
+
+  if (participantesAtuaisError) return { error: participantesAtuaisError.message };
+
+  const idsAtuais = new Set((participantesAtuais ?? []).map((p) => p.colaborador_id));
+  const paraAdicionar = [...participantesSelecionados].filter((id) => !idsAtuais.has(id));
+  const paraRemover = (participantesAtuais ?? []).filter(
+    (p) => colaboradoresSelecionaveis.includes(p.colaborador_id) && !participantesSelecionados.has(p.colaborador_id),
+  );
+
+  if (paraAdicionar.length > 0) {
+    const unidadeId = await getUnidadeIdPadrao();
+    const { error: inserirError } = await supabase
+      .schema("rh")
+      .from("treinamento_participantes")
+      .insert(
+        paraAdicionar.map((colaboradorId) => ({
+          unidade_id: unidadeId,
+          treinamento_id: treinamentoId,
+          colaborador_id: colaboradorId,
+        })),
+      );
+    if (inserirError) return { error: inserirError.message };
+  }
+
+  if (paraRemover.length > 0) {
+    const { error: removerError } = await supabase
+      .schema("rh")
+      .from("treinamento_participantes")
+      .delete()
+      .in("id", paraRemover.map((p) => p.id));
+    if (removerError) return { error: removerError.message };
+  }
+
   revalidar();
   return { ok: true };
 }

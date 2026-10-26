@@ -16,6 +16,7 @@ type Colaborador = { id: string; nome: string; setor_nome: string | null };
 export function TreinamentosClient({
   treinamentosTodos,
   treinamentosGerais,
+  participacoesTodas,
   participacoesPeriodo,
   participacoesIndicadoresPeriodo,
   participacoesIndicadoresPessoa,
@@ -29,6 +30,7 @@ export function TreinamentosClient({
 }: {
   treinamentosTodos: TreinamentoItem[];
   treinamentosGerais: TreinamentoItem[];
+  participacoesTodas: ParticipacaoItem[];
   participacoesPeriodo: ParticipacaoItem[];
   participacoesIndicadoresPeriodo: ParticipacaoItem[];
   participacoesIndicadoresPessoa: ParticipacaoItem[];
@@ -64,6 +66,7 @@ export function TreinamentosClient({
           treinamentos={treinamentosGerais}
           categorias={categorias}
           colaboradoresAtivos={colaboradoresAtivos}
+          participacoesTodas={participacoesTodas}
         />
       </TabsContent>
 

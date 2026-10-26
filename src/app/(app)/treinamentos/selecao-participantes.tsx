@@ -50,6 +50,10 @@ export function SelecaoParticipantes({
               checked={selecionados.has(c.id)}
               onCheckedChange={() => alternar(c.id)}
             />
+            {/* Marca o universo de quem podia ser (des)marcado aqui — permite a quem recebe o
+                formulário (ex.: edição de treinamento geral) diferenciar "desmarcado" de
+                "nem aparecia pra marcar" (ex.: participante já desligado). */}
+            <input type="hidden" name="colaborador_selecionavel" value={c.id} />
             {selecionados.has(c.id) && (
               <input type="hidden" name="participantes" value={c.id} />
             )}

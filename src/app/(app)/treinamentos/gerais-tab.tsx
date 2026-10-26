@@ -9,7 +9,7 @@ import { PainelAdicionar } from "@/components/painel-adicionar";
 import { BotaoRemover } from "@/components/botao-remover";
 import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
-import type { TreinamentoItem } from "@/lib/data/treinamentos";
+import type { ParticipacaoItem, TreinamentoItem } from "@/lib/data/treinamentos";
 import { criarTreinamentoGeral, atualizarTreinamentoGeral, removerTreinamento } from "./actions";
 import type { TreinamentoFormState } from "./actions";
 import { SelecaoParticipantes } from "./selecao-participantes";
@@ -20,10 +20,12 @@ export function GeraisTab({
   treinamentos,
   categorias,
   colaboradoresAtivos,
+  participacoesTodas,
 }: {
   treinamentos: TreinamentoItem[];
   categorias: { id: string; nome: string }[];
   colaboradoresAtivos: Colaborador[];
+  participacoesTodas: ParticipacaoItem[];
 }) {
   return (
     <div className="space-y-4">
@@ -43,7 +45,15 @@ export function GeraisTab({
           </thead>
           <tbody>
             {treinamentos.map((t) => (
-              <LinhaTreinamentoGeral key={t.id} treinamento={t} categorias={categorias} />
+              <LinhaTreinamentoGeral
+                key={t.id}
+                treinamento={t}
+                categorias={categorias}
+                colaboradoresAtivos={colaboradoresAtivos}
+                participantesAtuaisIds={participacoesTodas
+                  .filter((p) => p.treinamento_id === t.id)
+                  .map((p) => p.colaborador_id)}
+              />
             ))}
             {treinamentos.length === 0 && (
               <tr>
@@ -72,9 +82,13 @@ export function GeraisTab({
 function LinhaTreinamentoGeral({
   treinamento,
   categorias,
+  colaboradoresAtivos,
+  participantesAtuaisIds,
 }: {
   treinamento: TreinamentoItem;
   categorias: { id: string; nome: string }[];
+  colaboradoresAtivos: Colaborador[];
+  participantesAtuaisIds: string[];
 }) {
   const [editando, setEditando] = useState(false);
 
@@ -85,6 +99,8 @@ function LinhaTreinamentoGeral({
           <FormularioEdicaoTreinamentoGeral
             treinamento={treinamento}
             categorias={categorias}
+            colaboradoresAtivos={colaboradoresAtivos}
+            participantesAtuaisIds={participantesAtuaisIds}
             aoSalvar={() => setEditando(false)}
             aoCancelar={() => setEditando(false)}
           />
@@ -122,17 +138,24 @@ function LinhaTreinamentoGeral({
 function FormularioEdicaoTreinamentoGeral({
   treinamento,
   categorias,
+  colaboradoresAtivos,
+  participantesAtuaisIds,
   aoSalvar,
   aoCancelar,
 }: {
   treinamento: TreinamentoItem;
   categorias: { id: string; nome: string }[];
+  colaboradoresAtivos: Colaborador[];
+  participantesAtuaisIds: string[];
   aoSalvar: () => void;
   aoCancelar: () => void;
 }) {
   const [state, formAction, pending] = useActionState<TreinamentoFormState, FormData>(
     atualizarTreinamentoGeral.bind(null, treinamento.id),
     undefined,
+  );
+  const [selecionados, setSelecionados] = useState<Set<string>>(
+    () => new Set(participantesAtuaisIds),
   );
 
   useEffect(() => {
@@ -212,6 +235,19 @@ function FormularioEdicaoTreinamentoGeral({
           />
         </div>
       </div>
+
+      <SelecaoParticipantes
+        colaboradores={colaboradoresAtivos}
+        selecionados={selecionados}
+        onChange={setSelecionados}
+      />
+      {participantesAtuaisIds.some((id) => !colaboradoresAtivos.some((c) => c.id === id)) && (
+        <p className="text-xs text-muted-foreground">
+          Participantes já desligados não aparecem na lista acima, mas continuam
+          registrados neste treinamento.
+        </p>
+      )}
+
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={aoCancelar}>
           Cancelar

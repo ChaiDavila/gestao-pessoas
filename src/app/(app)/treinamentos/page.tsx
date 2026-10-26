@@ -177,6 +177,7 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
       <TreinamentosClient
         treinamentosTodos={treinamentosTodos}
         treinamentosGerais={treinamentosGerais}
+        participacoesTodas={participacoesTodas}
         participacoesPeriodo={participacoesPeriodo}
         participacoesIndicadoresPeriodo={participacoesIndicadoresPeriodo}
         participacoesIndicadoresPessoa={participacoesIndicadoresPessoa}
