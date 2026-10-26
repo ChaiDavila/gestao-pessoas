@@ -51,6 +51,7 @@ export function FichaColaboradorClient({
   historico,
   opcoesMotivoEvolucao,
   adicionarHistoricoAction,
+  corrigirHistoricoAction,
   removerHistoricoAction,
   asoRegistros,
   examesComplementares,
@@ -92,6 +93,7 @@ export function FichaColaboradorClient({
   historico: Parameters<typeof HistoricoTab>[0]["historico"];
   opcoesMotivoEvolucao: { id: string; motivo: string }[];
   adicionarHistoricoAction: AcaoComEstado;
+  corrigirHistoricoAction: AcaoComId;
   removerHistoricoAction: (historicoId: string) => Promise<void>;
   asoRegistros: Parameters<typeof ExamesTab>[0]["asoRegistros"];
   examesComplementares: Parameters<typeof ExamesTab>[0]["examesComplementares"];
@@ -176,6 +178,7 @@ export function FichaColaboradorClient({
         historico={historico}
         opcoesMotivoEvolucao={opcoesMotivoEvolucao}
         adicionarHistoricoAction={adicionarHistoricoAction}
+        corrigirHistoricoAction={corrigirHistoricoAction}
         removerHistoricoAction={removerHistoricoAction}
         asoRegistros={asoRegistros}
         examesComplementares={examesComplementares}

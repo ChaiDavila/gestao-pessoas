@@ -48,6 +48,7 @@ export function TabsFicha({
   historico,
   opcoesMotivoEvolucao,
   adicionarHistoricoAction,
+  corrigirHistoricoAction,
   removerHistoricoAction,
   asoRegistros,
   examesComplementares,
@@ -85,6 +86,7 @@ export function TabsFicha({
   historico: Parameters<typeof HistoricoTab>[0]["historico"];
   opcoesMotivoEvolucao: { id: string; motivo: string }[];
   adicionarHistoricoAction: AcaoComEstado;
+  corrigirHistoricoAction: AcaoComId;
   removerHistoricoAction: (historicoId: string) => Promise<void>;
   asoRegistros: Parameters<typeof ExamesTab>[0]["asoRegistros"];
   examesComplementares: Parameters<typeof ExamesTab>[0]["examesComplementares"];
@@ -157,6 +159,7 @@ export function TabsFicha({
           opcoesCargo={opcoes.cargos}
           opcoesMotivo={opcoesMotivoEvolucao}
           adicionarAction={adicionarHistoricoAction}
+          corrigirAction={corrigirHistoricoAction}
           removerAction={removerHistoricoAction}
         />
       </TabsContent>

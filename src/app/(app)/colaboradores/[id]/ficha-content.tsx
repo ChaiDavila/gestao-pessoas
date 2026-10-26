@@ -28,6 +28,7 @@ import {
   atualizarFormacao,
   removerFormacao,
   adicionarHistoricoSalarial,
+  corrigirHistoricoSalarial,
   removerHistoricoSalarial,
   adicionarAso,
   atualizarAso,
@@ -107,6 +108,7 @@ export async function FichaColaboradorContent({
       historico={historico}
       opcoesMotivoEvolucao={opcoesMotivoEvolucao}
       adicionarHistoricoAction={adicionarHistoricoSalarial.bind(null, id)}
+      corrigirHistoricoAction={corrigirHistoricoSalarial.bind(null, id)}
       removerHistoricoAction={removerHistoricoSalarial.bind(null, id)}
       asoRegistros={asoRegistros}
       examesComplementares={examesComplementares}

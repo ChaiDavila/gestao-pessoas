@@ -259,6 +259,76 @@ export async function removerHistoricoSalarial(
   revalidarFicha(colaboradorId);
 }
 
+// "Corrigir" um lançamento, na prática, pra quem está usando a tela: remove (ativo=false) o
+// lançamento antigo e cria um novo já com os valores corrigidos — nunca dá UPDATE nos
+// valores de um lançamento existente (o log de auditoria continua intacto por baixo, mesma
+// trava que já existe no banco pra isso).
+export async function corrigirHistoricoSalarial(
+  colaboradorId: string,
+  historicoId: string,
+  _prevState: SubRecursoState,
+  formData: FormData,
+): Promise<SubRecursoState> {
+  const data = formData.get("data") as string;
+  const cargoAnterior = (formData.get("cargo_anterior") as string) || null;
+  const cargoNovoId = (formData.get("cargo_novo_id") as string) || "";
+  const cargoNovoNome = (formData.get("cargo_novo_nome") as string) || null;
+  const salarioAnteriorRaw = formData.get("salario_anterior") as string;
+  const salarioNovoRaw = formData.get("salario_novo") as string;
+  const motivoId = (formData.get("motivo_id") as string) || null;
+  const atualizarAtual = formData.get("atualizar_atual") === "true";
+
+  if (!data || !salarioNovoRaw) {
+    return { error: "Informe a data e o novo salário." };
+  }
+
+  const salarioNovo = Number(salarioNovoRaw);
+  const salarioAnterior = salarioAnteriorRaw ? Number(salarioAnteriorRaw) : null;
+
+  const supabase = await createClient();
+  const unidadeId = await getUnidadeIdPadrao();
+
+  const { error: removerError } = await supabase
+    .schema("rh")
+    .from("historico_cargo_salarial")
+    .update({ ativo: false })
+    .eq("id", historicoId);
+
+  if (removerError) return { error: removerError.message };
+
+  const { error: inserirError } = await supabase
+    .schema("rh")
+    .from("historico_cargo_salarial")
+    .insert({
+      unidade_id: unidadeId,
+      colaborador_id: colaboradorId,
+      data,
+      cargo_anterior: cargoAnterior,
+      cargo_novo: cargoNovoNome,
+      salario_anterior: salarioAnterior,
+      salario_novo: salarioNovo,
+      motivo_id: motivoId,
+    });
+
+  if (inserirError) return { error: inserirError.message };
+
+  if (atualizarAtual) {
+    const atualizacao: Record<string, unknown> = { salario_atual: salarioNovo };
+    if (cargoNovoId) atualizacao.cargo_id = cargoNovoId;
+
+    const { error: updError } = await supabase
+      .schema("rh")
+      .from("colaboradores")
+      .update(atualizacao)
+      .eq("id", colaboradorId);
+
+    if (updError) return { error: updError.message };
+  }
+
+  revalidarFicha(colaboradorId);
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------------------
 // ASO
 // ---------------------------------------------------------------------------

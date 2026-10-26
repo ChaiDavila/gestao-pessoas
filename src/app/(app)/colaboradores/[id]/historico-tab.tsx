@@ -12,6 +12,11 @@ import type { SubRecursoState } from "./sub-recursos-actions";
 import type { HistoricoRow } from "@/lib/data/colaborador-detalhe";
 
 type HistoricoItem = HistoricoRow;
+type AcaoComId = (
+  historicoId: string,
+  prevState: SubRecursoState,
+  formData: FormData,
+) => Promise<SubRecursoState>;
 
 function formatarMoeda(valor: number | null) {
   if (valor == null) return "—";
@@ -24,6 +29,7 @@ export function HistoricoTab({
   opcoesCargo,
   opcoesMotivo,
   adicionarAction,
+  corrigirAction,
   removerAction,
 }: {
   historico: HistoricoItem[];
@@ -34,6 +40,7 @@ export function HistoricoTab({
     prevState: SubRecursoState,
     formData: FormData,
   ) => Promise<SubRecursoState>;
+  corrigirAction: AcaoComId;
   removerAction: (historicoId: string) => Promise<void>;
 }) {
   return (
@@ -53,28 +60,15 @@ export function HistoricoTab({
           </thead>
           <tbody>
             {historico.map((h) => (
-              <tr key={h.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-2 text-muted-foreground">
-                  {formatarData(h.data)}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {h.cargo_anterior ?? "—"}
-                </td>
-                <td className="px-4 py-2">{h.cargo_novo ?? "—"}</td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {formatarMoeda(h.salario_anterior)}
-                </td>
-                <td className="px-4 py-2">{formatarMoeda(h.salario_novo)}</td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {h.config_motivos_evolucao_salarial?.motivo ?? "—"}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <BotaoRemover
-                    action={() => removerAction(h.id)}
-                    confirmar="Remover este lançamento? Ele fica marcado como inativo (histórico de auditoria não é apagado de verdade)."
-                  />
-                </td>
-              </tr>
+              <LinhaHistorico
+                key={h.id}
+                item={h}
+                cargoAtualNome={cargoAtualNome}
+                opcoesCargo={opcoesCargo}
+                opcoesMotivo={opcoesMotivo}
+                corrigirAction={corrigirAction.bind(null, h.id)}
+                removerAction={() => removerAction(h.id)}
+              />
             ))}
             {historico.length === 0 && (
               <tr>
@@ -94,6 +88,7 @@ export function HistoricoTab({
             cargoAtualNome={cargoAtualNome}
             opcoesCargo={opcoesCargo}
             opcoesMotivo={opcoesMotivo}
+            textoBotao="Adicionar"
             aoSalvar={fechar}
           />
         )}
@@ -102,12 +97,81 @@ export function HistoricoTab({
   );
 }
 
+function LinhaHistorico({
+  item,
+  cargoAtualNome,
+  opcoesCargo,
+  opcoesMotivo,
+  corrigirAction,
+  removerAction,
+}: {
+  item: HistoricoItem;
+  cargoAtualNome: string | null;
+  opcoesCargo: { id: string; nome: string }[];
+  opcoesMotivo: { id: string; motivo: string }[];
+  corrigirAction: (
+    prevState: SubRecursoState,
+    formData: FormData,
+  ) => Promise<SubRecursoState>;
+  removerAction: () => Promise<void>;
+}) {
+  const [corrigindo, setCorrigindo] = useState(false);
+
+  if (corrigindo) {
+    return (
+      <tr className="border-b border-border last:border-0">
+        <td colSpan={7} className="px-4 py-3">
+          <FormularioHistorico
+            action={corrigirAction}
+            cargoAtualNome={cargoAtualNome}
+            opcoesCargo={opcoesCargo}
+            opcoesMotivo={opcoesMotivo}
+            valoresIniciais={item}
+            textoBotao="Salvar correção"
+            aoSalvar={() => setCorrigindo(false)}
+            aoCancelar={() => setCorrigindo(false)}
+          />
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr className="border-b border-border last:border-0">
+      <td className="px-4 py-2 text-muted-foreground">{formatarData(item.data)}</td>
+      <td className="px-4 py-2 text-muted-foreground">{item.cargo_anterior ?? "—"}</td>
+      <td className="px-4 py-2">{item.cargo_novo ?? "—"}</td>
+      <td className="px-4 py-2 text-muted-foreground">
+        {formatarMoeda(item.salario_anterior)}
+      </td>
+      <td className="px-4 py-2">{formatarMoeda(item.salario_novo)}</td>
+      <td className="px-4 py-2 text-muted-foreground">
+        {item.config_motivos_evolucao_salarial?.motivo ?? "—"}
+      </td>
+      <td className="px-4 py-2 text-right">
+        <div className="flex justify-end gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setCorrigindo(true)}>
+            Corrigir
+          </Button>
+          <BotaoRemover
+            action={removerAction}
+            confirmar="Remover este lançamento? Ele fica marcado como inativo (histórico de auditoria não é apagado de verdade)."
+          />
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 function FormularioHistorico({
   action,
   cargoAtualNome,
   opcoesCargo,
   opcoesMotivo,
+  valoresIniciais,
+  textoBotao,
   aoSalvar,
+  aoCancelar,
 }: {
   action: (
     prevState: SubRecursoState,
@@ -116,13 +180,20 @@ function FormularioHistorico({
   cargoAtualNome: string | null;
   opcoesCargo: { id: string; nome: string }[];
   opcoesMotivo: { id: string; motivo: string }[];
+  valoresIniciais?: HistoricoItem;
+  textoBotao: string;
   aoSalvar: () => void;
+  aoCancelar?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const hoje = hojeISO();
-  const [data, setData] = useState(hoje);
-  const [atualizarAtual, setAtualizarAtual] = useState(true);
-  const [cargoNovoId, setCargoNovoId] = useState("");
+  const [data, setData] = useState(valoresIniciais?.data ?? hoje);
+  const [atualizarAtual, setAtualizarAtual] = useState(
+    (valoresIniciais?.data ?? hoje) === hoje,
+  );
+  const [cargoNovoId, setCargoNovoId] = useState(
+    () => opcoesCargo.find((c) => c.nome === valoresIniciais?.cargo_novo)?.id ?? "",
+  );
 
   useEffect(() => {
     if (state && "ok" in state) aoSalvar();
@@ -160,7 +231,11 @@ function FormularioHistorico({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="hist_motivo">Motivo</Label>
-          <NativeSelect id="hist_motivo" name="motivo_id" defaultValue="">
+          <NativeSelect
+            id="hist_motivo"
+            name="motivo_id"
+            defaultValue={valoresIniciais?.motivo_id ?? ""}
+          >
             <option value="">Nenhum</option>
             {opcoesMotivo.map((m) => (
               <option key={m.id} value={m.id}>
@@ -174,7 +249,7 @@ function FormularioHistorico({
           <Input
             id="hist_cargo_anterior"
             name="cargo_anterior"
-            defaultValue={cargoAtualNome ?? ""}
+            defaultValue={valoresIniciais?.cargo_anterior ?? cargoAtualNome ?? ""}
           />
         </div>
         <div className="space-y-1.5">
@@ -201,6 +276,7 @@ function FormularioHistorico({
             name="salario_anterior"
             type="number"
             step="0.01"
+            defaultValue={valoresIniciais?.salario_anterior ?? ""}
           />
         </div>
         <div className="space-y-1.5">
@@ -211,6 +287,7 @@ function FormularioHistorico({
             type="number"
             step="0.01"
             required
+            defaultValue={valoresIniciais?.salario_novo ?? ""}
           />
         </div>
       </div>
@@ -241,8 +318,13 @@ function FormularioHistorico({
       </p>
 
       <div className="flex justify-end gap-2">
+        {aoCancelar && (
+          <Button type="button" variant="ghost" onClick={aoCancelar}>
+            Cancelar
+          </Button>
+        )}
         <Button type="submit" disabled={pending}>
-          {pending ? "Salvando..." : "Adicionar"}
+          {pending ? "Salvando..." : textoBotao}
         </Button>
       </div>
     </form>
