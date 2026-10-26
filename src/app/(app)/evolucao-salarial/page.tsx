@@ -8,7 +8,9 @@ import {
   getTodosColaboradoresOpcoes,
 } from "@/lib/data/colaboradores";
 import { getEvolucaoSalarial } from "@/lib/data/evolucao-salarial";
+import { getColaboradoresDashboard } from "@/lib/data/dashboard";
 import { resolverPeriodo } from "@/lib/date";
+import { calcularCrescimentoPorAno } from "@/lib/evolucao-salarial-indicadores";
 import { EvolucaoSalarialFilters } from "./filters";
 import { CrescimentoFolhaChart } from "./crescimento-chart";
 import { LancamentosPorColaborador } from "./lancamentos-por-colaborador";
@@ -60,14 +62,24 @@ export default async function EvolucaoSalarialPage({
     ate: periodo.fim,
   };
 
-  const [lancamentos, opcoes, colaboradores] = await Promise.all([
+  const [lancamentos, opcoes, colaboradores, colaboradoresAtuais] = await Promise.all([
     getEvolucaoSalarial(filtros),
     getOpcoesFormulario(),
     getTodosColaboradoresOpcoes(),
+    getColaboradoresDashboard(),
   ]);
 
-  // "Crescimento da folha por ano" ignora o período (De/Até), igual ao padrão já usado em
-  // outros gráficos de tendência por ano — mas respeita os demais filtros.
+  // Cargo/salário ATUAL vêm sempre do cadastro do colaborador (igual à ficha dele), nunca
+  // do último lançamento do histórico no recorte filtrado — um lançamento antigo sem
+  // salário informado (ex.: só mudança de função) não pode "apagar" o salário atual da
+  // pessoa no resumo.
+  const colaboradorAtualPorId = new Map(
+    colaboradoresAtuais.map((c) => [c.id, { cargoNome: c.cargo_nome, salarioAtual: c.salario_atual }]),
+  );
+
+  // Base do gráfico "Crescimento da folha por ano" (ver mais abaixo) — ignora o período
+  // (De/Até), igual ao padrão já usado em outros gráficos de tendência por ano, mas
+  // respeita os demais filtros.
   const lancamentosSemPeriodo = await getEvolucaoSalarial({
     ...filtros,
     de: undefined,
@@ -76,29 +88,35 @@ export default async function EvolucaoSalarialPage({
 
   const colaboradoresUnicos = new Set(lancamentos.map((l) => l.colaborador_id)).size;
   const promocoes = lancamentos.filter((l) => l.motivo_nome === "Promoção").length;
-  const reajustesGerais = lancamentos.filter((l) => l.motivo_nome === "Reajuste geral").length;
+  const reajustesSindicais = lancamentos.filter((l) => l.motivo_nome === "Reajuste sindicato").length;
 
   const alteracoesPorMotivo = agruparContagem(
     lancamentos.map((l) => l.motivo_nome ?? "Sem motivo"),
   );
-  const alteracoesPorAno = agruparContagem(
-    lancamentos.map((l) => l.data.slice(0, 4)),
-  ).sort((a, b) => a.chave.localeCompare(b.chave));
 
-  const crescimentoPorAno = new Map<string, { soma: number; qtd: number }>();
-  for (const l of lancamentosSemPeriodo) {
-    if (!l.salario_anterior || Number(l.salario_anterior) <= 0 || l.salario_novo == null) continue;
-    const ano = l.data.slice(0, 4);
-    const pct =
-      ((Number(l.salario_novo) - Number(l.salario_anterior)) / Number(l.salario_anterior)) * 100;
-    const atual = crescimentoPorAno.get(ano) ?? { soma: 0, qtd: 0 };
-    crescimentoPorAno.set(ano, { soma: atual.soma + pct, qtd: atual.qtd + 1 });
-  }
-  const anosCrescimento = Array.from(crescimentoPorAno.keys()).sort();
-  const crescimentoValores = anosCrescimento.map((ano) => {
-    const { soma, qtd } = crescimentoPorAno.get(ano)!;
-    return Math.round((soma / qtd) * 10) / 10;
-  });
+  // Distribuição das alterações: com um único ano no recorte (Ano atual/Ano anterior, ou
+  // Personalizado dentro do mesmo ano), "por ano" sempre daria uma barra só — mostra por mês
+  // nesse caso. Com vários anos no recorte (Todo o período, ou Personalizado cruzando anos),
+  // mantém por ano.
+  const periodoEhUmAnoSo = periodo.inicio.slice(0, 4) === periodo.fim.slice(0, 4);
+  const distribuicaoTitulo = periodoEhUmAnoSo ? "Alterações por mês" : "Alterações por ano";
+  const distribuicaoAlteracoes = periodoEhUmAnoSo
+    ? agruparContagem(lancamentos.map((l) => l.data.slice(0, 7))).sort((a, b) =>
+        a.chave.localeCompare(b.chave),
+      )
+    : agruparContagem(lancamentos.map((l) => l.data.slice(0, 4))).sort((a, b) =>
+        a.chave.localeCompare(b.chave),
+      );
+  const distribuicaoRotulos = distribuicaoAlteracoes.map((g) =>
+    periodoEhUmAnoSo
+      ? new Date(`${g.chave}-01T00:00:00`).toLocaleDateString("pt-BR", {
+          month: "short",
+          year: "numeric",
+        })
+      : g.chave,
+  );
+
+  const crescimentoPorAno = calcularCrescimentoPorAno(lancamentosSemPeriodo);
 
   return (
     <div className="space-y-6">
@@ -139,8 +157,8 @@ export default async function EvolucaoSalarialPage({
           subtitulo={`no ${periodo.rotulo}`}
         />
         <StatTile
-          label="Reajustes gerais"
-          valor={String(reajustesGerais)}
+          label="Reajustes sindicais"
+          valor={String(reajustesSindicais)}
           subtitulo={`no ${periodo.rotulo}`}
         />
       </div>
@@ -153,17 +171,20 @@ export default async function EvolucaoSalarialPage({
             valores={alteracoesPorMotivo.map((g) => g.valor)}
           />
         </ChartCard>
-        <ChartCard titulo="Alterações por ano">
+        <ChartCard titulo={distribuicaoTitulo}>
           <BarChart
-            labels={alteracoesPorAno.map((g) => g.chave)}
-            valores={alteracoesPorAno.map((g) => g.valor)}
+            labels={distribuicaoRotulos}
+            valores={distribuicaoAlteracoes.map((g) => g.valor)}
           />
         </ChartCard>
       </div>
 
-      <CrescimentoFolhaChart labels={anosCrescimento} valores={crescimentoValores} />
+      <CrescimentoFolhaChart itens={crescimentoPorAno} />
 
-      <LancamentosPorColaborador lancamentos={lancamentos} />
+      <LancamentosPorColaborador
+        lancamentos={lancamentos}
+        colaboradorAtualPorId={colaboradorAtualPorId}
+      />
     </div>
   );
 }

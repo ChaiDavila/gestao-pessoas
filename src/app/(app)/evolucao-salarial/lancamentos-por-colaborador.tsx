@@ -5,12 +5,17 @@ import Link from "next/link";
 import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
+import { calcularDiferencaLancamento } from "@/lib/evolucao-salarial-indicadores";
 import type { EvolucaoSalarialItem } from "@/lib/data/evolucao-salarial";
+
+type ColaboradorAtual = { cargoNome: string | null; salarioAtual: number | null };
 
 export function LancamentosPorColaborador({
   lancamentos,
+  colaboradorAtualPorId,
 }: {
   lancamentos: EvolucaoSalarialItem[];
+  colaboradorAtualPorId: Map<string, ColaboradorAtual>;
 }) {
   // `lancamentos` já vem ordenado por data desc da query — preserva essa ordem dentro de
   // cada grupo (mais recente primeiro), só agrupa por colaborador sem reordenar.
@@ -45,7 +50,12 @@ export function LancamentosPorColaborador({
         </thead>
         <tbody>
           {porColaborador.map(([colaboradorId, info]) => (
-            <LinhaColaborador key={colaboradorId} colaboradorId={colaboradorId} info={info} />
+            <LinhaColaborador
+              key={colaboradorId}
+              colaboradorId={colaboradorId}
+              info={info}
+              atual={colaboradorAtualPorId.get(colaboradorId)}
+            />
           ))}
           {porColaborador.length === 0 && (
             <tr>
@@ -64,9 +74,11 @@ export function LancamentosPorColaborador({
 function LinhaColaborador({
   colaboradorId,
   info,
+  atual,
 }: {
   colaboradorId: string;
   info: { nome: string; itens: EvolucaoSalarialItem[] };
+  atual: ColaboradorAtual | undefined;
 }) {
   const [aberto, setAberto] = useState(false);
   const maisRecente = info.itens[0];
@@ -86,9 +98,12 @@ function LinhaColaborador({
         </td>
         <td className="px-3 py-3 text-muted-foreground">{info.itens.length}</td>
         <td className="px-3 py-3 text-muted-foreground">{formatarData(maisRecente.data)}</td>
-        <td className="px-3 py-3 text-muted-foreground">{maisRecente.cargo_novo ?? "—"}</td>
+        {/* Cargo/salário ATUAL vêm sempre do cadastro (igual à ficha), nunca do último
+            lançamento do recorte filtrado — um lançamento sem esses campos preenchidos
+            (ex.: só mudança de função) não pode fazer a pessoa aparecer "sem salário". */}
+        <td className="px-3 py-3 text-muted-foreground">{atual?.cargoNome ?? "—"}</td>
         <td className="px-3 py-3 font-medium text-foreground">
-          {formatarMoeda(maisRecente.salario_novo) ?? "—"}
+          {formatarMoeda(atual?.salarioAtual) ?? "—"}
         </td>
       </tr>
       {aberto && (
@@ -111,24 +126,48 @@ function LinhaColaborador({
                   <th className="py-1 font-medium">Cargo novo</th>
                   <th className="py-1 font-medium">Salário anterior</th>
                   <th className="py-1 font-medium">Salário novo</th>
+                  <th className="py-1 font-medium">Diferença</th>
                   <th className="py-1 font-medium">Motivo</th>
                 </tr>
               </thead>
               <tbody>
-                {info.itens.map((l) => (
-                  <tr key={l.id} className="border-t border-border">
-                    <td className="py-2 text-muted-foreground">{formatarData(l.data)}</td>
-                    <td className="py-2 text-muted-foreground">{l.cargo_anterior ?? "—"}</td>
-                    <td className="py-2">{l.cargo_novo ?? "—"}</td>
-                    <td className="py-2 text-muted-foreground">
-                      {formatarMoeda(l.salario_anterior) ?? "—"}
-                    </td>
-                    <td className="py-2 font-medium text-foreground">
-                      {formatarMoeda(l.salario_novo) ?? "—"}
-                    </td>
-                    <td className="py-2 text-muted-foreground">{l.motivo_nome ?? "—"}</td>
-                  </tr>
-                ))}
+                {info.itens.map((l) => {
+                  const { diferenca, percentual } = calcularDiferencaLancamento(
+                    l.salario_anterior,
+                    l.salario_novo,
+                  );
+                  return (
+                    <tr key={l.id} className="border-t border-border">
+                      <td className="py-2 text-muted-foreground">{formatarData(l.data)}</td>
+                      <td className="py-2 text-muted-foreground">{l.cargo_anterior ?? "—"}</td>
+                      <td className="py-2">{l.cargo_novo ?? "—"}</td>
+                      <td className="py-2 text-muted-foreground">
+                        {formatarMoeda(l.salario_anterior) ?? "—"}
+                      </td>
+                      <td className="py-2 font-medium text-foreground">
+                        {formatarMoeda(l.salario_novo) ?? "—"}
+                      </td>
+                      <td className="py-2 text-muted-foreground">
+                        {diferenca === null ? (
+                          "Não calculável"
+                        ) : (
+                          <>
+                            {diferenca >= 0 ? "+" : "-"}
+                            {formatarMoeda(Math.abs(diferenca))}
+                            {percentual !== null && (
+                              <>
+                                {" "}
+                                ({percentual >= 0 ? "+" : "-"}
+                                {Math.abs(percentual).toFixed(1)}%)
+                              </>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td className="py-2 text-muted-foreground">{l.motivo_nome ?? "—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </td>
