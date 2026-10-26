@@ -280,15 +280,18 @@ function FormularioHistorico({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="hist_salario_novo">Salário novo</Label>
+          <Label htmlFor="hist_salario_novo">Salário novo (opcional)</Label>
           <Input
             id="hist_salario_novo"
             name="salario_novo"
             type="number"
             step="0.01"
-            required
             defaultValue={valoresIniciais?.salario_novo ?? ""}
           />
+          <p className="text-xs text-muted-foreground">
+            Deixe em branco pra um lançamento só de mudança de função, sem
+            alteração salarial.
+          </p>
         </div>
       </div>
 

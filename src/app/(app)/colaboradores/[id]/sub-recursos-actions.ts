@@ -200,11 +200,14 @@ export async function adicionarHistoricoSalarial(
   const motivoId = (formData.get("motivo_id") as string) || null;
   const atualizarAtual = formData.get("atualizar_atual") === "true";
 
-  if (!data || !salarioNovoRaw) {
-    return { error: "Informe a data e o novo salário." };
+  if (!data) {
+    return { error: "Informe a data." };
   }
 
-  const salarioNovo = Number(salarioNovoRaw);
+  // Salário novo é opcional: um lançamento pode ser só de mudança de função/cargo, sem
+  // alteração salarial — nesse caso fica null aqui (não repete o valor anterior, pra não
+  // sugerir que houve um reajuste que não existiu).
+  const salarioNovo = salarioNovoRaw ? Number(salarioNovoRaw) : null;
   const salarioAnterior = salarioAnteriorRaw ? Number(salarioAnteriorRaw) : null;
 
   const supabase = await createClient();
@@ -227,16 +230,19 @@ export async function adicionarHistoricoSalarial(
   if (error) return { error: error.message };
 
   if (atualizarAtual) {
-    const atualizacao: Record<string, unknown> = { salario_atual: salarioNovo };
+    const atualizacao: Record<string, unknown> = {};
+    if (salarioNovo !== null) atualizacao.salario_atual = salarioNovo;
     if (cargoNovoId) atualizacao.cargo_id = cargoNovoId;
 
-    const { error: updError } = await supabase
-      .schema("rh")
-      .from("colaboradores")
-      .update(atualizacao)
-      .eq("id", colaboradorId);
+    if (Object.keys(atualizacao).length > 0) {
+      const { error: updError } = await supabase
+        .schema("rh")
+        .from("colaboradores")
+        .update(atualizacao)
+        .eq("id", colaboradorId);
 
-    if (updError) return { error: updError.message };
+      if (updError) return { error: updError.message };
+    }
   }
 
   revalidarFicha(colaboradorId);
@@ -278,11 +284,14 @@ export async function corrigirHistoricoSalarial(
   const motivoId = (formData.get("motivo_id") as string) || null;
   const atualizarAtual = formData.get("atualizar_atual") === "true";
 
-  if (!data || !salarioNovoRaw) {
-    return { error: "Informe a data e o novo salário." };
+  if (!data) {
+    return { error: "Informe a data." };
   }
 
-  const salarioNovo = Number(salarioNovoRaw);
+  // Salário novo é opcional: um lançamento pode ser só de mudança de função/cargo, sem
+  // alteração salarial — nesse caso fica null aqui (não repete o valor anterior, pra não
+  // sugerir que houve um reajuste que não existiu).
+  const salarioNovo = salarioNovoRaw ? Number(salarioNovoRaw) : null;
   const salarioAnterior = salarioAnteriorRaw ? Number(salarioAnteriorRaw) : null;
 
   const supabase = await createClient();
@@ -313,16 +322,19 @@ export async function corrigirHistoricoSalarial(
   if (inserirError) return { error: inserirError.message };
 
   if (atualizarAtual) {
-    const atualizacao: Record<string, unknown> = { salario_atual: salarioNovo };
+    const atualizacao: Record<string, unknown> = {};
+    if (salarioNovo !== null) atualizacao.salario_atual = salarioNovo;
     if (cargoNovoId) atualizacao.cargo_id = cargoNovoId;
 
-    const { error: updError } = await supabase
-      .schema("rh")
-      .from("colaboradores")
-      .update(atualizacao)
-      .eq("id", colaboradorId);
+    if (Object.keys(atualizacao).length > 0) {
+      const { error: updError } = await supabase
+        .schema("rh")
+        .from("colaboradores")
+        .update(atualizacao)
+        .eq("id", colaboradorId);
 
-    if (updError) return { error: updError.message };
+      if (updError) return { error: updError.message };
+    }
   }
 
   revalidarFicha(colaboradorId);
