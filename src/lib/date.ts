@@ -30,17 +30,20 @@ export type PeriodoResolvido = { inicio: string; fim: string; rotulo: string };
 
 /**
  * Resolve o filtro de período (ano atual / ano anterior / todo o período / personalizado)
- * em datas concretas. "Ano atual" vai até hoje (não até 31/dez), porque o resto do ano
- * ainda não aconteceu. Num período personalizado, o fim nunca passa de hoje. "Todo o
- * período" usa uma data-sentinela bem no passado como início — o que importa é que seja
- * anterior a qualquer registro real, não a data exata.
+ * em datas concretas. Nenhum modo limita o fim a hoje: um registro com data futura (ex.:
+ * treinamento agendado, desligamento com data de efetivação futura) precisa continuar
+ * visível em "Ano atual" (vai até 31/dez), "Todo o período" (usa uma data-sentinela bem no
+ * futuro) e "Personalizado" (respeita a data informada, mesmo que seja depois de hoje) — do
+ * contrário o registro simplesmente some de toda a tela até a data chegar, sem nenhum
+ * filtro que mostre ele. "Todo o período" também usa uma data-sentinela bem no passado como
+ * início — o que importa é que seja anterior/posterior a qualquer registro real, não a data
+ * exata.
  */
 export function resolverPeriodo(
   modo: string | undefined,
   de: string | undefined,
   ate: string | undefined,
 ): PeriodoResolvido {
-  const hoje = hojeISO();
   const anoAtual = new Date().getFullYear();
 
   if (modo === "anterior") {
@@ -53,12 +56,12 @@ export function resolverPeriodo(
   }
 
   if (modo === "todo") {
-    return { inicio: "1970-01-01", fim: hoje, rotulo: "Todo o período" };
+    return { inicio: "1970-01-01", fim: "9999-12-31", rotulo: "Todo o período" };
   }
 
   if (modo === "personalizado" && de && ate) {
-    return { inicio: de, fim: ate > hoje ? hoje : ate, rotulo: `${formatarData(de)} a ${formatarData(ate)}` };
+    return { inicio: de, fim: ate, rotulo: `${formatarData(de)} a ${formatarData(ate)}` };
   }
 
-  return { inicio: `${anoAtual}-01-01`, fim: hoje, rotulo: String(anoAtual) };
+  return { inicio: `${anoAtual}-01-01`, fim: `${anoAtual}-12-31`, rotulo: String(anoAtual) };
 }
