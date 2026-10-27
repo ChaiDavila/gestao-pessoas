@@ -118,13 +118,19 @@ export default async function TreinamentosPage({ searchParams }: PageProps) {
   // de admissão e desligamento — não o status_rh atual. Isso inclui quem foi desligado no
   // meio do período (sem isso, a participação dessa pessoa some do denominador da média,
   // mesmo que ela tenha treinado normalmente enquanto esteve ativa).
+  //
+  // Exceção: em "Todo o período" (sem limite de tempo), "esteve ativo em algum momento"
+  // vira, por definição, todo mundo que já passou pela empresa — ativos de hoje mais
+  // qualquer desligado de qualquer época —, o que infla o denominador com gente que saiu há
+  // anos e confunde quem lê o indicador (o número não bate com o quadro atual). Nesse modo
+  // específico, o denominador é só quem está ativo HOJE.
   const idsEstrutura = new Set(colaboradoresTodos.filter(bateFiltrosEstrutura).map((c) => c.id));
   const desligamentosPorColaborador = agruparDesligamentosPorColaborador(desligamentosTodos);
-  const colaboradoresElegiveisNoPeriodo = colaboradoresTodos.filter(
-    (c) =>
-      idsEstrutura.has(c.id) &&
-      estevaAtivoEmAlgumMomento(c, desligamentosPorColaborador.get(c.id) ?? [], periodo.inicio, periodo.fim),
-  );
+  const colaboradoresElegiveisNoPeriodo = colaboradoresTodos.filter((c) => {
+    if (!idsEstrutura.has(c.id)) return false;
+    if (modoPeriodo === "todo") return c.status_rh === "ativo";
+    return estevaAtivoEmAlgumMomento(c, desligamentosPorColaborador.get(c.id) ?? [], periodo.inicio, periodo.fim);
+  });
   // Numerador dos indicadores: mesma estrutura histórica por participação acima, mas sem o
   // filtro de status (igual ao denominador, pra não sumir com quem foi desligado no meio
   // do período).
