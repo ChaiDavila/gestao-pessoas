@@ -17,6 +17,7 @@ import { HistoricoTab } from "./historico-tab";
 import { ExamesTab } from "./exames-tab";
 import type { ParticipacaoItem, NrColaboradorItem } from "@/lib/data/treinamentos";
 import type { HistoricoEstruturaRow } from "@/lib/data/colaborador-detalhe";
+import type { PerfilComportamentalItem } from "@/lib/data/perfil-comportamental";
 
 type Valores = Record<string, string | number | null | undefined>;
 type AcaoComEstado = (
@@ -65,6 +66,9 @@ export function FichaColaboradorClient({
   participacoesTreinamentos,
   nrAcompanhamento,
   historicoEstrutura,
+  perfilComportamental,
+  salvarPerfilComportamentalAction,
+  removerPerfilComportamentalAction,
 }: {
   colaborador: Valores;
   opcoes: OpcoesFormulario;
@@ -107,6 +111,9 @@ export function FichaColaboradorClient({
   participacoesTreinamentos: ParticipacaoItem[];
   nrAcompanhamento: NrColaboradorItem[];
   historicoEstrutura: HistoricoEstruturaRow[];
+  perfilComportamental: PerfilComportamentalItem | null;
+  salvarPerfilComportamentalAction: AcaoComEstado;
+  removerPerfilComportamentalAction: () => Promise<void>;
 }) {
   const [modo, setModo] = useState<"ver" | "editar">(modoInicial);
   const nome = String(colaborador.nome ?? "");
@@ -192,6 +199,9 @@ export function FichaColaboradorClient({
         participacoesTreinamentos={participacoesTreinamentos}
         nrAcompanhamento={nrAcompanhamento}
         historicoEstrutura={historicoEstrutura}
+        perfilComportamental={perfilComportamental}
+        salvarPerfilComportamentalAction={salvarPerfilComportamentalAction}
+        removerPerfilComportamentalAction={removerPerfilComportamentalAction}
       />
     </div>
   );

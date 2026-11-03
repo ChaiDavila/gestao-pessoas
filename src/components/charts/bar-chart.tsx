@@ -14,6 +14,7 @@ export function BarChart({
   labels,
   valores,
   series,
+  cores,
   horizontal = false,
   formatarValor,
   linhasTooltip,
@@ -22,6 +23,9 @@ export function BarChart({
   labels: string[];
   valores?: number[];
   series?: Serie[];
+  /** Uma cor por barra (série única, sem `series`) — pra categorias com identidade de cor
+   * própria (ex.: D/I/S/C), em vez de uma cor só para o gráfico inteiro. */
+  cores?: string[];
   horizontal?: boolean;
   formatarValor?: (v: number) => string;
   /** Sobrescreve o tooltip inteiro por barra, uma linha por item — pra quando o valor
@@ -51,8 +55,8 @@ export function BarChart({
     : [
         {
           data: valores ?? [],
-          backgroundColor: COR_DADO,
-          hoverBackgroundColor: COR_DADO_HOVER,
+          backgroundColor: cores ?? COR_DADO,
+          hoverBackgroundColor: cores ?? COR_DADO_HOVER,
           borderRadius,
           borderSkipped: false,
           maxBarThickness: 28,

@@ -4,9 +4,10 @@ import { ColaboradorAvatar } from "@/components/colaborador-avatar";
 import { StatusDot } from "@/components/status-dot";
 import { getColaboradores, getOpcoesFormulario } from "@/lib/data/colaboradores";
 import { getMotivosDesligamento } from "@/lib/data/catalogos";
+import { getPerfisDiscResumo } from "@/lib/data/perfil-comportamental";
 import { exigirAcessoTela } from "@/lib/auth";
 import { formatarData } from "@/lib/date";
-import { formatarMoeda } from "@/lib/formatacao";
+import { PerfilDiscBadge } from "@/components/perfil-disc-badge";
 import { ColaboradoresFilters } from "./filters";
 import { RelatorioDialog } from "./relatorio-dialog";
 import { AcoesLinha } from "./acoes-linha";
@@ -43,11 +44,13 @@ export default async function ColaboradoresPage({
     status: statusParam === "todos" ? undefined : (statusParam ?? "ativo"),
   };
 
-  const [colaboradores, opcoes, motivosDesligamento] = await Promise.all([
+  const [colaboradores, opcoes, motivosDesligamento, perfisDisc] = await Promise.all([
     getColaboradores(filtros),
     getOpcoesFormulario(),
     getMotivosDesligamento(),
+    getPerfisDiscResumo(),
   ]);
+  const discPorColaborador = new Map(perfisDisc.map((p) => [p.colaborador_id, p]));
 
   return (
     <div className="space-y-6">
@@ -80,7 +83,7 @@ export default async function ColaboradoresPage({
             <tr>
               <th className="px-4 py-3 font-medium">Colaborador</th>
               <th className="px-4 py-3 font-medium">Cargo</th>
-              <th className="px-4 py-3 font-medium">Salário</th>
+              <th className="px-4 py-3 font-medium">Perfil DISC</th>
               <th className="px-4 py-3 font-medium">Admissão</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium text-right">Ações</th>
@@ -106,8 +109,8 @@ export default async function ColaboradoresPage({
                 <td className="px-4 py-3 text-muted-foreground">
                   {c.cargo_nome ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {formatarMoeda(c.salario_atual) ?? "—"}
+                <td className="px-4 py-3">
+                  <PerfilDiscBadge disc={discPorColaborador.get(c.id)} />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {formatarData(c.data_admissao)}

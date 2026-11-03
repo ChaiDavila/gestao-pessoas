@@ -13,8 +13,10 @@ import { HistoricoTab } from "./historico-tab";
 import { ExamesTab } from "./exames-tab";
 import { TreinamentosTab } from "./treinamentos-tab";
 import { MovimentacoesTab } from "./movimentacoes-tab";
+import { PerfilComportamentalTab } from "./perfil-comportamental-tab";
 import type { ParticipacaoItem, NrColaboradorItem } from "@/lib/data/treinamentos";
 import type { HistoricoEstruturaRow } from "@/lib/data/colaborador-detalhe";
+import type { PerfilComportamentalItem } from "@/lib/data/perfil-comportamental";
 
 type Valores = Record<string, string | number | null | undefined>;
 type AcaoComEstado = (
@@ -62,6 +64,9 @@ export function TabsFicha({
   participacoesTreinamentos,
   nrAcompanhamento,
   historicoEstrutura,
+  perfilComportamental,
+  salvarPerfilComportamentalAction,
+  removerPerfilComportamentalAction,
 }: {
   colaboradorId: string;
   nome: string;
@@ -100,6 +105,9 @@ export function TabsFicha({
   participacoesTreinamentos: ParticipacaoItem[];
   nrAcompanhamento: NrColaboradorItem[];
   historicoEstrutura: HistoricoEstruturaRow[];
+  perfilComportamental: PerfilComportamentalItem | null;
+  salvarPerfilComportamentalAction: AcaoComEstado;
+  removerPerfilComportamentalAction: () => Promise<void>;
 }) {
   if (modo === "editar") {
     return (
@@ -126,6 +134,7 @@ export function TabsFicha({
         <TabsTrigger value="exames">ASO</TabsTrigger>
         <TabsTrigger value="treinamentos">Treinamentos</TabsTrigger>
         <TabsTrigger value="movimentacoes">Histórico de movimentações</TabsTrigger>
+        <TabsTrigger value="perfil-comportamental">Perfil Comportamental</TabsTrigger>
       </TabsList>
 
       <TabsContent value="dados" className="pt-4 space-y-6">
@@ -205,6 +214,14 @@ export function TabsFicha({
               ? valoresIniciais.data_admissao
               : null
           }
+        />
+      </TabsContent>
+
+      <TabsContent value="perfil-comportamental" className="pt-4">
+        <PerfilComportamentalTab
+          perfil={perfilComportamental}
+          salvarAction={salvarPerfilComportamentalAction}
+          removerAction={removerPerfilComportamentalAction}
         />
       </TabsContent>
     </Tabs>

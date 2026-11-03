@@ -14,6 +14,11 @@ import {
   getNrColaborador,
   getHistoricoEstruturaColaborador,
 } from "@/lib/data/colaborador-detalhe";
+import { getPerfilComportamental } from "@/lib/data/perfil-comportamental";
+import {
+  salvarPerfilComportamental,
+  removerPerfilComportamental,
+} from "./perfil-comportamental-actions";
 import {
   atualizarColaborador,
   desativarColaborador,
@@ -63,6 +68,7 @@ export async function FichaColaboradorContent({
     participacoesTreinamentos,
     nrAcompanhamento,
     historicoEstrutura,
+    perfilComportamental,
   ] = await Promise.all([
     getOpcoesFormulario(id, {
       cargo_id: colaborador.cargo_id,
@@ -83,6 +89,7 @@ export async function FichaColaboradorContent({
     getTreinamentosColaborador(id),
     getNrColaborador(id),
     getHistoricoEstruturaColaborador(id),
+    getPerfilComportamental(id),
   ]);
 
   return (
@@ -122,6 +129,9 @@ export async function FichaColaboradorContent({
       participacoesTreinamentos={participacoesTreinamentos}
       nrAcompanhamento={nrAcompanhamento}
       historicoEstrutura={historicoEstrutura}
+      perfilComportamental={perfilComportamental}
+      salvarPerfilComportamentalAction={salvarPerfilComportamental.bind(null, id)}
+      removerPerfilComportamentalAction={removerPerfilComportamental.bind(null, id)}
     />
   );
 }
