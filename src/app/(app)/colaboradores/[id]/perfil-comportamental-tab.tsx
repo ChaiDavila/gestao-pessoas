@@ -59,7 +59,7 @@ export function PerfilComportamentalTab({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           {perfil.data_avaliacao
-            ? `Avaliação de ${formatarData(perfil.data_avaliacao)}`
+            ? `Atualizado em ${formatarData(perfil.data_avaliacao)}`
             : "Sem data de avaliação informada"}
         </p>
         <div className="flex gap-2">
