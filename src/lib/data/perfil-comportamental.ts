@@ -4,6 +4,7 @@ export type PerfilComportamentalItem = {
   id: string;
   colaborador_id: string;
   data_avaliacao: string | null;
+  atualizado_em: string;
   disc_d: number;
   disc_i: number;
   disc_s: number;

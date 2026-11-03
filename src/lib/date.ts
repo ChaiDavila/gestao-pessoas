@@ -3,6 +3,17 @@ export function formatarData(data: string | null | undefined) {
   return new Date(data + "T00:00:00").toLocaleDateString("pt-BR");
 }
 
+// Para timestamptz (já vem com data, hora e fuso) — diferente de formatarData,
+// que assume uma data pura (YYYY-MM-DD) e quebraria com um timestamp completo.
+export function formatarDataHora(timestamp: string | null | undefined) {
+  if (!timestamp) return "—";
+  const data = new Date(timestamp);
+  return `${data.toLocaleDateString("pt-BR")} às ${data.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
 export function calcularIdade(dataNascimento: string | null | undefined) {
   if (!dataNascimento) return null;
   const nascimento = new Date(dataNascimento + "T00:00:00");
