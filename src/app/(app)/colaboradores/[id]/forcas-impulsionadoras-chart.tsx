@@ -14,7 +14,7 @@ export function ForcasImpulsionadorasChart({
         Forças Impulsionadoras
       </p>
 
-      <div className="grid grid-cols-[2.25rem_1fr_2.25rem] items-center gap-3">
+      <div className="grid grid-cols-[2.75rem_1fr_2.75rem] items-center gap-3">
         <span />
         <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
           <span>100</span>
@@ -56,7 +56,7 @@ export function ForcasImpulsionadorasChart({
                 </span>
               </div>
 
-              <div className="mt-2 grid grid-cols-[2.25rem_1fr_2.25rem] items-center gap-3">
+              <div className="mt-2 grid grid-cols-[2.75rem_1fr_2.75rem] items-center gap-3">
                 <PontuacaoBadge
                   valor={valorEsquerda}
                   rank={ranksPorChave.get(continuum.esquerda.chave)!}
@@ -101,16 +101,26 @@ function PontuacaoBadge({
   rank: number;
   cor: string;
 }) {
+  // As 4 forças mais bem colocadas (1º a 4º) de cada pessoa são as "dominantes" no
+  // relatório — pontuação e colocação ficam maiores pra chamar mais atenção que as demais.
+  const destaque = rank <= 4;
+
   return (
-    <div className="relative mx-auto h-9 w-9 shrink-0">
+    <div
+      className={`relative mx-auto shrink-0 ${destaque ? "h-11 w-11" : "h-9 w-9"}`}
+    >
       <div
-        className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white"
+        className={`flex h-full w-full items-center justify-center rounded-full font-bold text-white ${
+          destaque ? "text-base" : "text-sm"
+        }`}
         style={{ backgroundColor: cor }}
       >
         {valor}
       </div>
       <div
-        className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 bg-card text-[10px] font-bold"
+        className={`absolute -bottom-1 -right-1 flex items-center justify-center rounded-full bg-card font-bold ${
+          destaque ? "h-6 w-6 border-[3px] text-xs" : "h-5 w-5 border-2 text-[10px]"
+        }`}
         style={{ borderColor: cor, color: cor }}
       >
         {rank}
