@@ -65,7 +65,10 @@ export type ForcaRankeada = {
 };
 
 // As 12 forças com ranking (1 = maior pontuação) — sempre derivado ordenando as 12
-// pontuações na hora de exibir, nunca guardado (ver migration).
+// pontuações na hora de exibir, nunca guardado (ver migration). Quando duas forças
+// empatam no mesmo valor arredondado, a pontuação sozinha não diz qual vem primeiro (o
+// relatório de origem usa casas decimais que não guardamos) — nesse caso, usa-se a ordem
+// de desempate manual registrada em `desempate_forcas`, se houver.
 export function ordenarForcas(perfil: PerfilComportamentalItem): ForcaRankeada[] {
   const itens = FORCAS_CONTINUUM.flatMap((continuum) => [
     {
@@ -81,9 +84,47 @@ export function ordenarForcas(perfil: PerfilComportamentalItem): ForcaRankeada[]
       valor: Number(perfil[continuum.direita.chave]),
     },
   ]);
+
+  const posicaoDesempate = new Map(
+    (perfil.desempate_forcas ?? []).map((chave, i) => [chave, i]),
+  );
+
   return [...itens]
-    .sort((a, b) => b.valor - a.valor)
+    .sort((a, b) => {
+      if (b.valor !== a.valor) return b.valor - a.valor;
+      const posA = posicaoDesempate.get(a.chave);
+      const posB = posicaoDesempate.get(b.chave);
+      if (posA !== undefined && posB !== undefined) return posA - posB;
+      if (posA !== undefined) return -1;
+      if (posB !== undefined) return 1;
+      return 0;
+    })
     .map((item, i) => ({ ...item, rank: i + 1 }));
+}
+
+export type GrupoEmpatado = { valor: number; forcas: ForcaRankeada[] };
+
+// Grupos de forças empatadas na mesma pontuação cujo desempate manual (se houver) ainda
+// não cobre todo o grupo — a ordem mostrada hoje é só um palpite, precisa de atenção da RH.
+export function gruposEmpatadosSemResolucao(
+  perfil: PerfilComportamentalItem,
+): GrupoEmpatado[] {
+  const ranking = ordenarForcas(perfil);
+  const porValor = new Map<number, ForcaRankeada[]>();
+  for (const item of ranking) {
+    const grupo = porValor.get(item.valor) ?? [];
+    grupo.push(item);
+    porValor.set(item.valor, grupo);
+  }
+
+  const desempate = new Set(perfil.desempate_forcas ?? []);
+  const grupos: GrupoEmpatado[] = [];
+  for (const [valor, forcas] of porValor) {
+    if (forcas.length < 2) continue;
+    const resolvido = forcas.every((f) => desempate.has(f.chave));
+    if (!resolvido) grupos.push({ valor, forcas });
+  }
+  return grupos.sort((a, b) => b.valor - a.valor);
 }
 
 export type TracoAlto = { letra: Uppercase<DiscLetra>; cor: string; valor: number };

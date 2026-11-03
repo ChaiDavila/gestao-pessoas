@@ -60,6 +60,34 @@ export async function salvarPerfilComportamental(
   return { ok: true };
 }
 
+// Registra a ordem de desempate manual só para as forças empatadas de um grupo (ver
+// gruposEmpatadosSemResolucao) — mescla com qualquer desempate já salvo para outros
+// grupos, sem apagar o que já estava resolvido.
+export async function resolverEmpateForcas(colaboradorId: string, ordem: string[]) {
+  const supabase = await createClient();
+
+  const { data: atual, error: erroLeitura } = await supabase
+    .schema("rh")
+    .from("perfil_comportamental")
+    .select("desempate_forcas")
+    .eq("colaborador_id", colaboradorId)
+    .maybeSingle();
+  if (erroLeitura) throw new Error(erroLeitura.message);
+
+  const existente: string[] = atual?.desempate_forcas ?? [];
+  const resto = existente.filter((chave) => !ordem.includes(chave));
+  const novoDesempate = [...resto, ...ordem];
+
+  const { error } = await supabase
+    .schema("rh")
+    .from("perfil_comportamental")
+    .update({ desempate_forcas: novoDesempate })
+    .eq("colaborador_id", colaboradorId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/colaboradores/${colaboradorId}`);
+}
+
 export async function removerPerfilComportamental(colaboradorId: string) {
   const supabase = await createClient();
   const { error } = await supabase

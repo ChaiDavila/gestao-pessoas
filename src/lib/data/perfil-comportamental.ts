@@ -21,6 +21,7 @@ export type PerfilComportamentalItem = {
   forca_comandante: number;
   forca_receptivo: number;
   forca_estruturado: number;
+  desempate_forcas: string[] | null;
 };
 
 export type DiscResumoItem = {

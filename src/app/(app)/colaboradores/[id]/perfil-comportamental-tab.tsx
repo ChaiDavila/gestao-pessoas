@@ -1,16 +1,21 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BotaoRemover } from "@/components/botao-remover";
 import { formatarDataDeTimestamp, hojeISO } from "@/lib/date";
-import { FORCAS_CONTINUUM } from "@/lib/perfil-comportamental";
+import {
+  FORCAS_CONTINUUM,
+  gruposEmpatadosSemResolucao,
+  type GrupoEmpatado,
+} from "@/lib/perfil-comportamental";
 import type { PerfilComportamentalItem } from "@/lib/data/perfil-comportamental";
 import type { SubRecursoState } from "./sub-recursos-actions";
 import { DiscChart } from "./disc-chart";
 import { ForcasImpulsionadorasChart } from "./forcas-impulsionadoras-chart";
+import { resolverEmpateForcas } from "./perfil-comportamental-actions";
 
 type Acao = (prevState: SubRecursoState, formData: FormData) => Promise<SubRecursoState>;
 
@@ -72,7 +77,87 @@ export function PerfilComportamentalTab({
       </div>
 
       <DiscChart d={perfil.disc_d} i={perfil.disc_i} s={perfil.disc_s} c={perfil.disc_c} />
+
+      {gruposEmpatadosSemResolucao(perfil).map((grupo) => (
+        <AvisoEmpateForcas
+          key={grupo.valor}
+          colaboradorId={perfil.colaborador_id}
+          grupo={grupo}
+        />
+      ))}
+
       <ForcasImpulsionadorasChart perfil={perfil} />
+    </div>
+  );
+}
+
+// Quando duas (ou mais) forças empatam na mesma pontuação, a ordem exibida é só um
+// palpite — a área de RH confere no PDF e ajusta aqui qual vem primeiro.
+function AvisoEmpateForcas({
+  colaboradorId,
+  grupo,
+}: {
+  colaboradorId: string;
+  grupo: GrupoEmpatado;
+}) {
+  const [ordem, setOrdem] = useState(grupo.forcas.map((f) => f.chave));
+  const [pending, startTransition] = useTransition();
+  const nomesPorChave = new Map(grupo.forcas.map((f) => [f.chave, f.nome]));
+
+  function mover(index: number, direcao: -1 | 1) {
+    const alvo = index + direcao;
+    if (alvo < 0 || alvo >= ordem.length) return;
+    const nova = [...ordem];
+    [nova[index], nova[alvo]] = [nova[alvo], nova[index]];
+    setOrdem(nova);
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
+      <p className="text-sm font-medium text-amber-900">
+        Empate em {grupo.valor} pontos entre {grupo.forcas.map((f) => f.nome).join(" e ")}.
+        A ordem abaixo foi um palpite automático — confira no PDF e ajuste se precisar:
+      </p>
+      <ol className="space-y-1">
+        {ordem.map((chave, index) => (
+          <li
+            key={chave}
+            className="flex items-center justify-between gap-2 rounded-md bg-card px-3 py-1.5 text-sm"
+          >
+            <span>
+              {index + 1}º — {nomesPorChave.get(chave)}
+            </span>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={index === 0}
+                onClick={() => mover(index, -1)}
+              >
+                ↑
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={index === ordem.length - 1}
+                onClick={() => mover(index, 1)}
+              >
+                ↓
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <Button
+        type="button"
+        size="sm"
+        disabled={pending}
+        onClick={() => startTransition(() => resolverEmpateForcas(colaboradorId, ordem))}
+      >
+        {pending ? "Salvando..." : "Salvar ordem"}
+      </Button>
     </div>
   );
 }
