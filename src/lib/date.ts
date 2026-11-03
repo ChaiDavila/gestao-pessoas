@@ -5,13 +5,9 @@ export function formatarData(data: string | null | undefined) {
 
 // Para timestamptz (já vem com data, hora e fuso) — diferente de formatarData,
 // que assume uma data pura (YYYY-MM-DD) e quebraria com um timestamp completo.
-export function formatarDataHora(timestamp: string | null | undefined) {
+export function formatarDataDeTimestamp(timestamp: string | null | undefined) {
   if (!timestamp) return "—";
-  const data = new Date(timestamp);
-  return `${data.toLocaleDateString("pt-BR")} às ${data.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  return new Date(timestamp).toLocaleDateString("pt-BR");
 }
 
 export function calcularIdade(dataNascimento: string | null | undefined) {

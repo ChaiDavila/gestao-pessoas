@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BotaoRemover } from "@/components/botao-remover";
-import { formatarDataHora, hojeISO } from "@/lib/date";
+import { formatarDataDeTimestamp, hojeISO } from "@/lib/date";
 import { FORCAS_CONTINUUM } from "@/lib/perfil-comportamental";
 import type { PerfilComportamentalItem } from "@/lib/data/perfil-comportamental";
 import type { SubRecursoState } from "./sub-recursos-actions";
@@ -58,7 +58,7 @@ export function PerfilComportamentalTab({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Atualizado em {formatarDataHora(perfil.atualizado_em)}
+          Atualizado em {formatarDataDeTimestamp(perfil.atualizado_em)}
         </p>
         <div className="flex gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={() => setEditando(true)}>
