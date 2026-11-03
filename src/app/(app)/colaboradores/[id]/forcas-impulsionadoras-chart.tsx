@@ -9,73 +9,74 @@ export function ForcasImpulsionadorasChart({
   const ranksPorChave = new Map(ordenarForcas(perfil).map((f) => [f.chave, f.rank]));
 
   return (
-    <div className="space-y-6 rounded-lg border border-border bg-card p-4">
+    <div className="max-w-2xl space-y-5 rounded-lg border border-border bg-card p-4">
       <p className="text-sm font-semibold text-foreground">
         Forças Impulsionadoras
       </p>
-      {FORCAS_CONTINUUM.map((continuum) => {
-        const valorEsquerda = Number(perfil[continuum.esquerda.chave]);
-        const valorDireita = Number(perfil[continuum.direita.chave]);
-        const esquerdaEmDestaque = valorEsquerda >= valorDireita;
+      <div className="space-y-5">
+        {FORCAS_CONTINUUM.map((continuum) => {
+          const valorEsquerda = Number(perfil[continuum.esquerda.chave]);
+          const valorDireita = Number(perfil[continuum.direita.chave]);
+          const esquerdaEmDestaque = valorEsquerda >= valorDireita;
 
-        return (
-          <div key={continuum.titulo}>
-            <div className="flex items-center justify-between text-sm">
-              <span
-                className={
-                  esquerdaEmDestaque
-                    ? "font-semibold text-foreground"
-                    : "text-muted-foreground"
-                }
-              >
-                {continuum.esquerda.nome}
-              </span>
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {continuum.titulo}
-              </span>
-              <span
-                className={
-                  !esquerdaEmDestaque
-                    ? "font-semibold text-foreground"
-                    : "text-muted-foreground"
-                }
-              >
-                {continuum.direita.nome}
-              </span>
-            </div>
-
-            <div className="mt-2 flex items-center gap-3">
-              <PontuacaoBadge
-                valor={valorEsquerda}
-                rank={ranksPorChave.get(continuum.esquerda.chave)!}
-                cor={continuum.cor}
-              />
-
-              <div className="flex h-4 flex-1 items-stretch overflow-hidden rounded-md bg-muted/40">
-                <div className="flex flex-1 justify-end">
-                  <div
-                    className="h-full"
-                    style={{ width: `${valorEsquerda}%`, backgroundColor: continuum.cor }}
-                  />
-                </div>
-                <div className="w-px shrink-0 bg-border" />
-                <div className="flex flex-1 justify-start">
-                  <div
-                    className="h-full"
-                    style={{ width: `${valorDireita}%`, backgroundColor: continuum.cor }}
-                  />
-                </div>
+          return (
+            <div key={continuum.titulo} className="border-t border-border pt-4 first:border-t-0 first:pt-0">
+              {/* Grid de 3 colunas (fixa-flexível-fixa) em vez de flex: garante que o
+                  título fique sempre centralizado e a barra do meio nunca force a linha a
+                  ficar mais larga que o espaço disponível, não importa o tamanho dos
+                  rótulos dos dois lados. */}
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm">
+                <span
+                  className={`truncate text-right ${
+                    esquerdaEmDestaque ? "font-semibold text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {continuum.esquerda.nome}
+                </span>
+                <span className="whitespace-nowrap px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {continuum.titulo}
+                </span>
+                <span
+                  className={`truncate text-left ${
+                    !esquerdaEmDestaque ? "font-semibold text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {continuum.direita.nome}
+                </span>
               </div>
 
-              <PontuacaoBadge
-                valor={valorDireita}
-                rank={ranksPorChave.get(continuum.direita.chave)!}
-                cor={continuum.cor}
-              />
+              <div className="mt-2 grid grid-cols-[2.25rem_1fr_2.25rem] items-center gap-3">
+                <PontuacaoBadge
+                  valor={valorEsquerda}
+                  rank={ranksPorChave.get(continuum.esquerda.chave)!}
+                  cor={continuum.cor}
+                />
+
+                <div className="grid min-w-0 grid-cols-2 items-stretch gap-px overflow-hidden rounded-md bg-muted/40">
+                  <div className="flex min-w-0 justify-end">
+                    <div
+                      className="h-5 rounded-l-sm"
+                      style={{ width: `${valorEsquerda}%`, backgroundColor: continuum.cor }}
+                    />
+                  </div>
+                  <div className="flex min-w-0 justify-start">
+                    <div
+                      className="h-5 rounded-r-sm"
+                      style={{ width: `${valorDireita}%`, backgroundColor: continuum.cor }}
+                    />
+                  </div>
+                </div>
+
+                <PontuacaoBadge
+                  valor={valorDireita}
+                  rank={ranksPorChave.get(continuum.direita.chave)!}
+                  cor={continuum.cor}
+                />
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -90,7 +91,7 @@ function PontuacaoBadge({
   cor: string;
 }) {
   return (
-    <div className="relative shrink-0">
+    <div className="relative mx-auto h-9 w-9 shrink-0">
       <div
         className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white"
         style={{ backgroundColor: cor }}

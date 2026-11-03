@@ -16,12 +16,14 @@ export function DiscChart({
   c: number;
 }) {
   return (
-    <ChartCard titulo="Estilo DISC Natural">
-      <BarChart
-        labels={["D", "I", "S", "C"]}
-        valores={[d, i, s, c]}
-        cores={[DISC_CORES.d, DISC_CORES.i, DISC_CORES.s, DISC_CORES.c]}
-      />
-    </ChartCard>
+    <div className="max-w-xs">
+      <ChartCard titulo="Estilo DISC Natural" altura={200}>
+        <BarChart
+          labels={["D", "I", "S", "C"]}
+          valores={[d, i, s, c]}
+          cores={[DISC_CORES.d, DISC_CORES.i, DISC_CORES.s, DISC_CORES.c]}
+        />
+      </ChartCard>
+    </div>
   );
 }
