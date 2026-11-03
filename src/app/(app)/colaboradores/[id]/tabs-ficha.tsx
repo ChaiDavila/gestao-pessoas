@@ -126,7 +126,10 @@ export function TabsFicha({
 
   return (
     <Tabs defaultValue="dados">
-      <TabsList>
+      {/* A ficha tem bastante aba (8) — sem isso, a barra de abas força a tela inteira a
+          rolar pro lado em vez de quebrar linha (TabsList é `w-fit` por padrão, ignorando
+          a largura disponível de propósito). */}
+      <TabsList className="h-auto w-full flex-wrap justify-start gap-1 !h-auto">
         <TabsTrigger value="dados">Dados cadastrais</TabsTrigger>
         <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
         <TabsTrigger value="historico">Histórico salarial</TabsTrigger>
