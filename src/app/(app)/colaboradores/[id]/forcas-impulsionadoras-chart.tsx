@@ -13,6 +13,17 @@ export function ForcasImpulsionadorasChart({
       <p className="text-sm font-semibold text-foreground">
         Forças Impulsionadoras
       </p>
+
+      <div className="grid grid-cols-[2.25rem_1fr_2.25rem] items-center gap-3">
+        <span />
+        <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
+          <span>100</span>
+          <span>0</span>
+          <span>100</span>
+        </div>
+        <span />
+      </div>
+
       <div className="space-y-5">
         {FORCAS_CONTINUUM.map((continuum) => {
           const valorEsquerda = Number(perfil[continuum.esquerda.chave]);
