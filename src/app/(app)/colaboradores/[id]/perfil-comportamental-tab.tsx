@@ -49,13 +49,22 @@ export function PerfilComportamentalTab({
 
   if (editando) {
     return (
-      <FormularioPerfilComportamental
-        perfil={perfil}
-        action={salvarAction}
-        textoBotao="Salvar alterações"
-        aoSalvar={() => setEditando(false)}
-        aoCancelar={() => setEditando(false)}
-      />
+      <div className="space-y-4">
+        {gruposEmpatados(perfil).map((grupo) => (
+          <AvisoEmpateForcas
+            key={grupo.valor}
+            colaboradorId={perfil.colaborador_id}
+            grupo={grupo}
+          />
+        ))}
+        <FormularioPerfilComportamental
+          perfil={perfil}
+          action={salvarAction}
+          textoBotao="Salvar alterações"
+          aoSalvar={() => setEditando(false)}
+          aoCancelar={() => setEditando(false)}
+        />
+      </div>
     );
   }
 
@@ -77,23 +86,14 @@ export function PerfilComportamentalTab({
       </div>
 
       <DiscChart d={perfil.disc_d} i={perfil.disc_i} s={perfil.disc_s} c={perfil.disc_c} />
-
-      {gruposEmpatados(perfil).map((grupo) => (
-        <AvisoEmpateForcas
-          key={grupo.valor}
-          colaboradorId={perfil.colaborador_id}
-          grupo={grupo}
-        />
-      ))}
-
       <ForcasImpulsionadorasChart perfil={perfil} />
     </div>
   );
 }
 
 // Quando duas (ou mais) forças empatam na mesma pontuação, a ordem exibida precisa de uma
-// escolha manual (a pontuação sozinha não diz qual vem primeiro). Fica sempre visível,
-// resolvida ou não — mesmo já resolvida, dá pra reabrir e corrigir se foi escolhida errada.
+// escolha manual (a pontuação sozinha não diz qual vem primeiro). Só aparece no modo de
+// edição (não na visualização normal) — resolvida ou não, dá pra reabrir e corrigir.
 function AvisoEmpateForcas({
   colaboradorId,
   grupo,
