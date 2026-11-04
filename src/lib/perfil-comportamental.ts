@@ -102,13 +102,19 @@ export function ordenarForcas(perfil: PerfilComportamentalItem): ForcaRankeada[]
     .map((item, i) => ({ ...item, rank: i + 1 }));
 }
 
-export type GrupoEmpatado = { valor: number; forcas: ForcaRankeada[] };
+export type GrupoEmpatado = {
+  valor: number;
+  forcas: ForcaRankeada[];
+  // false = a ordem ainda não foi confirmada manualmente (palpite automático); true = já
+  // tem um desempate salvo — mesmo assim fica visível, pra dar pra corrigir se foi
+  // escolhido errado (ver `resolverEmpateForcas`).
+  resolvido: boolean;
+};
 
-// Grupos de forças empatadas na mesma pontuação cujo desempate manual (se houver) ainda
-// não cobre todo o grupo — a ordem mostrada hoje é só um palpite, precisa de atenção da RH.
-export function gruposEmpatadosSemResolucao(
-  perfil: PerfilComportamentalItem,
-): GrupoEmpatado[] {
+// Todos os grupos de forças empatadas na mesma pontuação, resolvidos ou não — sempre
+// visíveis (não só os pendentes), porque um desempate já salvo pode ter sido escolhido
+// errado e precisa continuar dando pra corrigir.
+export function gruposEmpatados(perfil: PerfilComportamentalItem): GrupoEmpatado[] {
   const ranking = ordenarForcas(perfil);
   const porValor = new Map<number, ForcaRankeada[]>();
   for (const item of ranking) {
@@ -122,7 +128,7 @@ export function gruposEmpatadosSemResolucao(
   for (const [valor, forcas] of porValor) {
     if (forcas.length < 2) continue;
     const resolvido = forcas.every((f) => desempate.has(f.chave));
-    if (!resolvido) grupos.push({ valor, forcas });
+    grupos.push({ valor, forcas, resolvido });
   }
   return grupos.sort((a, b) => b.valor - a.valor);
 }
