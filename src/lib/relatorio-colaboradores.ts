@@ -28,6 +28,7 @@ export const CAMPOS_RELATORIO: CampoRelatorio[] = [
   { chave: "conjuge_nome", rotulo: "Cônjuge", grupo: "Dados pessoais", valor: (c) => texto(c.conjuge_nome) },
   { chave: "email_pessoal", rotulo: "E-mail", grupo: "Dados pessoais", padrao: true, valor: (c) => texto(c.email_pessoal) },
   { chave: "telefone_pessoal", rotulo: "Telefone", grupo: "Dados pessoais", valor: (c) => texto(c.telefone_pessoal) },
+  { chave: "escolaridade", rotulo: "Escolaridade", grupo: "Dados pessoais", valor: (c) => texto(c.escolaridade) },
   {
     chave: "endereco",
     rotulo: "Endereço completo",

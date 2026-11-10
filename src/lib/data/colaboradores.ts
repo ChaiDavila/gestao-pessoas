@@ -87,7 +87,28 @@ export async function getColaboradoresRelatorio(filtros: ColaboradoresFiltros) {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as Record<string, unknown>[];
+
+  // Escolaridade = a formação mais recente cadastrada de cada colaborador (regra da
+  // seção 7.7 do padrão — nunca uma flag separada de "principal"), mesma fonte do
+  // gráfico "Formação" do Dashboard.
+  const { data: formacoes, error: erroFormacoes } = await supabase
+    .schema("rh")
+    .from("vw_formacao_atual")
+    .select("colaborador_id, nivel_nome");
+  if (erroFormacoes) throw new Error(erroFormacoes.message);
+
+  const escolaridadePorColaborador = new Map(
+    (formacoes ?? []).map((f) => [
+      (f as { colaborador_id: string }).colaborador_id,
+      (f as { nivel_nome: string }).nivel_nome,
+    ]),
+  );
+
+  const linhas = (data ?? []) as unknown as Record<string, unknown>[];
+  return linhas.map((linha) => ({
+    ...linha,
+    escolaridade: escolaridadePorColaborador.get(linha.id as string) ?? null,
+  }));
 }
 
 export async function getColaboradoresAtivos() {
