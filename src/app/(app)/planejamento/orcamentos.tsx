@@ -36,6 +36,27 @@ function moeda(v: number) {
   return formatarMoeda(v) ?? "R$ 0,00";
 }
 
+function ValoresBarra({ previsto, realizado }: { previsto: number; realizado: number }) {
+  return (
+    <span className={realizado > previsto ? "font-medium text-danger" : "text-muted-foreground"}>
+      {moeda(realizado)} de {moeda(previsto)}
+    </span>
+  );
+}
+
+function Barra({ previsto, realizado, cor, fina }: { previsto: number; realizado: number; cor?: string; fina?: boolean }) {
+  const pct = previsto > 0 ? Math.min(100, (realizado / previsto) * 100) : realizado > 0 ? 100 : 0;
+  const estourou = realizado > previsto;
+  return (
+    <div className={`mt-1.5 overflow-hidden rounded-full bg-muted ${fina ? "h-1.5" : "h-2"}`}>
+      <div
+        className="h-full rounded-full"
+        style={{ width: `${pct}%`, backgroundColor: estourou ? "var(--danger)" : cor }}
+      />
+    </div>
+  );
+}
+
 export function Orcamentos({
   ano,
   onMudarAno,
@@ -56,6 +77,15 @@ export function Orcamentos({
   // "" = ano inteiro; "0".."11" = mês específico
   const [mes, setMes] = useState("");
   const anoInteiro = mes === "";
+  const [categoriasAbertas, setCategoriasAbertas] = useState<Set<string>>(new Set());
+  function alternarCategoria(id: string) {
+    setCategoriasAbertas((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  }
 
   const prefixo = anoInteiro ? `${ano}-` : `${ano}-${String(Number(mes) + 1).padStart(2, "0")}-`;
   const noPeriodo = (data: string) => data.startsWith(prefixo);
@@ -110,15 +140,24 @@ export function Orcamentos({
   const saldo = totalPrevisto - totalRealizado;
   const semOrcamento = linhas.filter((l) => l.previstoNoPeriodo && l.previsto === null).length;
 
-  const porCategoria = new Map<string, { previsto: number; realizado: number }>();
-  const somarCategoria = (catId: string, previsto: number, realizado: number) => {
-    const atual = porCategoria.get(catId) ?? { previsto: 0, realizado: 0 };
+  // Por categoria e, dentro dela, por grupo de ações com o mesmo nome (ignorando maiúsculas e
+  // espaços), ex.: duas cópias de "Dia das Mães" no mesmo ano viram uma linha só.
+  type Grupo = { titulo: string; previsto: number; realizado: number; ids: string[] };
+  const porCategoria = new Map<string, { previsto: number; realizado: number; grupos: Map<string, Grupo> }>();
+  const somarCategoria = (acao: AcaoPlanejamento, previsto: number, realizado: number) => {
+    const atual = porCategoria.get(acao.categoria_id) ?? { previsto: 0, realizado: 0, grupos: new Map() };
     atual.previsto += previsto;
     atual.realizado += realizado;
-    porCategoria.set(catId, atual);
+    const chave = acao.titulo.trim().toLowerCase().replace(/\s+/g, " ");
+    const grupo = atual.grupos.get(chave) ?? { titulo: acao.titulo.trim(), previsto: 0, realizado: 0, ids: [] };
+    grupo.previsto += previsto;
+    grupo.realizado += realizado;
+    grupo.ids.push(acao.id);
+    atual.grupos.set(chave, grupo);
+    porCategoria.set(acao.categoria_id, atual);
   };
-  for (const l of linhas) somarCategoria(l.acao.categoria_id, l.previsto ?? 0, l.realizado);
-  for (const v of verbas) somarCategoria(v.verba.categoria_id, previstoVerba(v), v.gastoPeriodo);
+  for (const l of linhas) somarCategoria(l.acao, l.previsto ?? 0, l.realizado);
+  for (const v of verbas) somarCategoria(v.verba, previstoVerba(v), v.gastoPeriodo);
   const categoriasOrdenadas = [...porCategoria.entries()]
     .filter(([, v]) => v.previsto > 0 || v.realizado > 0)
     .sort((a, b) => b[1].previsto + b[1].realizado - (a[1].previsto + a[1].realizado));
@@ -175,32 +214,63 @@ export function Orcamentos({
 
       {/* Por categoria */}
       <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Por categoria · previsto × realizado</h2>
+        <h2 className="text-sm font-semibold text-foreground">Por categoria · previsto × realizado</h2>
+        <p className="mb-3 text-xs text-muted-foreground">Clique numa categoria para ver os valores por ação.</p>
         {categoriasOrdenadas.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground">Nenhum valor previsto ou despesa em {rotuloPeriodo}.</p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {categoriasOrdenadas.map(([catId, v]) => {
               const cat = categoriasPorId.get(catId);
-              const pct = v.previsto > 0 ? Math.min(100, (v.realizado / v.previsto) * 100) : v.realizado > 0 ? 100 : 0;
-              const estourou = v.realizado > v.previsto;
+              const aberta = categoriasAbertas.has(catId);
+              const grupos = [...v.grupos.values()]
+                .filter((g) => g.previsto > 0 || g.realizado > 0)
+                .sort((a, b) => b.previsto + b.realizado - (a.previsto + a.realizado));
               return (
-                <div key={catId}>
-                  <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-2 font-medium text-foreground">
-                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: cat?.cor }} />
-                      {cat?.nome ?? "Sem categoria"}
-                    </span>
-                    <span className={estourou ? "font-medium text-danger" : "text-muted-foreground"}>
-                      {moeda(v.realizado)} de {moeda(v.previsto)}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${pct}%`, backgroundColor: estourou ? "var(--danger)" : cat?.cor }}
-                    />
-                  </div>
+                <div key={catId} className="rounded-md">
+                  <button
+                    type="button"
+                    onClick={() => alternarCategoria(catId)}
+                    aria-expanded={aberta}
+                    className="w-full rounded-md p-2 text-left transition-colors hover:bg-muted/40"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                      <span className="flex items-center gap-2 font-medium text-foreground">
+                        <ChevronRight
+                          className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${aberta ? "rotate-90" : ""}`}
+                        />
+                        <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: cat?.cor }} />
+                        {cat?.nome ?? "Sem categoria"}
+                      </span>
+                      <ValoresBarra previsto={v.previsto} realizado={v.realizado} />
+                    </div>
+                    <Barra previsto={v.previsto} realizado={v.realizado} cor={cat?.cor} />
+                  </button>
+
+                  {aberta && (
+                    <div className="mb-2 ml-6 space-y-2 border-l-2 pl-4" style={{ borderLeftColor: cat?.cor }}>
+                      {grupos.map((g) => (
+                        <button
+                          key={g.titulo + g.ids[0]}
+                          type="button"
+                          onClick={() => g.ids.length === 1 && onAbrirAcao(g.ids[0])}
+                          className={`block w-full rounded-md px-2 py-1.5 text-left ${g.ids.length === 1 ? "hover:bg-muted/40" : "cursor-default"}`}
+                          title={g.ids.length === 1 ? "Abrir a ação" : `${g.ids.length} ações com este nome`}
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                            <span className="text-foreground">
+                              {g.titulo}
+                              {g.ids.length > 1 && (
+                                <span className="ml-1.5 text-xs text-muted-foreground">({g.ids.length} ações)</span>
+                              )}
+                            </span>
+                            <ValoresBarra previsto={g.previsto} realizado={g.realizado} />
+                          </div>
+                          <Barra previsto={g.previsto} realizado={g.realizado} cor={cat?.cor} fina />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
