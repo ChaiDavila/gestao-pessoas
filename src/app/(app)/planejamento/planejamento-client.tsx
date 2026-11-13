@@ -6,6 +6,7 @@ import { NativeSelect } from "@/components/native-select";
 import {
   agruparPorAcao,
   calcularPendencias,
+  ehVerba,
   hojeLocalISO,
   isoData,
   type AcaoPlanejamento,
@@ -51,9 +52,11 @@ export function PlanejamentoClient({
     () => (categoriaId ? acoes.filter((a) => a.categoria_id === categoriaId) : acoes),
     [acoes, categoriaId],
   );
+  // Verbas anuais só existem na aba Orçamentos; mensal, anual e pendências não as veem.
+  const acoesPlanejaveis = useMemo(() => acoesFiltradas.filter((a) => !ehVerba(a)), [acoesFiltradas]);
   const pendencias = useMemo(
-    () => calcularPendencias(acoesFiltradas, tarefasPorAcao),
-    [acoesFiltradas, tarefasPorAcao],
+    () => calcularPendencias(acoesPlanejaveis, tarefasPorAcao),
+    [acoesPlanejaveis, tarefasPorAcao],
   );
 
   function abrirAcao(id: string) {
@@ -107,7 +110,7 @@ export function PlanejamentoClient({
             ano={ano}
             mes={mes}
             onMudarMes={(a, m) => setPeriodo({ ano: a, mes: m })}
-            acoes={acoesFiltradas}
+            acoes={acoesPlanejaveis}
             tarefasPorAcao={tarefasPorAcao}
             pendencias={pendencias}
             categoriasPorId={categoriasPorId}
@@ -125,7 +128,7 @@ export function PlanejamentoClient({
               setPeriodo({ ano, mes: m });
               setAba("mensal");
             }}
-            acoes={acoesFiltradas}
+            acoes={acoesPlanejaveis}
             categoriasPorId={categoriasPorId}
           />
         </TabsContent>
@@ -138,6 +141,11 @@ export function PlanejamentoClient({
             despesasPorAcao={despesasPorAcao}
             categoriasPorId={categoriasPorId}
             onAbrirAcao={abrirAcao}
+            onNovaVerba={
+              podeEditar
+                ? () => setEditor({ modo: "novo", dataSugerida: isoData(ano, 0, 1), tipoInicial: "verba" })
+                : undefined
+            }
           />
         </TabsContent>
       </Tabs>

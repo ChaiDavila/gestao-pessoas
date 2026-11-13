@@ -3,7 +3,13 @@
 import { situacaoVencimento } from "@/lib/vencimento";
 
 export type StatusAcao = "planejada" | "em_andamento" | "concluida" | "cancelada";
-export type TipoAcao = "pontual" | "periodo";
+// "verba" = verba anual: orçamento do ano sem data de evento (datas fixas 01/01 a 31/12).
+// Só existe na aba Orçamentos; as visões de planejamento filtram com ehVerba() para ignorá-la.
+export type TipoAcao = "pontual" | "periodo" | "verba";
+
+export function ehVerba(a: { tipo: TipoAcao }) {
+  return a.tipo === "verba";
+}
 
 export type CategoriaPlanejamento = { id: string; nome: string; cor: string; ativo: boolean };
 
@@ -141,7 +147,7 @@ export function calcularPendencias(
 ): Pendencia[] {
   const lista: Pendencia[] = [];
   for (const acao of acoes) {
-    if (!acaoAberta(acao)) continue;
+    if (ehVerba(acao) || !acaoAberta(acao)) continue;
 
     const prazoAcao = dataFinal(acao);
     const situacaoAcao = situacaoVencimento(prazoAcao);

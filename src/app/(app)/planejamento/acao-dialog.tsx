@@ -27,7 +27,7 @@ type DespesaForm = { id?: string; data: string; descricao: string; valor: string
 
 export type EditorEstado =
   | { modo: "fechado" }
-  | { modo: "novo"; dataSugerida: string }
+  | { modo: "novo"; dataSugerida: string; tipoInicial?: TipoAcao }
   | { modo: "editar"; acaoId: string };
 
 export function AcaoDialog({
@@ -60,6 +60,7 @@ export function AcaoDialog({
             key={chave}
             acao={acao}
             dataSugerida={estado.modo === "novo" ? estado.dataSugerida : ""}
+            tipoInicial={estado.modo === "novo" ? estado.tipoInicial : undefined}
             tarefasIniciais={acao ? (tarefasPorAcao.get(acao.id) ?? []) : []}
             despesasIniciais={acao ? (despesasPorAcao.get(acao.id) ?? []) : []}
             categorias={categorias}
@@ -75,6 +76,7 @@ export function AcaoDialog({
 function FormularioAcao({
   acao,
   dataSugerida,
+  tipoInicial,
   tarefasIniciais,
   despesasIniciais,
   categorias,
@@ -83,6 +85,7 @@ function FormularioAcao({
 }: {
   acao: AcaoPlanejamento | undefined;
   dataSugerida: string;
+  tipoInicial?: TipoAcao;
   tarefasIniciais: TarefaPlanejamento[];
   despesasIniciais: DespesaPlanejamento[];
   categorias: CategoriaPlanejamento[];
@@ -93,7 +96,8 @@ function FormularioAcao({
     salvarAcao.bind(null, acao?.id ?? null),
     undefined,
   );
-  const [tipo, setTipo] = useState<TipoAcao>(acao?.tipo ?? "pontual");
+  const [tipo, setTipo] = useState<TipoAcao>(acao?.tipo ?? tipoInicial ?? "pontual");
+  const verba = tipo === "verba";
   const [status, setStatus] = useState<StatusAcao>(acao?.status ?? "planejada");
   const [tarefas, setTarefas] = useState<TarefaForm[]>(
     tarefasIniciais.map((t) => ({ id: t.id, descricao: t.descricao, prazo: t.prazo ?? "", concluida: t.concluida })),
@@ -141,7 +145,17 @@ function FormularioAcao({
     })),
   );
 
-  const titulo = !acao ? "Nova ação / atividade" : podeEditar ? "Editar ação / atividade" : "Detalhes da ação";
+  const titulo = verba
+    ? !acao
+      ? "Nova verba anual"
+      : podeEditar
+        ? "Editar verba anual"
+        : "Detalhes da verba anual"
+    : !acao
+      ? "Nova ação / atividade"
+      : podeEditar
+        ? "Editar ação / atividade"
+        : "Detalhes da ação";
   const erro = erroLocal ?? (state && "error" in state ? state.error : null);
 
   return (
@@ -184,13 +198,34 @@ function FormularioAcao({
               <NativeSelect id="tipo" name="tipo" value={tipo} onChange={(e) => setTipo(e.target.value as TipoAcao)}>
                 <option value="pontual">Ação pontual</option>
                 <option value="periodo">Atividade com período de execução</option>
+                <option value="verba">Verba anual (só orçamento, sem data)</option>
               </NativeSelect>
             </div>
+            {verba ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ano">Ano *</Label>
+                  <Input
+                    id="ano"
+                    name="ano"
+                    type="number"
+                    min="2000"
+                    max="2100"
+                    required
+                    defaultValue={(acao?.data_inicio ?? dataSugerida).slice(0, 4)}
+                  />
+                </div>
+                <p className="self-end pb-1 text-xs text-muted-foreground sm:col-span-1">
+                  Aparece só na aba Orçamentos. Lance cada compra como despesa, com a data em que foi feita.
+                </p>
+              </>
+            ) : (
             <div className="space-y-1.5">
               <Label htmlFor="data_inicio">{tipo === "periodo" ? "Data de início *" : "Data da ação *"}</Label>
               <Input id="data_inicio" name="data_inicio" type="date" required defaultValue={acao?.data_inicio ?? dataSugerida} />
             </div>
-            {tipo === "periodo" ? (
+            )}
+            {verba ? null : tipo === "periodo" ? (
               <div className="space-y-1.5">
                 <Label htmlFor="data_fim">Data de término prevista *</Label>
                 <Input id="data_fim" name="data_fim" type="date" required defaultValue={acao?.data_fim ?? ""} />
@@ -198,6 +233,7 @@ function FormularioAcao({
             ) : (
               <div className="hidden sm:block" />
             )}
+            {!verba && (
             <div className="space-y-1.5">
               <Label htmlFor="status">Status</Label>
               <NativeSelect id="status" name="status" value={status} onChange={(e) => setStatus(e.target.value as StatusAcao)}>
@@ -215,10 +251,11 @@ function FormularioAcao({
                 </p>
               )}
             </div>
+            )}
           </div>
 
-          {/* Checklist */}
-          <section className="space-y-2 border-t border-border pt-4">
+          {/* Checklist (verba anual não tem) */}
+          <section className={`space-y-2 border-t border-border pt-4 ${verba ? "hidden" : ""}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">Checklist e prazos</h3>
               {progresso.total > 0 && (

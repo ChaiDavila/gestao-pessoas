@@ -30,7 +30,7 @@ const acaoSchema = z
     titulo: z.string().trim().min(1, "Informe o nome da ação.").max(150),
     descricao: z.string().trim().nullable(),
     categoria_id: z.string().uuid("Selecione a categoria."),
-    tipo: z.enum(["pontual", "periodo"]),
+    tipo: z.enum(["pontual", "periodo", "verba"]),
     data_inicio: dataISO,
     data_fim: dataISO.nullable(),
     status: z.enum(["planejada", "em_andamento", "concluida", "cancelada"]),
@@ -132,14 +132,29 @@ export async function salvarAcao(
   }
 
   const tipo = texto(formData, "tipo");
+
+  // Verba anual: só o ano é informado; as datas viram 01/01 a 31/12, sem checklist e com
+  // status fixo (não é um evento a executar).
+  let dataInicio = texto(formData, "data_inicio") ?? "";
+  let dataFim = tipo === "periodo" ? texto(formData, "data_fim") : null;
+  if (tipo === "verba") {
+    const ano = Number(texto(formData, "ano"));
+    if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) {
+      return { error: "Informe o ano da verba." };
+    }
+    dataInicio = `${ano}-01-01`;
+    dataFim = `${ano}-12-31`;
+    tarefasBrutas = [];
+  }
+
   const parsed = acaoSchema.safeParse({
     titulo: texto(formData, "titulo") ?? "",
     descricao: texto(formData, "descricao"),
     categoria_id: texto(formData, "categoria_id") ?? "",
     tipo,
-    data_inicio: texto(formData, "data_inicio") ?? "",
-    data_fim: tipo === "periodo" ? texto(formData, "data_fim") : null,
-    status: texto(formData, "status"),
+    data_inicio: dataInicio,
+    data_fim: dataFim,
+    status: tipo === "verba" ? "planejada" : texto(formData, "status"),
     orcamento_previsto: numeroOuNulo(formData, "orcamento_previsto"),
     observacoes: texto(formData, "observacoes"),
     tarefas: tarefasBrutas,
