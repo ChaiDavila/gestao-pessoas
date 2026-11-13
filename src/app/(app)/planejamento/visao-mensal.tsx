@@ -316,7 +316,7 @@ function Calendario({
   onNovaAcao: (dataSugerida: string) => void;
 }) {
   const hoje = hojeLocalISO();
-  const primeiroDiaSemana = (new Date(ano, mes, 1).getDay() + 6) % 7; // segunda = 0
+  const primeiroDiaSemana = new Date(ano, mes, 1).getDay(); // domingo = 0
   const diasNoMes = new Date(ano, mes + 1, 0).getDate();
   const totalCelulas = Math.ceil((diasNoMes + primeiroDiaSemana) / 7) * 7;
 
@@ -348,7 +348,7 @@ function Calendario({
   return (
     <div>
       <div className="grid grid-cols-7 gap-1.5 pb-1 text-center text-xs font-medium text-muted-foreground">
-        {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((d) => (
+        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
           <div key={d}>{d}</div>
         ))}
       </div>
