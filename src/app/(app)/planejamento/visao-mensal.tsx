@@ -12,7 +12,9 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
   acaoNoMes,
+  diasDaAcaoPontual,
   fundoCategoria,
+  rotuloDiasPontual,
   hojeLocalISO,
   isoData,
   limitesMes,
@@ -212,8 +214,11 @@ export function VisaoMensal({
                   onClick={() => onAbrirAcao(a.id)}
                   className="flex w-full items-center gap-3 px-1 py-2.5 text-left hover:bg-muted/40"
                 >
-                  <span className="w-12 shrink-0 rounded-md border-t-4 bg-muted py-1 text-center text-sm font-semibold" style={{ borderTopColor: cor(a) }}>
-                    {a.data_inicio.slice(8, 10)}
+                  <span
+                    className={`shrink-0 rounded-md border-t-4 bg-muted py-1 text-center font-semibold ${a.data_fim ? "w-16 text-xs leading-5" : "w-12 text-sm"}`}
+                    style={{ borderTopColor: cor(a) }}
+                  >
+                    {rotuloDiasPontual(a)}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium text-foreground">{a.titulo}</span>
@@ -325,7 +330,10 @@ function Calendario({
   };
   for (const a of acoes) {
     if (a.tipo === "pontual") {
-      add(a.data_inicio, { chave: a.id, rotulo: a.titulo, acao: a, tipo: "pontual" });
+      // Evento de vários dias (ex.: 08 e 09) aparece em cada um dos dias.
+      for (const dia of diasDaAcaoPontual(a)) {
+        add(dia, { chave: `${a.id}-${dia}`, rotulo: a.titulo, acao: a, tipo: "pontual" });
+      }
     } else {
       add(a.data_inicio, { chave: `${a.id}-i`, rotulo: `Início: ${a.titulo}`, acao: a, tipo: "inicio" });
       if (a.data_fim) add(a.data_fim, { chave: `${a.id}-f`, rotulo: `Término: ${a.titulo}`, acao: a, tipo: "fim" });

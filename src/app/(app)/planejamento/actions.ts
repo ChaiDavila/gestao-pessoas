@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
 import { exigirAdmin } from "@/lib/auth";
-import { moverParaAno } from "@/lib/planejamento";
+import { MAX_DIAS_PONTUAL, moverParaAno } from "@/lib/planejamento";
 
 export type AcaoFormState = { error: string } | { ok: true; id: string } | undefined;
 
@@ -40,6 +40,18 @@ const acaoSchema = z
     despesas: z.array(despesaSchema),
   })
   .superRefine((v, ctx) => {
+    if (v.tipo === "pontual" && v.data_fim) {
+      const dias =
+        (new Date(v.data_fim + "T00:00:00").getTime() - new Date(v.data_inicio + "T00:00:00").getTime()) / 86400000;
+      if (dias < 1) {
+        ctx.addIssue({ code: "custom", message: "O último dia do evento precisa ser depois do primeiro." });
+      } else if (dias + 1 > MAX_DIAS_PONTUAL) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Uma ação pontual pode durar no máximo ${MAX_DIAS_PONTUAL} dias. Para algo mais longo, use "Atividade com período".`,
+        });
+      }
+    }
     if (v.tipo === "periodo" && !v.data_fim) {
       ctx.addIssue({ code: "custom", message: "Informe a data de término da atividade." });
     }
@@ -136,7 +148,10 @@ export async function salvarAcao(
   // Verba anual: só o ano é informado; as datas viram 01/01 a 31/12, sem checklist e com
   // status fixo (não é um evento a executar).
   let dataInicio = texto(formData, "data_inicio") ?? "";
-  let dataFim = tipo === "periodo" ? texto(formData, "data_fim") : null;
+  let dataFim =
+    tipo === "periodo" || (tipo === "pontual" && formData.get("varios_dias") === "on")
+      ? texto(formData, "data_fim")
+      : null;
   if (tipo === "verba") {
     const ano = Number(texto(formData, "ano"));
     if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) {

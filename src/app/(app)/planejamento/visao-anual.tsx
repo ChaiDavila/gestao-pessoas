@@ -8,6 +8,7 @@ import {
   acaoNoAno,
   acaoNoMes,
   fundoCategoria,
+  rotuloDiasPontual,
   type AcaoPlanejamento,
   type CategoriaPlanejamento,
 } from "@/lib/planejamento";
@@ -137,7 +138,7 @@ export function VisaoAnual({
                       style={{ borderLeftColor: cor(a), backgroundColor: fundoCategoria(cor(a)), color: cor(a) }}
                       title={periodo ? `${a.titulo} (${periodo})` : a.titulo}
                     >
-                      {a.tipo === "periodo" ? "↔ " : `${a.data_inicio.slice(8, 10)} · `}
+                      {a.tipo === "periodo" ? "↔ " : `${rotuloDiasPontual(a)} · `}
                       {a.titulo}
                       {periodo && <span className="font-normal opacity-80"> ({periodo})</span>}
                     </div>

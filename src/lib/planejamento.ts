@@ -100,8 +100,33 @@ export function hojeLocalISO() {
   return isoData(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+// Último dia do registro: término da atividade, ou último dia de uma ação pontual de
+// vários dias (ex.: evento de 08 a 09/07). Ação pontual de um dia só não tem data_fim.
 export function dataFinal(a: AcaoPlanejamento) {
-  return a.tipo === "periodo" && a.data_fim ? a.data_fim : a.data_inicio;
+  return a.data_fim ?? a.data_inicio;
+}
+
+// Duração máxima de uma ação pontual de vários dias (mesmo limite da constraint no banco).
+export const MAX_DIAS_PONTUAL = 7;
+
+// Dias (ISO) cobertos por uma ação pontual, do início ao fim, inclusive.
+export function diasDaAcaoPontual(a: AcaoPlanejamento) {
+  const dias: string[] = [];
+  const d = new Date(a.data_inicio + "T00:00:00");
+  const fim = dataFinal(a);
+  for (let i = 0; i < MAX_DIAS_PONTUAL; i++) {
+    const iso = isoData(d.getFullYear(), d.getMonth(), d.getDate());
+    if (iso > fim) break;
+    dias.push(iso);
+    d.setDate(d.getDate() + 1);
+  }
+  return dias;
+}
+
+// "08" ou "08 a 09" (dia de início e, se houver, dia de término).
+export function rotuloDiasPontual(a: AcaoPlanejamento) {
+  const ini = a.data_inicio.slice(8, 10);
+  return a.data_fim ? `${ini} a ${a.data_fim.slice(8, 10)}` : ini;
 }
 
 // Uma atividade de fevereiro a abril "está" nos três meses, mas continua sendo um único

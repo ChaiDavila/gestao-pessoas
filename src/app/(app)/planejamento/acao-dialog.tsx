@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { formatarData } from "@/lib/date";
 import { formatarMoeda } from "@/lib/formatacao";
 import {
+  MAX_DIAS_PONTUAL,
   STATUS_LABEL,
   progressoChecklist,
   type AcaoPlanejamento,
@@ -98,6 +99,7 @@ function FormularioAcao({
   );
   const [tipo, setTipo] = useState<TipoAcao>(acao?.tipo ?? tipoInicial ?? "pontual");
   const verba = tipo === "verba";
+  const [variosDias, setVariosDias] = useState(acao?.tipo === "pontual" && !!acao.data_fim);
   const [status, setStatus] = useState<StatusAcao>(acao?.status ?? "planejada");
   const [tarefas, setTarefas] = useState<TarefaForm[]>(
     tarefasIniciais.map((t) => ({ id: t.id, descricao: t.descricao, prazo: t.prazo ?? "", concluida: t.concluida })),
@@ -221,7 +223,7 @@ function FormularioAcao({
               </>
             ) : (
             <div className="space-y-1.5">
-              <Label htmlFor="data_inicio">{tipo === "periodo" ? "Data de início *" : "Data da ação *"}</Label>
+              <Label htmlFor="data_inicio">{tipo === "periodo" ? "Data de início *" : variosDias ? "Primeiro dia *" : "Data da ação *"}</Label>
               <Input id="data_inicio" name="data_inicio" type="date" required defaultValue={acao?.data_inicio ?? dataSugerida} />
             </div>
             )}
@@ -231,7 +233,31 @@ function FormularioAcao({
                 <Input id="data_fim" name="data_fim" type="date" required defaultValue={acao?.data_fim ?? ""} />
               </div>
             ) : (
-              <div className="hidden sm:block" />
+              <div className="space-y-1.5">
+                <label className="flex h-[1.4rem] items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    name="varios_dias"
+                    className="h-4 w-4 accent-[var(--primary)]"
+                    checked={variosDias}
+                    onChange={(e) => setVariosDias(e.target.checked)}
+                  />
+                  Evento de mais de um dia
+                </label>
+                {variosDias && (
+                  <>
+                    <Input
+                      id="data_fim"
+                      name="data_fim"
+                      type="date"
+                      required
+                      aria-label="Último dia do evento"
+                      defaultValue={acao?.tipo === "pontual" ? (acao.data_fim ?? "") : ""}
+                    />
+                    <p className="text-xs text-muted-foreground">Último dia do evento (até {MAX_DIAS_PONTUAL} dias).</p>
+                  </>
+                )}
+              </div>
             )}
             {!verba && (
             <div className="space-y-1.5">
