@@ -12,6 +12,7 @@ import {
   type AcaoPlanejamento,
   type CategoriaPlanejamento,
 } from "@/lib/planejamento";
+import { feriadosDoAno } from "@/lib/feriados";
 
 const LIMITE_POR_MES = 4;
 const MESES_CURTOS = MESES.map((m) => m.slice(0, 3).toLowerCase());
@@ -49,6 +50,10 @@ export function VisaoAnual({
   const concluidas = acoes.filter(
     (a) => a.status === "concluida" && a.data_conclusao?.slice(0, 4) === String(ano),
   ).length;
+
+  const feriados = feriadosDoAno(ano);
+  const feriadosDoMes = (m: number) =>
+    feriados.filter((f) => Number(f.data.slice(5, 7)) - 1 === m);
 
   const hoje = new Date();
   const mesAtual = hoje.getFullYear() === ano ? hoje.getMonth() : -1;
@@ -148,6 +153,15 @@ export function VisaoAnual({
                   <p className="pt-0.5 text-xs text-muted-foreground">+ {doMes.length - LIMITE_POR_MES} outros</p>
                 )}
               </div>
+
+              {feriadosDoMes(m).length > 0 && (
+                <p className="mt-auto border-t border-border pt-2 text-[11px] leading-snug text-muted-foreground">
+                  <span className="font-semibold">Feriados:</span>{" "}
+                  {feriadosDoMes(m)
+                    .map((f) => `${f.data.slice(8, 10)} ${f.nome}`)
+                    .join(" · ")}
+                </p>
+              )}
             </button>
           );
         })}

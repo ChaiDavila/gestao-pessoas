@@ -24,6 +24,7 @@ import {
   type Pendencia,
   type TarefaPlanejamento,
 } from "@/lib/planejamento";
+import { feriadosPorData } from "@/lib/feriados";
 import { alternarTarefa } from "./actions";
 
 const LIMITE_PENDENCIAS = 5;
@@ -316,6 +317,7 @@ function Calendario({
   onNovaAcao: (dataSugerida: string) => void;
 }) {
   const hoje = hojeLocalISO();
+  const feriados = feriadosPorData(ano);
   const primeiroDiaSemana = new Date(ano, mes, 1).getDay(); // domingo = 0
   const diasNoMes = new Date(ano, mes + 1, 0).getDate();
   const totalCelulas = Math.ceil((diasNoMes + primeiroDiaSemana) / 7) * 7;
@@ -361,10 +363,13 @@ function Calendario({
           const data = isoData(ano, mes, dia);
           const itens = porDia.get(data) ?? [];
           const ehHoje = data === hoje;
+          const feriado = feriados.get(data);
           return (
             <div
               key={i}
-              className={`group min-h-24 overflow-hidden rounded-md border p-1.5 ${ehHoje ? "border-primary bg-primary/5" : "border-border"}`}
+              className={`group min-h-24 overflow-hidden rounded-md border p-1.5 ${
+                ehHoje ? "border-primary bg-primary/5" : feriado ? "border-border bg-muted/70" : "border-border"
+              }`}
             >
               <div className="mb-1 flex items-center justify-between text-xs">
                 <span className={ehHoje ? "font-bold text-primary" : "font-medium text-foreground"}>{dia}</span>
@@ -379,6 +384,11 @@ function Calendario({
                   </button>
                 )}
               </div>
+              {feriado && (
+                <p className="mb-1 truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" title={`Feriado: ${feriado}`}>
+                  {feriado}
+                </p>
+              )}
               <div className="space-y-1">
                 {itens.slice(0, LIMITE_POR_DIA).map((it) => (
                   <EventoCalendario key={it.chave} item={it} cor={cor(it.acao)} onAbrir={() => onAbrirAcao(it.acao.id)} />
