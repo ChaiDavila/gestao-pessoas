@@ -109,9 +109,13 @@ function FormularioAcao({
   );
   const [erroLocal, setErroLocal] = useState<string | null>(null);
   const [pendingAux, startTransition] = useTransition();
-  const [anoDuplicar, setAnoDuplicar] = useState(
-    String(Number((acao?.data_inicio ?? dataSugerida).slice(0, 4)) + 1),
-  );
+  // Duplicar: botão abre a escolha da data de início da cópia. Para verba anual, escolhe-se
+  // só o ano.
+  const verbaSalva = acao?.tipo === "verba";
+  const [duplicando, setDuplicando] = useState(false);
+  // Começa na própria data da ação original (sem empurrar para o ano seguinte): o calendário
+  // do campo já abre no mês certo e a pessoa escolhe o dia, no mesmo ano ou em outro.
+  const [dataDuplicar, setDataDuplicar] = useState(acao?.data_inicio ?? dataSugerida);
   const [msgDuplicar, setMsgDuplicar] = useState<string | null>(null);
 
   useEffect(() => {
@@ -416,24 +420,73 @@ function FormularioAcao({
 
       {acao && podeEditar && (
         <section className="flex flex-wrap items-center gap-2 border-t border-border pt-4 text-sm">
-          <span className="text-muted-foreground">Duplicar para o ano</span>
-          <Input type="number" min="2000" max="2100" value={anoDuplicar} onChange={(e) => setAnoDuplicar(e.target.value)} className="w-24" />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={pendingAux}
-            onClick={() =>
-              startTransition(async () => {
+          {!duplicando ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
                 setMsgDuplicar(null);
-                const r = await duplicarAcao(acao.id, Number(anoDuplicar));
-                if ("error" in r) setErroLocal(r.error);
-                else setMsgDuplicar(`Cópia criada em ${anoDuplicar} (com o checklist, sem as despesas).`);
-              })
-            }
-          >
-            Duplicar
-          </Button>
+                setDuplicando(true);
+              }}
+            >
+              Duplicar
+            </Button>
+          ) : (
+            <>
+              <span className="text-muted-foreground">
+                {verbaSalva ? "Ano da cópia" : "Data de início da cópia"}
+              </span>
+              {verbaSalva ? (
+                <Input
+                  type="number"
+                  min="2000"
+                  max="2100"
+                  value={dataDuplicar.slice(0, 4)}
+                  onChange={(e) => setDataDuplicar(`${e.target.value}-01-01`)}
+                  className="w-24"
+                />
+              ) : (
+                <Input
+                  type="date"
+                  value={dataDuplicar}
+                  onChange={(e) => setDataDuplicar(e.target.value)}
+                  className="w-40"
+                />
+              )}
+              <Button
+                type="button"
+                size="sm"
+                disabled={pendingAux || !dataDuplicar}
+                onClick={() =>
+                  startTransition(async () => {
+                    setErroLocal(null);
+                    const r = await duplicarAcao(acao.id, dataDuplicar);
+                    if ("error" in r) {
+                      setErroLocal(r.error);
+                    } else {
+                      setDuplicando(false);
+                      setMsgDuplicar(
+                        verbaSalva
+                          ? `Cópia criada para ${dataDuplicar.slice(0, 4)} (sem as despesas).`
+                          : `Cópia criada para ${formatarData(dataDuplicar)}, com o checklist e sem as despesas.`,
+                      );
+                    }
+                  })
+                }
+              >
+                {pendingAux ? "Criando..." : "Criar cópia"}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setDuplicando(false)}>
+                Cancelar
+              </Button>
+              {!verbaSalva && (
+                <p className="w-full text-xs text-muted-foreground">
+                  Término e prazos do checklist acompanham a nova data, mantendo os mesmos intervalos.
+                </p>
+              )}
+            </>
+          )}
           {msgDuplicar && <span className="text-xs text-success">{msgDuplicar}</span>}
         </section>
       )}

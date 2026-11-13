@@ -217,6 +217,18 @@ export function agruparPorAcao<T extends { acao_id: string }>(itens: T[]) {
   return mapa;
 }
 
+export function somarDias(data: string, dias: number) {
+  const d = new Date(data + "T00:00:00");
+  d.setDate(d.getDate() + dias);
+  return isoData(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+export function diferencaDias(de: string, ate: string) {
+  return Math.round(
+    (new Date(ate + "T00:00:00").getTime() - new Date(de + "T00:00:00").getTime()) / 86400000,
+  );
+}
+
 // Move uma data para outro ano mantendo dia/mês (29/02 vira 28/02 em ano não bissexto).
 export function moverParaAno(data: string, ano: number) {
   const mes = Number(data.slice(5, 7)) - 1;

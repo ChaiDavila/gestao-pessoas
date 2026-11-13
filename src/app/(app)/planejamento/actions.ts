@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
 import { exigirAdmin } from "@/lib/auth";
-import { MAX_DIAS_PONTUAL, moverParaAno } from "@/lib/planejamento";
+import { MAX_DIAS_PONTUAL, diferencaDias, moverParaAno, somarDias } from "@/lib/planejamento";
 
 export type AcaoFormState = { error: string } | { ok: true; id: string } | undefined;
 
@@ -239,19 +239,23 @@ export async function alternarTarefa(tarefaId: string, concluida: boolean) {
   revalidar();
 }
 
-// Copia a ação e o checklist (sem despesas) para outro ano, deslocando todas as datas pela
-// mesma diferença de anos. A cópia nasce "Planejada" e com todas as tarefas pendentes.
+// Copia a ação e o checklist (sem despesas) para a nova data de início escolhida (mesmo ano
+// ou outro). Todas as datas (término, último dia do evento, prazos do checklist) andam a
+// mesma quantidade de dias, preservando duração e antecedência das tarefas. Verba anual é
+// exceção: só o ano da data escolhida importa (as datas dela são sempre 01/01 a 31/12).
+// A cópia nasce "Planejada" e com todas as tarefas pendentes.
 export async function duplicarAcao(
   acaoId: string,
-  anoDestino: number,
+  novaDataInicio: string,
 ): Promise<{ error: string } | { ok: true; id: string }> {
   try {
     await exigirAdmin();
   } catch (e) {
     return { error: (e as Error).message };
   }
-  if (!Number.isInteger(anoDestino) || anoDestino < 2000 || anoDestino > 2100) {
-    return { error: "Ano de destino inválido." };
+  const anoDestino = Number(novaDataInicio.slice(0, 4));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(novaDataInicio) || anoDestino < 2000 || anoDestino > 2100) {
+    return { error: "Escolha uma data válida para a cópia." };
   }
 
   const supabase = await createClient();
@@ -265,8 +269,14 @@ export async function duplicarAcao(
     .single();
   if (error) return { error: error.message };
 
-  const delta = anoDestino - Number(String(acao.data_inicio).slice(0, 4));
-  const mover = (d: string | null) => (d ? moverParaAno(d, Number(d.slice(0, 4)) + delta) : null);
+  let mover: (d: string | null) => string | null;
+  if (acao.tipo === "verba") {
+    const deltaAnos = anoDestino - Number(String(acao.data_inicio).slice(0, 4));
+    mover = (d) => (d ? moverParaAno(d, Number(d.slice(0, 4)) + deltaAnos) : null);
+  } else {
+    const deltaDias = diferencaDias(acao.data_inicio, novaDataInicio);
+    mover = (d) => (d ? somarDias(d, deltaDias) : null);
+  }
 
   const { data: nova, error: e1 } = await supabase
     .schema("rh")
