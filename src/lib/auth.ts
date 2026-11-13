@@ -72,6 +72,15 @@ export async function exigirAcessoTela(tela: TelaId): Promise<UsuarioAtual> {
 // Guarda de Server Action: lança um erro com mensagem clara em vez de deixar a tentativa
 // estourar na RLS do Postgres direto (que ainda é quem garante a permissão de verdade —
 // isso aqui só evita um erro técnico cru chegando na tela de quem não pode mesmo editar).
+// Planejamento de Gente: escrita restrita a admin (mesma regra das políticas RLS das
+// tabelas rh.planejamento_* e rh.config_categorias_planejamento).
+export async function exigirAdmin(): Promise<void> {
+  const atual = await getUsuarioAtual();
+  if (!atual || atual.papel !== "admin") {
+    throw new Error("Somente administradores podem alterar o Planejamento.");
+  }
+}
+
 export async function exigirOperador(): Promise<void> {
   const atual = await getUsuarioAtual();
   if (!atual || atual.papel === "leitor" || !atual.papel) {

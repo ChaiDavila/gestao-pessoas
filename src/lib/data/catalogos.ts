@@ -38,6 +38,7 @@ export async function getTodosCatalogos() {
     categoriasTreinamento,
     nrsCatalogo,
     tiposExame,
+    categoriasPlanejamento,
   ] = await Promise.all([
     listar("config_setores", "id, nome", "nome"),
     listar("config_cargos", "id, nome, cbo, nr_matriz_confirmada, exames_matriz_confirmada", "nome"),
@@ -49,6 +50,7 @@ export async function getTodosCatalogos() {
     listar("config_categorias_treinamento", "id, nome", "nome"),
     listar("config_nrs_catalogo", "id, nr, nome, periodicidade_meses", "nr"),
     listar("config_tipos_exame", "id, nome, periodicidade_meses", "nome"),
+    listar("config_categorias_planejamento", "id, nome, cor", "nome"),
   ]);
 
   return {
@@ -62,6 +64,7 @@ export async function getTodosCatalogos() {
     categoriasTreinamento,
     nrsCatalogo,
     tiposExame,
+    categoriasPlanejamento,
   };
 }
 

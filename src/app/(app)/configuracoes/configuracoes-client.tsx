@@ -62,7 +62,12 @@ const COL_TIPO_EXAME: ColunaCatalogo[] = [
   { chave: "periodicidade_meses", rotulo: "Periodicidade (meses)", tipo: "number" },
 ];
 
-type Catalogos = Awaited<ReturnType<typeof getTodosCatalogos>>;
+const COL_CATEGORIA_PLANEJAMENTO: ColunaCatalogo[] = [
+  { chave: "nome", rotulo: "Nome", tipo: "text", obrigatorio: true },
+  { chave: "cor", rotulo: "Cor", tipo: "color", obrigatorio: true },
+];
+
+type Catalogos =Awaited<ReturnType<typeof getTodosCatalogos>>;
 
 export function ConfiguracoesClient({
   catalogos,
@@ -117,6 +122,7 @@ export function ConfiguracoesClient({
         <TabsTrigger value="geral">Geral</TabsTrigger>
         <TabsTrigger value="treinamentos">Treinamentos</TabsTrigger>
         <TabsTrigger value="aso">ASO e PGR</TabsTrigger>
+        <TabsTrigger value="planejamento">Planejamento</TabsTrigger>
         <TabsTrigger value="bitrix">Integrações</TabsTrigger>
         {souAdmin && <TabsTrigger value="usuarios">Usuários</TabsTrigger>}
       </TabsList>
@@ -246,6 +252,18 @@ export function ConfiguracoesClient({
             continua com o vencimento digitado manualmente ao registrar.
           </p>
           <PeriodicidadeAsoTab itens={periodicidadeAso} cargos={cargosOpcoes} />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="planejamento" className="space-y-6 pt-4">
+        <div className="max-w-2xl">
+          <TabelaCatalogo
+            titulo="Categorias do planejamento"
+            descricao="A cor identifica a categoria no calendário, na visão anual e nos orçamentos. Somente administradores podem alterar."
+            tabela="config_categorias_planejamento"
+            colunas={COL_CATEGORIA_PLANEJAMENTO}
+            itens={catalogos.categoriasPlanejamento}
+          />
         </div>
       </TabsContent>
 

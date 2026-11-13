@@ -15,7 +15,7 @@ import type { CatalogoFormState } from "./catalogo-actions";
 export type ColunaCatalogo = {
   chave: string;
   rotulo: string;
-  tipo: "text" | "number" | "select";
+  tipo: "text" | "number" | "select" | "color";
   opcoes?: { value: string; label: string }[];
   obrigatorio?: boolean;
 };
@@ -142,9 +142,19 @@ function LinhaCatalogo({
     <tr className="border-b border-border last:border-0 hover:bg-muted/30">
       {colunas.map((c) => (
         <td key={c.chave} className="px-3 py-2 text-foreground">
-          {c.tipo === "select"
-            ? c.opcoes?.find((o) => o.value === item[c.chave])?.label ?? String(item[c.chave] ?? "—")
-            : String(item[c.chave] ?? "—")}
+          {c.tipo === "color" ? (
+            <span className="inline-flex items-center gap-2">
+              <span
+                className="h-4 w-4 rounded border border-border"
+                style={{ backgroundColor: String(item[c.chave] ?? "") }}
+              />
+              <span className="text-xs text-muted-foreground">{String(item[c.chave] ?? "—")}</span>
+            </span>
+          ) : c.tipo === "select" ? (
+            c.opcoes?.find((o) => o.value === item[c.chave])?.label ?? String(item[c.chave] ?? "—")
+          ) : (
+            String(item[c.chave] ?? "—")
+          )}
         </td>
       ))}
       <td className="px-3 py-2 text-right">
@@ -225,6 +235,19 @@ function CampoCatalogo({
           </option>
         ))}
       </NativeSelect>
+    );
+  }
+
+  if (coluna.tipo === "color") {
+    return (
+      <input
+        name={coluna.chave}
+        type="color"
+        required={coluna.obrigatorio}
+        defaultValue={valorInicial != null ? String(valorInicial) : "#7A8594"}
+        title={coluna.rotulo}
+        className="h-8 w-12 cursor-pointer rounded-lg border border-input bg-transparent p-0.5"
+      />
     );
   }
 

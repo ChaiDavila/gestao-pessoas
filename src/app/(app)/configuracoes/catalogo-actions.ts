@@ -3,12 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
-import { exigirOperador } from "@/lib/auth";
+import { exigirAdmin, exigirOperador } from "@/lib/auth";
 
 export type CatalogoFormState = { error: string } | { ok: true } | undefined;
 
+// Catálogos do Planejamento de Gente são só de admin (igual às políticas RLS da tabela);
+// os demais seguem a regra geral de operador+.
+const CATALOGOS_SO_ADMIN = new Set(["config_categorias_planejamento"]);
+
+async function exigirPermissaoCatalogo(tabela: string) {
+  if (CATALOGOS_SO_ADMIN.has(tabela)) return exigirAdmin();
+  return exigirOperador();
+}
+
 function revalidar() {
   revalidatePath("/configuracoes");
+  revalidatePath("/planejamento");
 }
 
 export async function criarItemCatalogo(
@@ -18,7 +28,7 @@ export async function criarItemCatalogo(
   formData: FormData,
 ): Promise<CatalogoFormState> {
   try {
-    await exigirOperador();
+    await exigirPermissaoCatalogo(tabela);
   } catch (e) {
     return { error: (e as Error).message };
   }
@@ -74,7 +84,7 @@ export async function atualizarItemCatalogo(
   formData: FormData,
 ): Promise<CatalogoFormState> {
   try {
-    await exigirOperador();
+    await exigirPermissaoCatalogo(tabela);
   } catch (e) {
     return { error: (e as Error).message };
   }
@@ -96,7 +106,7 @@ export async function atualizarItemCatalogo(
 
 // "Remover" nunca apaga uso já feito: some da lista de sugestão via ativo=false.
 export async function removerItemCatalogo(tabela: string, id: string) {
-  await exigirOperador();
+  await exigirPermissaoCatalogo(tabela);
   const supabase = await createClient();
   const { error } = await supabase.schema("rh").from(tabela).update({ ativo: false }).eq("id", id);
   if (error) throw new Error(error.message);

@@ -8,6 +8,7 @@ import {
   Stethoscope,
   HeartHandshake,
   PartyPopper,
+  CalendarDays,
   Settings,
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ export type TelaId =
   | "aso"
   | "perfil-familiar"
   | "aniversarios"
+  | "planejamento"
   | "configuracoes";
 
 export type NavItem = {
@@ -41,6 +43,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "aso", href: "/aso", label: "ASO", icon: Stethoscope },
   { id: "perfil-familiar", href: "/perfil-familiar", label: "Perfil Familiar", icon: HeartHandshake },
   { id: "aniversarios", href: "/aniversarios", label: "Aniversários", icon: PartyPopper },
+  { id: "planejamento", href: "/planejamento", label: "Planejamento", icon: CalendarDays },
   { id: "configuracoes", href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
