@@ -196,26 +196,6 @@ export function VisaoMensal({
         )}
       </section>
 
-      </div>
-      <div className="space-y-6 xl:order-1">
-      {/* Calendário */}
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Calendário</h2>
-        <Calendario
-          ano={ano}
-          mes={mes}
-          // Todas as ações não canceladas (não só as do mês): uma tarefa com prazo neste mês
-          // pode pertencer a uma ação de outro mês. Datas fora do mês são simplesmente ignoradas.
-          acoes={acoes.filter((a) => a.status !== "cancelada")}
-          tarefasPorAcao={tarefasPorAcao}
-          cor={cor}
-          podeEditar={podeEditar}
-          onAbrirAcao={onAbrirAcao}
-          onNovaAcao={onNovaAcao}
-        />
-        <Legenda categoriasPorId={categoriasPorId} />
-      </section>
-
       {/* Ações pontuais */}
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-foreground">Ações pontuais do mês</h2>
@@ -248,6 +228,26 @@ export function VisaoMensal({
             })}
           </div>
         )}
+      </section>
+      </div>
+
+      <div className="xl:order-1">
+      {/* Calendário */}
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Calendário</h2>
+        <Calendario
+          ano={ano}
+          mes={mes}
+          // Todas as ações não canceladas (não só as do mês): uma tarefa com prazo neste mês
+          // pode pertencer a uma ação de outro mês. Datas fora do mês são simplesmente ignoradas.
+          acoes={acoes.filter((a) => a.status !== "cancelada")}
+          tarefasPorAcao={tarefasPorAcao}
+          cor={cor}
+          podeEditar={podeEditar}
+          onAbrirAcao={onAbrirAcao}
+          onNovaAcao={onNovaAcao}
+        />
+        <Legenda categoriasPorId={categoriasPorId} />
       </section>
       </div>
       </div>
