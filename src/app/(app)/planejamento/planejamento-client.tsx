@@ -13,7 +13,10 @@ import {
   type DespesaPlanejamento,
   type TarefaPlanejamento,
 } from "@/lib/planejamento";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisaoMensal } from "./visao-mensal";
+import { VisaoAnual } from "./visao-anual";
+import { Orcamentos } from "./orcamentos";
 import { AcaoDialog, type EditorEstado } from "./acao-dialog";
 
 export function PlanejamentoClient({
@@ -34,6 +37,9 @@ export function PlanejamentoClient({
     return { ano: d.getFullYear(), mes: d.getMonth() };
   });
   const [categoriaId, setCategoriaId] = useState("");
+  // O ano/mês acima é compartilhado entre as abas: navegar na visão anual muda o ano da
+  // mensal, e clicar num mês da visão anual abre a mensal naquele mês.
+  const [aba, setAba] = useState("mensal");
   const [editor, setEditor] = useState<EditorEstado>({ modo: "fechado" });
 
   const categoriasPorId = useMemo(() => new Map(categorias.map((c) => [c.id, c])), [categorias]);
@@ -49,6 +55,10 @@ export function PlanejamentoClient({
     () => calcularPendencias(acoesFiltradas, tarefasPorAcao),
     [acoesFiltradas, tarefasPorAcao],
   );
+
+  function abrirAcao(id: string) {
+    setEditor({ modo: "editar", acaoId: id });
+  }
 
   function novaAcao(dataSugerida?: string) {
     const hoje = hojeLocalISO();
@@ -85,18 +95,52 @@ export function PlanejamentoClient({
         </div>
       </div>
 
-      <VisaoMensal
-        ano={ano}
-        mes={mes}
-        onMudarMes={(a, m) => setPeriodo({ ano: a, mes: m })}
-        acoes={acoesFiltradas}
-        tarefasPorAcao={tarefasPorAcao}
-        pendencias={pendencias}
-        categoriasPorId={categoriasPorId}
-        podeEditar={podeEditar}
-        onAbrirAcao={(id) => setEditor({ modo: "editar", acaoId: id })}
-        onNovaAcao={novaAcao}
-      />
+      <Tabs value={aba} onValueChange={(v) => setAba(String(v))}>
+        <TabsList>
+          <TabsTrigger value="mensal">Visão mensal</TabsTrigger>
+          <TabsTrigger value="anual">Visão anual</TabsTrigger>
+          <TabsTrigger value="orcamentos">Orçamentos</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="mensal" className="pt-4">
+          <VisaoMensal
+            ano={ano}
+            mes={mes}
+            onMudarMes={(a, m) => setPeriodo({ ano: a, mes: m })}
+            acoes={acoesFiltradas}
+            tarefasPorAcao={tarefasPorAcao}
+            pendencias={pendencias}
+            categoriasPorId={categoriasPorId}
+            podeEditar={podeEditar}
+            onAbrirAcao={abrirAcao}
+            onNovaAcao={novaAcao}
+          />
+        </TabsContent>
+
+        <TabsContent value="anual" className="pt-4">
+          <VisaoAnual
+            ano={ano}
+            onMudarAno={(a) => setPeriodo({ ano: a, mes })}
+            onAbrirMes={(m) => {
+              setPeriodo({ ano, mes: m });
+              setAba("mensal");
+            }}
+            acoes={acoesFiltradas}
+            categoriasPorId={categoriasPorId}
+          />
+        </TabsContent>
+
+        <TabsContent value="orcamentos" className="pt-4">
+          <Orcamentos
+            ano={ano}
+            onMudarAno={(a) => setPeriodo({ ano: a, mes })}
+            acoes={acoesFiltradas}
+            despesasPorAcao={despesasPorAcao}
+            categoriasPorId={categoriasPorId}
+            onAbrirAcao={abrirAcao}
+          />
+        </TabsContent>
+      </Tabs>
 
       <AcaoDialog
         estado={editor}
