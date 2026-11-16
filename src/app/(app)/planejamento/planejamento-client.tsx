@@ -141,6 +141,7 @@ export function PlanejamentoClient({
             despesasPorAcao={despesasPorAcao}
             categoriasPorId={categoriasPorId}
             onAbrirAcao={abrirAcao}
+            categoriaFiltro={categoriaId || null}
             onNovaVerba={
               podeEditar
                 ? () => setEditor({ modo: "novo", dataSugerida: isoData(ano, 0, 1), tipoInicial: "verba" })

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useTransition } from "react";
+import { ChevronLeft, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { exportarOrcamentoXlsx } from "./exportar-actions";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/native-select";
 import { StatTile } from "@/components/stat-tile";
@@ -65,7 +66,9 @@ export function Orcamentos({
   categoriasPorId,
   onAbrirAcao,
   onNovaVerba,
+  categoriaFiltro,
 }: {
+  categoriaFiltro: string | null;
   ano: number;
   onMudarAno: (ano: number) => void;
   acoes: AcaoPlanejamento[];
@@ -78,6 +81,29 @@ export function Orcamentos({
   const [mes, setMes] = useState("");
   const anoInteiro = mes === "";
   const [categoriasAbertas, setCategoriasAbertas] = useState<Set<string>>(new Set());
+  const [exportando, startExportar] = useTransition();
+  const [erroExportar, setErroExportar] = useState<string | null>(null);
+
+  function exportar() {
+    startExportar(async () => {
+      setErroExportar(null);
+      const r = await exportarOrcamentoXlsx(ano, categoriaFiltro);
+      if ("error" in r) {
+        setErroExportar(r.error);
+        return;
+      }
+      const bytes = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `orcamento-planejamento-${ano}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
   function alternarCategoria(id: string) {
     setCategoriasAbertas((atual) => {
       const novo = new Set(atual);
@@ -182,6 +208,19 @@ export function Orcamentos({
             </option>
           ))}
         </NativeSelect>
+        <div className="ml-auto flex items-center gap-2">
+          {erroExportar && <span className="text-xs text-danger">{erroExportar}</span>}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exportando}
+            onClick={exportar}
+            title={`Exporta o orçamento de ${ano} inteiro (ações e despesas)${categoriaFiltro ? ", só da categoria filtrada" : ""}`}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {exportando ? "Gerando..." : `Exportar ${ano} para Excel`}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
