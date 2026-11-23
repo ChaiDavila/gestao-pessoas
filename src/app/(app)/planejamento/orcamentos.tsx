@@ -115,37 +115,31 @@ export function Orcamentos({
 
   const prefixo = anoInteiro ? `${ano}-` : `${ano}-${String(Number(mes) + 1).padStart(2, "0")}-`;
   const noPeriodo = (data: string) => data.startsWith(prefixo);
-  const somaDespesas = (id: string, filtro: (data: string) => boolean) =>
-    (despesasPorAcao.get(id) ?? []).filter((d) => filtro(d.data)).reduce((s, d) => s + d.valor, 0);
+  const somaDespesas = (id: string) => (despesasPorAcao.get(id) ?? []).reduce((s, d) => s + d.valor, 0);
 
-  // Regras das ações (pontuais e com período):
-  // - Previsto: atribuído inteiro ao mês da data de início (sem rateio), contado uma vez.
-  //   Ações canceladas não entram no previsto.
-  // - Realizado: soma das despesas pela data de cada lançamento (inclusive de ações
-  //   canceladas, porque o dinheiro foi gasto).
+  // Regra geral (decisão da área em 23/11/2026): o realizado ACOMPANHA A AÇÃO. Todas as
+  // despesas de uma ação contam no mesmo ano e mês do previsto dela (o mês da data de
+  // início), não importa a data do pagamento (ex.: inscrição paga em 2026 para um
+  // treinamento de 2027 conta em 2027). A data da despesa fica só como registro.
+  // - Ações canceladas: previsto não entra; despesas já lançadas continuam no realizado.
+  // - Verbas anuais: não têm mês, então previsto e realizado só entram com "Ano inteiro".
   const linhas: Linha[] = [];
-  // Regras das verbas anuais:
-  // - Previsto: só entra com "Ano inteiro" selecionado (sem rateio mensal, por decisão da
-  //   área: as compras não seguem um ritmo mensal).
-  // - Realizado: igual às ações, pela data de cada compra.
   const verbas: LinhaVerba[] = [];
 
   for (const acao of acoes) {
+    if (!noPeriodo(acao.data_inicio) && !(ehVerba(acao) && acao.data_inicio.startsWith(`${ano}-`))) continue;
+    const realizado = somaDespesas(acao.id);
     if (ehVerba(acao)) {
-      const doAno = acao.data_inicio.startsWith(`${ano}-`);
-      const gastoPeriodo = somaDespesas(acao.id, noPeriodo);
-      if (!doAno && gastoPeriodo === 0) continue;
       verbas.push({
         verba: acao,
         previsto: acao.orcamento_previsto,
-        gastoAno: somaDespesas(acao.id, (d) => d.startsWith(`${ano}-`)),
-        gastoPeriodo,
-        doAno,
+        gastoAno: realizado,
+        gastoPeriodo: anoInteiro ? realizado : 0,
+        doAno: true,
       });
       continue;
     }
-    const previstoNoPeriodo = acao.status !== "cancelada" && noPeriodo(acao.data_inicio);
-    const realizado = somaDespesas(acao.id, noPeriodo);
+    const previstoNoPeriodo = acao.status !== "cancelada";
     if (!previstoNoPeriodo && realizado === 0) continue;
     linhas.push({
       acao,
@@ -229,7 +223,12 @@ export function Orcamentos({
           valor={moeda(totalPrevisto)}
           subtitulo={anoInteiro ? rotuloPeriodo : `${rotuloPeriodo} · sem verbas anuais`}
         />
-        <StatTile label="Total realizado" valor={moeda(totalRealizado)} subtitulo={rotuloPeriodo} />
+        <StatTile
+          label="Total realizado"
+          valor={moeda(totalRealizado)}
+          subtitulo={anoInteiro ? rotuloPeriodo : `${rotuloPeriodo} · sem verbas anuais`}
+          explicacao="Despesas das ações deste período, contadas no mês de início da ação, não na data do pagamento."
+        />
         <StatTile
           label={saldo < 0 ? "Acima do previsto" : "Saldo (previsto − realizado)"}
           valor={moeda(Math.abs(saldo))}
@@ -240,7 +239,7 @@ export function Orcamentos({
           explicacao={
             anoInteiro
               ? undefined
-              : "Com um mês selecionado, o previsto não inclui as verbas anuais, mas o realizado inclui as compras delas naquele mês."
+              : "Com um mês selecionado, as verbas anuais (previsto e gasto) não entram, porque não têm mês. Veja-as em Ano inteiro."
           }
         />
         <StatTile
@@ -342,7 +341,6 @@ export function Orcamentos({
                   <th className="px-3 py-2 font-medium">Verba</th>
                   <th className="px-3 py-2 font-medium">Categoria</th>
                   <th className="px-3 py-2 text-right font-medium">Previsto no ano</th>
-                  {!anoInteiro && <th className="px-3 py-2 text-right font-medium">Gasto em {MESES[Number(mes)].toLowerCase()}</th>}
                   <th className="px-3 py-2 text-right font-medium">Gasto no ano</th>
                   <th className="px-3 py-2 text-right font-medium">Saldo</th>
                   <th className="w-40 px-3 py-2 font-medium">Uso</th>
@@ -377,7 +375,6 @@ export function Orcamentos({
                       <td className="px-3 py-2 text-right whitespace-nowrap">
                         {v.previsto === null ? <span className="text-muted-foreground">{NAO_INFORMADO}</span> : moeda(v.previsto)}
                       </td>
-                      {!anoInteiro && <td className="px-3 py-2 text-right whitespace-nowrap">{moeda(v.gastoPeriodo)}</td>}
                       <td className="px-3 py-2 text-right whitespace-nowrap">{moeda(v.gastoAno)}</td>
                       <td className={`px-3 py-2 text-right whitespace-nowrap ${estourou ? "font-medium text-danger" : ""}`}>
                         {saldoVerba === null ? "—" : moeda(saldoVerba)}
@@ -463,8 +460,8 @@ export function Orcamentos({
                           moeda(l.previsto)
                         )
                       ) : (
-                        <span className="text-xs text-muted-foreground" title="O previsto desta ação está no mês de início, fora do período filtrado.">
-                          em {formatarData(l.acao.data_inicio).slice(3)}
+                        <span className="text-muted-foreground" title="Ação cancelada: o previsto não entra no total.">
+                          —
                         </span>
                       )}
                     </td>

@@ -42,9 +42,9 @@ function rotuloData(a: AcaoPlanejamento) {
   return a.data_fim ? `${formatarData(a.data_inicio)} a ${formatarData(a.data_fim)}` : formatarData(a.data_inicio);
 }
 
-// Mesmas regras da aba Orçamentos com "Ano inteiro": previsto da ação no ano da data de
-// início (canceladas fora), previsto da verba no ano dela, realizado pela data de cada
-// despesa. Entra toda ação com previsto no ano ou com despesa no ano.
+// Mesmas regras da aba Orçamentos com "Ano inteiro": entram as ações (e verbas) cuja data de
+// início é do ano. O realizado acompanha a ação: todas as despesas dela contam, não importa
+// a data do pagamento. Canceladas: previsto fora, despesas já lançadas continuam.
 function montarLinhas(
   ano: number,
   acoes: AcaoPlanejamento[],
@@ -54,10 +54,9 @@ function montarLinhas(
   const prefixo = `${ano}-`;
   const linhas: LinhaRelatorio[] = [];
   for (const acao of acoes) {
-    const previstoNoAno = acao.status !== "cancelada" && acao.data_inicio.startsWith(prefixo);
-    const realizado = (despesasPorAcao.get(acao.id) ?? [])
-      .filter((d) => d.data.startsWith(prefixo))
-      .reduce((s, d) => s + d.valor, 0);
+    if (!acao.data_inicio.startsWith(prefixo)) continue;
+    const previstoNoAno = acao.status !== "cancelada";
+    const realizado = (despesasPorAcao.get(acao.id) ?? []).reduce((s, d) => s + d.valor, 0);
     if (!previstoNoAno && realizado === 0) continue;
     linhas.push({
       acao,
@@ -223,14 +222,19 @@ export async function gerarOrcamentoXlsx({
 
   // ---------------------------------------------------------------- Aba 2: Despesas
   const planDespesas = workbook.addWorksheet("Despesas", { views: [{ state: "frozen", ySplit: 4 }] });
-  titulo(planDespesas, "E", `COONTROL · Despesas lançadas em ${ano}`, `${geradoEm}${rotuloFiltro}`);
-  cabecalho(planDespesas, 4, ["Data", "Categoria", "Ação", "Descrição da despesa", "Valor"]);
+  titulo(
+    planDespesas,
+    "E",
+    `COONTROL · Despesas das ações de ${ano}`,
+    `${geradoEm}${rotuloFiltro} · a data é a do pagamento; o valor conta no ano da ação`,
+  );
+  cabecalho(planDespesas, 4, ["Data do pagamento", "Categoria", "Ação", "Descrição da despesa", "Valor"]);
   [12, 24, 34, 44, 16].forEach((w, k) => (planDespesas.getColumn(k + 1).width = w));
   planDespesas.getColumn(5).numFmt = FORMATO_MOEDA;
 
   const acoesPorId = new Map(acoes.map((a) => [a.id, a]));
   const despesasDoAno = despesas
-    .filter((d) => d.data.startsWith(`${ano}-`) && acoesPorId.has(d.acao_id))
+    .filter((d) => acoesPorId.get(d.acao_id)?.data_inicio.startsWith(`${ano}-`))
     .sort((a, b) => a.data.localeCompare(b.data));
   for (const d of despesasDoAno) {
     const acao = acoesPorId.get(d.acao_id)!;
