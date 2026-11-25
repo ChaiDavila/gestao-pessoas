@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
@@ -11,6 +11,8 @@ import {
   removerItemCatalogo,
 } from "./catalogo-actions";
 import type { CatalogoFormState } from "./catalogo-actions";
+
+const TABELAS_COM_VENCIMENTO = new Set(["config_nrs_catalogo", "config_tipos_exame"]);
 
 export type ColunaCatalogo = {
   chave: string;
@@ -109,15 +111,40 @@ function LinhaCatalogo({
   );
 
   useEffect(() => {
-    if (state && "ok" in state) setEditando(false);
+    if (state && "ok" in state) {
+      setEditando(false);
+      if (state.mensagem) window.alert(state.mensagem);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
+
+  // Mudou a periodicidade de uma NR ou de um exame: pergunta se os vencimentos já
+  // registrados também devem ser recalculados (senão vale só para os próximos registros).
+  const perguntaRecalculo = TABELAS_COM_VENCIMENTO.has(tabela) && campos.includes("periodicidade_meses");
+  function aoEnviar(e: React.FormEvent<HTMLFormElement>) {
+    if (!perguntaRecalculo) return;
+    e.preventDefault();
+    const dados = new FormData(e.currentTarget);
+    const nova = String(dados.get("periodicidade_meses") ?? "").trim();
+    const antiga = item.periodicidade_meses == null ? "" : String(item.periodicidade_meses);
+    let recalcular = false;
+    if (nova !== antiga) {
+      recalcular = window.confirm(
+        `A periodicidade mudou de ${antiga ? `${antiga} meses` : "sem periodicidade"} para ${nova ? `${nova} meses` : "sem periodicidade"}.\n\n` +
+          "Recalcular o vencimento dos registros já existentes?\n\n" +
+          "OK = recalcular (vencimentos ajustados à mão não são alterados)\n" +
+          "Cancelar = vale só para os próximos registros",
+      );
+    }
+    dados.set("recalcular", recalcular ? "sim" : "nao");
+    startTransition(() => formAction(dados));
+  }
 
   if (editando) {
     return (
       <tr className="border-b border-border bg-muted/20 last:border-0">
         <td colSpan={colunas.length + 1} className="p-3">
-          <form action={formAction} className="flex flex-wrap items-end gap-2">
+          <form action={formAction} onSubmit={aoEnviar} className="flex flex-wrap items-end gap-2">
             {state && "error" in state && (
               <p className="w-full rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
                 {state.error}

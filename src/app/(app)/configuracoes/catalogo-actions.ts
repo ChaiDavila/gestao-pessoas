@@ -4,8 +4,58 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUnidadeIdPadrao } from "@/lib/data/unidades";
 import { exigirAdmin, exigirOperador } from "@/lib/auth";
+import { somarMeses } from "@/lib/date";
 
-export type CatalogoFormState = { error: string } | { ok: true } | undefined;
+export type CatalogoFormState = { error: string } | { ok: true; mensagem?: string } | undefined;
+
+// Catálogos cuja periodicidade gera vencimento gravado nos registros. Mudar a periodicidade
+// não altera sozinho o que já foi registrado; o formulário pergunta se deve recalcular.
+const RECALCULO_VENCIMENTO: Record<string, { tabela: string; coluna: string; rotulo: string }> = {
+  config_nrs_catalogo: { tabela: "treinamentos", coluna: "nr_numero", rotulo: "treinamento(s)" },
+  config_tipos_exame: { tabela: "exames_complementares_registros", coluna: "exame_id", rotulo: "exame(s)" },
+};
+
+// Recalcula data + nova periodicidade nos registros ativos daquele item. Só mexe nos
+// vencimentos que seguiam o cálculo automático com a periodicidade antiga (data + antiga,
+// ou vazio quando não havia periodicidade): vencimento ajustado à mão fica como está.
+async function recalcularVencimentos(
+  tabelaCatalogo: string,
+  itemId: string,
+  periodicidadeAntiga: number | null,
+  periodicidadeNova: number | null,
+) {
+  const alvo = RECALCULO_VENCIMENTO[tabelaCatalogo];
+  const supabase = await createClient();
+  const { data: registros, error } = await supabase
+    .schema("rh")
+    .from(alvo.tabela)
+    .select("id, data, data_vencimento")
+    .eq(alvo.coluna, itemId)
+    .eq("ativo", true);
+  if (error) throw new Error(error.message);
+
+  let recalculados = 0;
+  let mantidos = 0;
+  for (const r of registros ?? []) {
+    const esperadoAntigo = periodicidadeAntiga ? somarMeses(r.data, periodicidadeAntiga) : null;
+    if ((r.data_vencimento ?? null) !== esperadoAntigo) {
+      mantidos++;
+      continue;
+    }
+    const novo = periodicidadeNova ? somarMeses(r.data, periodicidadeNova) : null;
+    const { error: e } = await supabase
+      .schema("rh")
+      .from(alvo.tabela)
+      .update({ data_vencimento: novo })
+      .eq("id", r.id);
+    if (e) throw new Error(e.message);
+    recalculados++;
+  }
+
+  let mensagem = `${recalculados} ${alvo.rotulo} com o vencimento recalculado.`;
+  if (mantidos) mensagem += ` ${mantidos} mantido(s) porque o vencimento tinha sido ajustado à mão.`;
+  return mensagem;
+}
 
 // Catálogos do Planejamento de Gente são só de admin (igual às políticas RLS da tabela);
 // os demais seguem a regra geral de operador+.
@@ -97,11 +147,39 @@ export async function atualizarItemCatalogo(
     valores[campo] = valor === "" ? null : valor;
   }
 
+  // Periodicidade antes da alteração, para saber quais vencimentos eram automáticos.
+  const comVencimento = tabela in RECALCULO_VENCIMENTO && campos.includes("periodicidade_meses");
+  let periodicidadeAntiga: number | null = null;
+  if (comVencimento) {
+    const { data: atual, error: e } = await supabase
+      .schema("rh")
+      .from(tabela)
+      .select("periodicidade_meses")
+      .eq("id", id)
+      .single();
+    if (e) return { error: e.message };
+    periodicidadeAntiga = atual.periodicidade_meses ?? null;
+  }
+
   const { error } = await supabase.schema("rh").from(tabela).update(valores).eq("id", id);
   if (error) return { error: error.message };
 
+  let mensagem: string | undefined;
+  const periodicidadeNova = valores.periodicidade_meses == null ? null : Number(valores.periodicidade_meses);
+  if (comVencimento && formData.get("recalcular") === "sim" && periodicidadeNova !== periodicidadeAntiga) {
+    try {
+      mensagem = await recalcularVencimentos(tabela, id, periodicidadeAntiga, periodicidadeNova);
+    } catch (e) {
+      revalidar();
+      return { error: `Periodicidade salva, mas o recálculo falhou: ${(e as Error).message}` };
+    }
+    revalidatePath("/treinamentos");
+    revalidatePath("/aso");
+    revalidatePath("/colaboradores", "layout");
+  }
+
   revalidar();
-  return { ok: true };
+  return { ok: true, mensagem };
 }
 
 // "Remover" nunca apaga uso já feito: some da lista de sugestão via ativo=false.
